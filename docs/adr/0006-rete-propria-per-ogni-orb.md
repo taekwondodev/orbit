@@ -21,4 +21,5 @@ Così un orb è isolato anche a livello di rete, non solo dal firewall: non cond
 ## Fonti
 
 - Quote predefinite di Neutron, `DEFAULT_QUOTA_ROUTER = 10` e `DEFAULT_QUOTA_SG = 10`: <https://opendev.org/openstack/neutron/src/branch/master/neutron/conf/quota.py>
+- Il security group `default` conta nella quota: il plugin ML2 traccia i security group col modello `SecurityGroup` e l'uso si conta come righe filtrate solo per `project_id`, senza escludere `is_default`: <https://opendev.org/openstack/neutron/src/branch/master/neutron/plugins/ml2/plugin.py> (`tracked_resources`), <https://opendev.org/openstack/neutron/src/branch/master/neutron/quota/resource.py> (`TrackedResource.count_used`)
 - Risorse Heat `OS::Neutron::Router` (`external_gateway_info.network`), `OS::Neutron::RouterInterface`, `OS::Neutron::Subnet`: <https://opendev.org/openstack/heat/src/branch/master/heat/engine/resources/openstack/neutron>
