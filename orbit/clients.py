@@ -19,15 +19,20 @@ class CapacityExhausted(Exception):
     """Blazar non ha un host con posto per la taglia chiesta."""
 
 
+class Rejected(Exception):
+    """Il servizio chiamato ha rifiutato la richiesta, col suo motivo."""
+
+
 @dataclasses.dataclass(frozen=True)
 class Clients:
     blazar: 'Blazar'
+    heat: 'Heat'
 
 
 def for_auth(auth):
     """I client che agiscono a nome di chi possiede ``auth``."""
     session = ks_session.Session(auth=auth)
-    return Clients(blazar=Blazar(session))
+    return Clients(blazar=Blazar(session), heat=Heat(session))
 
 
 class _Client:
@@ -104,7 +109,7 @@ class Blazar(_Client):
             'events': [],
         }
         try:
-            response = self._call('POST', '/v1/leases', json=body)
+            response = self._call('POST', '/leases', json=body)
         except Unavailable as e:
             if self._CAPACITY_MESSAGE in str(e):
                 raise CapacityExhausted(self._CAPACITY_MESSAGE) from e
@@ -113,12 +118,12 @@ class Blazar(_Client):
 
     def get_lease(self, lease_id):
         """Il lease, o None se non esiste piu."""
-        body = self._get_or_none(f'/v1/leases/{lease_id}')
+        body = self._get_or_none(f'/leases/{lease_id}')
         return _lease(body['lease']) if body else None
 
     def delete_lease(self, lease_id):
         """Cancella il lease; un lease gia sparito non e un errore."""
-        self._delete_if_present(f'/v1/leases/{lease_id}')
+        self._delete_if_present(f'/leases/{lease_id}')
 
 
 def _lease(body):
@@ -126,3 +131,69 @@ def _lease(body):
     return Lease(id=body['id'], status=body['status'],
                  reservation_id=reservation['id'],
                  reservation_status=reservation['status'])
+
+
+@dataclasses.dataclass(frozen=True)
+class Stack:
+    id: str
+    status: str
+    status_reason: str
+    outputs: dict
+
+
+class Heat(_Client):
+    service_type = 'orchestration'
+
+    def create_stack(self, name, template, parameters, tag):
+        """Crea lo stack e ne restituisce l'identificativo.
+
+        Heat costruisce in modo asincrono: la risposta arriva appena lo stack
+        e accettato, e lo stato si scopre leggendolo.
+        """
+        body = {
+            'stack_name': name,
+            'template': template,
+            'parameters': parameters,
+            'tags': tag,
+            # Uno stack fallito resta in piedi per la diagnosi: lo cancella
+            # solo DELETE sull'orb (docs/design/api.md).
+            'disable_rollback': True,
+        }
+        try:
+            response = self._call('POST', '/stacks', json=body)
+        except ks_exc.HTTPClientError as e:
+            raise Rejected(_heat_message(e)) from e
+        return response.json()['stack']['id']
+
+    def get_stack(self, name):
+        """Lo stack col nome dato, o None se non esiste o e gia cancellato.
+
+        Heat risponde a /stacks/{nome} con un rinvio a /stacks/{nome}/{id},
+        che keystoneauth segue.
+        """
+        body = self._get_or_none(f'/stacks/{name}')
+        if body is None or body['stack']['stack_status'] == 'DELETE_COMPLETE':
+            return None
+        stack = body['stack']
+        outputs = {output['output_key']: output.get('output_value')
+                   for output in stack.get('outputs') or []}
+        return Stack(id=stack['id'], status=stack['stack_status'],
+                     status_reason=stack.get('stack_status_reason') or '',
+                     outputs=outputs)
+
+    def delete_stack(self, name):
+        """Cancella lo stack; uno stack gia sparito non e un errore.
+
+        Il rinvio di /stacks/{nome} vale solo per le letture: la
+        cancellazione va fatta sull'indirizzo completo, con l'identificativo.
+        """
+        stack = self.get_stack(name)
+        if stack is not None:
+            self._delete_if_present(f'/stacks/{name}/{stack.id}')
+
+
+def _heat_message(error):
+    try:
+        return error.response.json()['error']['message']
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return _error_text(error)

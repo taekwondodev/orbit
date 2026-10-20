@@ -156,7 +156,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 | [Architettura](docs/architettura.md) | confini di proprietà, sequenza completa, requisiti di installazione |
 | [Contratto della API](docs/design/api.md) | risorse HTTP, stati, errori |
 | [Stato conservato](docs/design/stato.md) | la tabella del servizio e il riallineamento |
-| [Template dell'orb](templates/orb.yaml) | descrizione Heat delle risorse di un orb |
+| [Template dell'orb](orbit/templates/orb.yaml) | descrizione Heat delle risorse di un orb |
 | [Decisioni](docs/adr/) | le cinque scelte di forma, con motivazione e fonti |
 
 ## Stato dei lavori
@@ -167,7 +167,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Plugin DevStack e scheletro eseguibile del servizio, da verificare su DevStack
 - [x] Tabella `orbs` e accesso ai dati, da verificare su DevStack
 - [x] Prenotazione della capacità, da verificare su DevStack
-- [ ] Attesa della prenotazione e creazione dello stack
+- [x] Attesa della prenotazione e creazione dello stack, da verificare su DevStack
 - [ ] Lettura dello stato reale e cancellazione
 - [ ] Plugin per `openstack` da riga di comando
 - [ ] Test automatici

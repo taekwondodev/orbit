@@ -1,7 +1,6 @@
 import unittest
 from unittest import mock
 
-from orbit import clients
 from orbit import conf
 from orbit import orb as orb_model
 from orbit import service
@@ -18,10 +17,12 @@ class TestCreate(unittest.TestCase):
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
-        self.blazar = fakes.FakeBlazar()
+        self.clients = fakes.fake_clients()
+        self.blazar = self.clients.blazar
+        self.creator = fakes.FakeCreator()
         self.repository = mock.Mock(wraps=fakes.repository())
-        self.orbs = service.Orbs(
-            self.repository, lambda auth: clients.Clients(blazar=self.blazar))
+        self.orbs = service.Orbs(self.repository, lambda auth: self.clients,
+                                 self.creator)
 
     def test_lease_is_deleted_when_the_orb_cannot_be_recorded(self):
         self.repository.add.side_effect = RuntimeError('database down')
@@ -30,3 +31,4 @@ class TestCreate(unittest.TestCase):
             self.orbs.create(CONTEXT, REQUEST)
 
         self.assertEqual({}, self.blazar.leases)
+        self.assertEqual([], self.creator.started)

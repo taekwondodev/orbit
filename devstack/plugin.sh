@@ -17,6 +17,10 @@ function configure_orbit {
     iniset $ORBIT_CONF database connection "$(database_connection_url orbit)"
 
     iniset $ORBIT_CONF orbs default_image "$DEFAULT_IMAGE_NAME"
+    # La rete privata di DevStack appartiene al progetto demo: gli orb di
+    # altri progetti hanno bisogno di una rete propria, indicata qui.
+    iniset $ORBIT_CONF orbs network "$PRIVATE_NETWORK_NAME"
+    iniset $ORBIT_CONF orbs public_network "$PUBLIC_NETWORK_NAME"
     if [[ "$DEFAULT_IMAGE_NAME" == cirros* ]]; then
         iniset $ORBIT_CONF orbs ssh_users "$DEFAULT_IMAGE_NAME:cirros"
     fi

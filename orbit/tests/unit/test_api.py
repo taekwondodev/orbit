@@ -14,14 +14,16 @@ class ApiTestCase(unittest.TestCase):
         self.addCleanup(conf.CONF.reset)
         conf.CONF.set_override('default_image', 'cirros', 'orbs')
         conf.CONF.set_override('ssh_users', {'cirros': 'cirros'}, 'orbs')
-        self.blazar = fakes.FakeBlazar()
+        self.clients = fakes.fake_clients()
+        self.blazar = self.clients.blazar
+        self.creator = fakes.FakeCreator()
         self.repository = fakes.repository()
-        orbs = service.Orbs(self.repository, self._clients_for)
+        orbs = service.Orbs(self.repository, self._clients_for, self.creator)
         self.client = app.create_app(orbs).test_client()
 
     def _clients_for(self, auth):
         self.assertEqual('auth-of-project-a', auth)
-        return clients.Clients(blazar=self.blazar)
+        return self.clients
 
     def request(self, method, path, project='project-a', **kwargs):
         environ = {'HTTP_X_PROJECT_ID': project, 'HTTP_X_USER_ID': 'user-a',
@@ -56,6 +58,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('lease-1', stored.lease_id)
         self.assertEqual('reservation-1', stored.reservation_id)
         self.assertEqual(size, stored.size)
+        self.assertEqual([(stored, fakes.PUBLIC_KEY)], self.creator.started)
 
     def test_capacity_exhausted_is_409_and_leaves_no_orb(self):
         self.blazar.refuse_with = clients.CapacityExhausted('no room')
@@ -64,6 +67,7 @@ class TestCreate(ApiTestCase):
 
         self.assertEqual(409, response.status_code)
         self.assertEqual([], self.repository.list('project-a'))
+        self.assertEqual([], self.creator.started)
 
     def test_unreachable_blazar_is_503(self):
         self.blazar.refuse_with = clients.Unavailable('reservation: down')

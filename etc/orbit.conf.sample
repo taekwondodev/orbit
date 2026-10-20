@@ -471,3 +471,23 @@
 # scadenza: Blazar esige una fine, l'orb finisce con DELETE (docs/adr/0003).
 # (string value)
 #lease_end_date = 2099-12-31 23:59
+
+# Secondi entro cui la prenotazione deve attivarsi e lo stack essere creato.
+# Oltre, il compito di creazione rinuncia e un orb senza stack risulta
+# interrotto. (integer value)
+# Minimum value: 1
+#creation_timeout = 120
+
+# Secondi fra due letture del lease mentre si attende la prenotazione attiva.
+# (floating point value)
+# Minimum value: 0.1
+#reservation_poll_interval = 2.0
+
+# Rete di progetto a cui collegare gli orb. (string value)
+#network = private
+
+# Rete esterna da cui prendere l'indirizzo raggiungibile. (string value)
+#public_network = public
+
+# Da dove e ammesso l'accesso SSH agli orb. (string value)
+#ssh_allowed_cidr = 0.0.0.0/0

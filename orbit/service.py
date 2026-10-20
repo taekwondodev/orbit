@@ -33,12 +33,14 @@ class Observed:
 
 class Orbs:
 
-    def __init__(self, repository, clients_for):
+    def __init__(self, repository, clients_for, creator):
         self._repository = repository
         self._clients_for = clients_for
+        self._creator = creator
 
     def create(self, context, request):
-        """Prenota la capacita e registra l'orb in RESERVING.
+        """Prenota la capacita, registra l'orb in RESERVING e avvia la
+        creazione, che prosegue dopo la risposta.
 
         Se Blazar rifiuta la prenotazione non resta nulla: ne lease ne riga.
         """
@@ -62,6 +64,7 @@ class Orbs:
         except Exception:
             clients.blazar.delete_lease(lease.id)
             raise
+        self._creator.start(orb, clients, request.public_key)
         return Observed(orb)
 
     def get(self, context, orb_id):

@@ -72,3 +72,47 @@ class FakeBlazar:
         lease = self.leases[lease_id]
         self.leases[lease_id] = dataclasses.replace(
             lease, status='ACTIVE', reservation_status='active')
+
+
+class FakeHeat:
+    """Un Heat in memoria: gli stack nascono in costruzione."""
+
+    def __init__(self):
+        self.stacks = {}
+        self.created = []
+        self.refuse_with = None
+
+    def create_stack(self, name, template, parameters, tag):
+        if self.refuse_with:
+            raise self.refuse_with
+        self.created.append((name, template, parameters, tag))
+        stack = clients.Stack(id=f'stack-{len(self.created)}',
+                              status='CREATE_IN_PROGRESS', status_reason='',
+                              outputs={})
+        self.stacks[name] = stack
+        return stack.id
+
+    def get_stack(self, name):
+        return self.stacks.get(name)
+
+    def delete_stack(self, name):
+        self.stacks.pop(name, None)
+
+    def set_status(self, name, status, reason='', **outputs):
+        self.stacks[name] = dataclasses.replace(
+            self.stacks[name], status=status, status_reason=reason,
+            outputs=outputs)
+
+
+class FakeCreator:
+    """Registra le creazioni avviate senza eseguirle."""
+
+    def __init__(self):
+        self.started = []
+
+    def start(self, orb, clients, public_key):
+        self.started.append((orb, public_key))
+
+
+def fake_clients():
+    return clients.Clients(blazar=FakeBlazar(), heat=FakeHeat())

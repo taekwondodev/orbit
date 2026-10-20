@@ -27,6 +27,19 @@ orbs_opts = [
                help='Data di fine dei lease, nel formato di Blazar '
                     '"AAAA-MM-GG hh:mm". Non e una scadenza: Blazar esige '
                     'una fine, l\'orb finisce con DELETE (docs/adr/0003).'),
+    cfg.IntOpt('creation_timeout', default=120, min=1,
+               help='Secondi entro cui la prenotazione deve attivarsi e lo '
+                    'stack essere creato. Oltre, il compito di creazione '
+                    'rinuncia e un orb senza stack risulta interrotto.'),
+    cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
+                 help='Secondi fra due letture del lease mentre si attende '
+                      'la prenotazione attiva.'),
+    cfg.StrOpt('network', default='private',
+               help='Rete di progetto a cui collegare gli orb.'),
+    cfg.StrOpt('public_network', default='public',
+               help='Rete esterna da cui prendere l\'indirizzo raggiungibile.'),
+    cfg.StrOpt('ssh_allowed_cidr', default='0.0.0.0/0',
+               help='Da dove e ammesso l\'accesso SSH agli orb.'),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')
