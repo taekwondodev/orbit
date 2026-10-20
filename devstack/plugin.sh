@@ -16,6 +16,11 @@ function configure_orbit {
     configure_keystone_authtoken_middleware $ORBIT_CONF orbit
     iniset $ORBIT_CONF database connection "$(database_connection_url orbit)"
 
+    iniset $ORBIT_CONF orbs default_image "$DEFAULT_IMAGE_NAME"
+    if [[ "$DEFAULT_IMAGE_NAME" == cirros* ]]; then
+        iniset $ORBIT_CONF orbs ssh_users "$DEFAULT_IMAGE_NAME:cirros"
+    fi
+
     write_uwsgi_config "$ORBIT_UWSGI_CONF" "$ORBIT_UWSGI" "/orbit" "" "orbit-api"
     # Un solo processo: il compito di creazione vive nella memoria del
     # processo che ha ricevuto la richiesta (docs/architettura.md). I thread

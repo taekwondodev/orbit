@@ -14,6 +14,7 @@ class TestAuthentication(unittest.TestCase):
         conf.CONF.set_override('www_authenticate_uri',
                                'http://keystone.invalid/identity',
                                'keystone_authtoken')
+        conf.CONF.set_override('connection', 'sqlite://', 'database')
 
     def test_request_without_token_is_rejected(self):
         client = werkzeug_test.Client(app.create_wsgi_app())

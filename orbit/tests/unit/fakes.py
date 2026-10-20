@@ -1,7 +1,10 @@
 """Oggetti di prova condivisi dai test unitari."""
 
+import dataclasses
+
 import sqlalchemy as sa
 
+from orbit import clients
 from orbit.db import api as db_api
 from orbit.db import migration
 from orbit import orb as orb_model
@@ -34,3 +37,38 @@ def orb(**overrides):
 
 def repository():
     return db_api.OrbRepository(database())
+
+
+PUBLIC_KEY = ('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGOhftmAAN4BAVfQqYzlzcso'
+              '+BQ5/8gHIjywO8hhD6es test@orbit')
+
+
+class FakeBlazar:
+    """Un Blazar in memoria: i lease nascono in attesa di attivazione."""
+
+    def __init__(self):
+        self.leases = {}
+        self.created = []
+        self.refuse_with = None
+
+    def create_lease(self, name, size, end_date):
+        if self.refuse_with:
+            raise self.refuse_with
+        self.created.append((name, size, end_date))
+        lease = clients.Lease(id=f'lease-{len(self.created)}',
+                              status='PENDING',
+                              reservation_id=f'reservation-{len(self.created)}',
+                              reservation_status='pending')
+        self.leases[lease.id] = lease
+        return lease
+
+    def get_lease(self, lease_id):
+        return self.leases.get(lease_id)
+
+    def delete_lease(self, lease_id):
+        self.leases.pop(lease_id, None)
+
+    def activate(self, lease_id):
+        lease = self.leases[lease_id]
+        self.leases[lease_id] = dataclasses.replace(
+            lease, status='ACTIVE', reservation_status='active')

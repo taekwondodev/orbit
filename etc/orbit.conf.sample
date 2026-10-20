@@ -435,3 +435,39 @@
 
 # Config Section from which to load plugin specific options (string value)
 #auth_section = <None>
+
+
+[orbs]
+
+#
+# From orbit
+#
+
+# Processori massimi di un orb. (integer value)
+# Minimum value: 1
+#max_vcpus = 8
+
+# Memoria massima di un orb, in MiB. (integer value)
+# Minimum value: 1
+#max_memory_mb = 16384
+
+# Disco massimo di un orb, in GiB. (integer value)
+# Minimum value: 1
+#max_disk_gb = 80
+
+# Immagine usata quando la richiesta non ne indica una. Senza valore, la
+# richiesta deve indicarla. (string value)
+#default_image = <None>
+
+# Utente SSH restituito per le immagini senza una voce in ssh_users. (string
+# value)
+#default_ssh_user = ubuntu
+
+# Utente SSH per immagine, come immagine:utente. L'utente dipende dall'immagine
+# e il client non deve indovinarlo. (dict value)
+#ssh_users =
+
+# Data di fine dei lease, nel formato di Blazar "AAAA-MM-GG hh:mm". Non e una
+# scadenza: Blazar esige una fine, l'orb finisce con DELETE (docs/adr/0003).
+# (string value)
+#lease_end_date = 2099-12-31 23:59

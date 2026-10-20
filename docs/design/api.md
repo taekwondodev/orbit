@@ -75,7 +75,7 @@ Un orb in `ERROR` **non** si cancella da sé. È una scelta a favore della diagn
 | `400` | taglia o chiave pubblica mancanti, malformate o oltre i limiti |
 | `401` | token assente, scaduto o non valido |
 | `404` | orb inesistente o di un altro progetto (indistinguibili di proposito) |
-| `409` | capacità esaurita: Blazar ha rifiutato la prenotazione |
+| `409` | capacità esaurita: Blazar ha rifiutato la prenotazione. Blazar non usa un codice dedicato: risponde `500` col messaggio `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) non dichiara un codice, e [lo strato API](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) lo inoltra tale e quale), e il servizio lo riconosce dal messaggio |
 | `503` | Blazar, Heat o Nova non raggiungibili |
 
 Poiché il lease si crea durante la richiesta, la mancanza di capacità è un errore della richiesta e non lascia nessun orb. Il fallimento della costruzione, compresa la quota del progetto esaurita, si manifesta invece come `ERROR` sull'orb con il motivo riportato da Heat: lo stack viene creato dopo la risposta `202`.
