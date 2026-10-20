@@ -60,6 +60,8 @@ Ogni lettura di un orb, singola o in elenco, confronta ciò che la tabella affer
 | orb in `DELETING`, stack e lease assenti | `DELETED` |
 | stack `DELETE_FAILED` | `ERROR`, motivo dallo stack; un nuovo `DELETE` ritenta |
 
+Un orb già in `ERROR` che resta in errore conserva il primo motivo, che è quello utile alla diagnosi; se invece la realtà torna a posto, per esempio una macchina spenta viene riaccesa, l'orb torna `ACTIVE`. Durante la cancellazione lo stack si cerca per nome anche se l'orb non ne ha registrato uno: il compito di creazione potrebbe averlo creato senza aver fatto in tempo a scriverlo.
+
 La macchina va letta oltre allo stack perché Heat non si accorge di una macchina cancellata o spenta da fuori: lo stack resta `CREATE_COMPLETE`. Il lease va letto perché, se qualcuno lo cancella a mano, Blazar distrugge la macchina.
 
 Il compito che attende la prenotazione e crea lo stack vive solo in memoria, nel processo che ha ricevuto la richiesta: nessun altro processo può sapere se è ancora in corso. Per questo il criterio è il tempo: un orb senza stack oltre il limite di attesa configurato si considera interrotto, e il compito stesso rinuncia allo scadere dello stesso limite.

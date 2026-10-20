@@ -15,6 +15,7 @@ class ApiTestCase(unittest.TestCase):
         conf.CONF.set_override('default_image', 'cirros', 'orbs')
         conf.CONF.set_override('ssh_users', {'cirros': 'cirros'}, 'orbs')
         self.clients = fakes.fake_clients()
+        self.auths = []
         self.blazar = self.clients.blazar
         self.creator = fakes.FakeCreator()
         self.repository = fakes.repository()
@@ -22,7 +23,7 @@ class ApiTestCase(unittest.TestCase):
         self.client = app.create_app(orbs).test_client()
 
     def _clients_for(self, auth):
-        self.assertEqual('auth-of-project-a', auth)
+        self.auths.append(auth)
         return self.clients
 
     def request(self, method, path, project='project-a', **kwargs):
@@ -59,6 +60,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('reservation-1', stored.reservation_id)
         self.assertEqual(size, stored.size)
         self.assertEqual([(stored, fakes.PUBLIC_KEY)], self.creator.started)
+        self.assertEqual(['auth-of-project-a'], self.auths)
 
     def test_capacity_exhausted_is_409_and_leaves_no_orb(self):
         self.blazar.refuse_with = clients.CapacityExhausted('no room')
@@ -132,3 +134,26 @@ class TestRead(ApiTestCase):
         response = self.request('GET', '/v1/orbs', project='')
 
         self.assertEqual(403, response.status_code)
+
+
+class TestDelete(ApiTestCase):
+
+    def test_delete_is_202_and_repeatable(self):
+        orb_id = self.create().get_json()['id']
+
+        first = self.request('DELETE', f'/v1/orbs/{orb_id}')
+        second = self.request('DELETE', f'/v1/orbs/{orb_id}')
+
+        self.assertEqual(202, first.status_code)
+        self.assertEqual('DELETING', first.get_json()['status'])
+        self.assertEqual(202, second.status_code)
+        self.assertEqual(first.get_json(), second.get_json())
+
+    def test_delete_of_another_project_orb_is_404(self):
+        orb_id = self.create().get_json()['id']
+
+        response = self.request('DELETE', f'/v1/orbs/{orb_id}',
+                                project='project-b')
+
+        self.assertEqual(404, response.status_code)
+        self.assertEqual(1, len(self.blazar.leases))

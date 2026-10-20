@@ -168,7 +168,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Tabella `orbs` e accesso ai dati, da verificare su DevStack
 - [x] Prenotazione della capacità, da verificare su DevStack
 - [x] Attesa della prenotazione e creazione dello stack, da verificare su DevStack
-- [ ] Lettura dello stato reale e cancellazione
+- [x] Lettura dello stato reale e cancellazione, da verificare su DevStack
 - [ ] Plugin per `openstack` da riga di comando
 - [ ] Test automatici
 - [ ] Installazione e percorso completo verificati su DevStack

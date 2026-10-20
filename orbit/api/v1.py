@@ -59,6 +59,14 @@ def show_orb(orb_id):
     return _view(observed)
 
 
+@blueprint.delete('/orbs/<orb_id>')
+def delete_orb(orb_id):
+    observed = _orbs().delete(_context(), orb_id)
+    if observed is None:
+        raise http_exc.NotFound(f'Orb {orb_id} non trovato.')
+    return _view(observed), 202
+
+
 @blueprint.errorhandler(clients.CapacityExhausted)
 def _capacity_exhausted(error):
     return _error(409, 'Capacita esaurita: nessun host ha posto per la '

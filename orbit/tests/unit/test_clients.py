@@ -176,3 +176,29 @@ class TestHeat(unittest.TestCase):
         self.heat.delete_stack('orbit-1')
 
         self.assertEqual('GET', self.http.last_request.method)
+
+
+NOVA = 'http://nova.test/compute/v2.1'
+
+
+class TestNova(unittest.TestCase):
+
+    def setUp(self):
+        session = ks_session.Session(
+            auth=token_endpoint.Token(NOVA, 'user-token'))
+        self.nova = clients.Nova(session)
+        self.http = requests_mock.Mocker()
+        self.http.start()
+        self.addCleanup(self.http.stop)
+
+    def test_server_status_is_read(self):
+        self.http.get(f'{NOVA}/servers/server-1',
+                      json={'server': {'id': 'server-1', 'status': 'SHUTOFF'}})
+
+        self.assertEqual(clients.Server('server-1', 'SHUTOFF'),
+                         self.nova.get_server('server-1'))
+
+    def test_missing_server_reads_as_none(self):
+        self.http.get(f'{NOVA}/servers/server-1', status_code=404)
+
+        self.assertIsNone(self.nova.get_server('server-1'))

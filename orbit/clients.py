@@ -27,12 +27,14 @@ class Rejected(Exception):
 class Clients:
     blazar: 'Blazar'
     heat: 'Heat'
+    nova: 'Nova'
 
 
 def for_auth(auth):
     """I client che agiscono a nome di chi possiede ``auth``."""
     session = ks_session.Session(auth=auth)
-    return Clients(blazar=Blazar(session), heat=Heat(session))
+    return Clients(blazar=Blazar(session), heat=Heat(session),
+                   nova=Nova(session))
 
 
 class _Client:
@@ -197,3 +199,24 @@ def _heat_message(error):
         return error.response.json()['error']['message']
     except (AttributeError, KeyError, TypeError, ValueError):
         return _error_text(error)
+
+
+@dataclasses.dataclass(frozen=True)
+class Server:
+    id: str
+    status: str
+
+
+class Nova(_Client):
+    service_type = 'compute'
+
+    def get_server(self, server_id):
+        """La macchina, o None se non esiste piu.
+
+        Heat non si accorge di una macchina cancellata o spenta da fuori:
+        lo stack resta CREATE_COMPLETE, quindi la macchina va letta qui.
+        """
+        body = self._get_or_none(f'/servers/{server_id}')
+        if body is None:
+            return None
+        return Server(id=body['server']['id'], status=body['server']['status'])

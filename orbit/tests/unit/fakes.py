@@ -114,5 +114,15 @@ class FakeCreator:
         self.started.append((orb, public_key))
 
 
+class FakeNova:
+
+    def __init__(self):
+        self.servers = {}
+
+    def get_server(self, server_id):
+        return self.servers.get(server_id)
+
+
 def fake_clients():
-    return clients.Clients(blazar=FakeBlazar(), heat=FakeHeat())
+    return clients.Clients(blazar=FakeBlazar(), heat=FakeHeat(),
+                           nova=FakeNova())
