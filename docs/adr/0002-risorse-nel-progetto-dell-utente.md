@@ -8,9 +8,9 @@ Il servizio crea le risorse a nome del consumatore, inoltrando il token ricevuto
 
 ## Conseguenza accettata
 
-Il token dell'utente vale solo durante la sua richiesta, e basta: poiché un orb non scade ([0003](0003-nessuna-scadenza.md)), ogni operazione sulle risorse dell'utente — creazione, lettura dello stato, cancellazione — avviene mentre l'utente sta facendo una richiesta. Il servizio non agisce mai sulle risorse dell'utente in sua assenza, e quindi non conserva deleghe.
+Il token dell'utente vale circa un'ora, e basta: poiché un orb non scade ([0003](0003-nessuna-scadenza.md)), ogni operazione sulle risorse dell'utente avviene durante una sua richiesta o nei secondi immediatamente successivi. L'unico lavoro che segue la risposta è l'attesa della prenotazione e la creazione dello stack ([0005](0005-prenotazione-accanto-allo-stack.md)), e usa il token della richiesta tenuto in memoria. Il servizio non conserva né token né deleghe, e non ha privilegi propri sulle risorse degli utenti.
 
-L'eccezione è il flavor dell'orb, che non appartiene al progetto dell'utente e si gestisce con la credenziale del servizio: vedi [0004](0004-flavor-privato-per-ogni-orb.md).
+Il prezzo è che un lavoro interrotto, per esempio da un riavvio del servizio durante l'attesa, non viene ripreso da solo: l'orb finisce in `ERROR` alla lettura successiva, e l'utente lo cancella e ne chiede un altro.
 
 ## Fonti
 

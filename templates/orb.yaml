@@ -2,8 +2,9 @@ heat_template_version: 2021-04-16
 
 description: >
   Risorse di un orb di orbit: chiave, firewall, porta, indirizzo raggiungibile
-  e macchina. Il flavor NON fa parte di questo stack: lo crea prima il servizio
-  con la propria credenziale e qui arriva come parametro. Vedi docs/adr/0004.
+  e macchina, creata dentro una prenotazione Blazar gia attiva. Il lease NON fa
+  parte di questo stack: lo crea prima il servizio e qui arriva la sua
+  prenotazione come parametro. Vedi docs/adr/0005.
 
 parameters:
 
@@ -11,11 +12,14 @@ parameters:
     type: string
     description: Identificativo dell'orb, usato per nominare le risorse.
 
-  flavor:
+  reservation_id:
     type: string
     description: >
-      Flavor privato dell'orb, creato dal servizio con la taglia richiesta e
-      accessibile solo al progetto che crea questo stack.
+      Identificativo della prenotazione Blazar. Blazar crea un flavor non
+      pubblico con questo stesso identificativo e la taglia dell'orb, e lo
+      rende accessibile al progetto quando la prenotazione diventa attiva:
+      creare la macchina con quel flavor e il modo con cui la macchina
+      finisce dentro la prenotazione.
 
   image:
     type: string
@@ -87,7 +91,7 @@ resources:
     properties:
       name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
       image: { get_param: image }
-      flavor: { get_param: flavor }
+      flavor: { get_param: reservation_id }
       key_name: { get_resource: keypair }
       networks:
         - port: { get_resource: port }
@@ -103,6 +107,7 @@ outputs:
   server_id:
     description: >
       Macchina dell'orb. Il servizio la legge a ogni lettura dell'orb, perche
-      Heat non si accorge se viene cancellata o spenta da fuori: lo stack
-      resterebbe CREATE_COMPLETE. Vedi docs/design/stato.md.
+      Heat non si accorge se viene cancellata o spenta da fuori, anche da
+      Blazar alla cancellazione del lease: lo stack resterebbe CREATE_COMPLETE.
+      Vedi docs/design/stato.md.
     value: { get_resource: server }

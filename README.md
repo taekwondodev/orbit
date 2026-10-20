@@ -11,9 +11,9 @@
 | **Tipo** | nuovo servizio OpenStack, non un'estensione di un servizio esistente |
 | **Ambiente** | DevStack, installato tramite plugin |
 | **Linguaggio** | Python |
-| **Componenti integrati** | Keystone, Heat, Nova; Neutron tramite Heat |
+| **Componenti integrati** | Keystone, Blazar, Heat; Nova e Neutron indirettamente |
 | **Interfacce** | API REST, plugin per `openstack` da riga di comando |
-| **Risorsa gestita** | l'*orb*: una macchina isolata, dimensionata su richiesta, con le sue risorse di contorno |
+| **Risorsa gestita** | l'*orb*: una macchina isolata, con capacità prenotata su misura e le sue risorse di contorno |
 | **Stato** | progettazione conclusa, implementazione da iniziare |
 
 ---
@@ -22,19 +22,20 @@
 
 Chi esegue lavori non fidati o distruttivi — compilazioni, test, un agente che modifica un repository — ha bisogno di una macchina intera, non di una cartella. Quella macchina deve essere **isolata**, **dimensionata sul lavoro** e, quando il lavoro finisce, deve sparire **senza lasciare niente dietro**: né la macchina, né la chiave, né il firewall, né l'indirizzo.
 
-Fatto a mano, con una manciata di comandi `openstack`, ognuno di questi punti si rompe: le taglie disponibili sono quelle del catalogo, una creazione fallita a metà lascia pezzi sparsi, una cancellazione dimenticata lascia un indirizzo occupato. `orbit` tratta la sandbox come un oggetto unico, l'orb, che nasce intero e muore intero.
+Fatto a mano, con una manciata di comandi `openstack`, ognuno di questi punti si rompe: le taglie disponibili sono quelle del catalogo, una macchina può non trovare posto dopo che il resto è già stato creato, una creazione fallita a metà lascia pezzi sparsi, una cancellazione dimenticata lascia un indirizzo occupato. `orbit` tratta la sandbox come un oggetto unico, l'orb, che nasce intero e muore intero.
 
 ## Cosa fa
 
 - Accetta la **taglia** richiesta — processori, memoria, disco — orb per orb, senza cataloghi di dimensioni prefissate.
+- **Prenota la capacità** prima di costruire: se non c'è posto lo dice subito, invece di fallire a metà.
 - Crea l'orb nel **progetto di chi lo chiede**: compare fra le sue risorse e consuma la sua quota.
 - Installa la **chiave pubblica fornita dal client** e restituisce indirizzo e utente per l'accesso SSH.
-- **Cancella tutto** con una sola richiesta, ripetibile senza errore.
+- **Cancella tutto** con una sola richiesta, ripetibile senza errore: capacità, flavor, macchina e risorse di contorno.
 - **Dice la verità** sullo stato: ogni lettura guarda le risorse reali, quindi una macchina cancellata a mano non lascia un orb che mente.
 
 ## Cosa non fa
 
-Non entra nell'orb: non esegue comandi, non copia file, non sa cosa ci gira dentro. Consegna un indirizzo e si fa da parte. Non decide quando un orb deve finire: lo decide chi l'ha chiesto. Non prepara immagini, non fa da proxy, non gestisce più di una macchina per orb.
+Non entra nell'orb: non esegue comandi, non copia file, non sa cosa ci gira dentro. Consegna un indirizzo e si fa da parte. Non decide quando un orb deve finire: lo decide chi l'ha chiesto. Non conserva token né deleghe. Non prepara immagini, non fa da proxy, non gestisce più di una macchina per orb.
 
 ---
 
@@ -46,32 +47,27 @@ flowchart LR
 
     subgraph svc["orbit"]
         direction TB
-        api["orbit-api<br/>autentica, crea, legge lo stato reale"]
-        cln["orbit-cleaner<br/>rimuove i flavor non più usati"]
+        api["orbit-api<br/>autentica, prenota, crea,<br/>legge lo stato reale"]
         db[("tabella<br/>orbs")]
     end
 
     ks["Keystone<br/>identità"]
-    nova["Nova<br/>flavor su misura"]
+    blz["Blazar<br/>capacità e flavor su misura"]
     heat["Heat<br/>risorse dell'orb"]
     infra["Nova + Neutron<br/>macchina, rete, firewall"]
 
     client -->|HTTP| api
     api --- db
-    cln --- db
     api --> ks
-    api -->|credenziale del servizio| nova
-    cln -->|credenziale del servizio| nova
+    api -->|token dell'utente| blz
     api -->|token dell'utente| heat
+    blz --> infra
     heat --> infra
 ```
 
-Il servizio **non crea le risorse dell'utente**: le descrive in un template e le fa creare a Heat, col token di chi le chiede. L'unica cosa che crea da sé è il flavor su misura, perché Nova riserva i flavor all'amministratore: per quello, e solo per quello, usa la propria credenziale.
+Il servizio **non crea risorse da sé**: chiede la capacità a Blazar e le risorse a Heat, sempre col token di chi le chiede. Blazar trasforma la taglia in un flavor privato e, alla cancellazione, distrugge macchina e flavor nell'ordine giusto. Heat costruisce e distrugge chiave, firewall, porta, indirizzo e macchina come un blocco unico.
 
-| Processo | Responsabilità |
-| --- | --- |
-| `orbit-api` | riceve le richieste, verifica il token, valida la taglia, crea flavor e stack, rilegge lo stato reale a ogni richiesta |
-| `orbit-cleaner` | cancella i flavor degli orb rimossi, quando nessuna macchina li usa più |
+Un solo processo, `orbit-api`. Il lavoro che segue la risposta — attendere che la prenotazione si attivi e creare lo stack — dura pochi secondi e gira dentro lo stesso processo, col token della richiesta tenuto in memoria.
 
 ---
 
@@ -82,29 +78,29 @@ sequenceDiagram
     autonumber
     actor C as Client
     participant A as orbit
-    participant N as Nova
+    participant B as Blazar
     participant H as Heat
 
     C->>A: POST /v1/orbs con taglia e chiave pubblica
-    A->>N: crea il flavor privato orbit-id
-    A->>N: concedine l'accesso al progetto del client
-    A->>H: crea lo stack col token del client
-    A-->>C: 202 Accepted, orb in BUILDING
+    A->>B: prenota questa capacità da adesso, senza fine
+    B-->>A: prenotazione e flavor privato
+    A-->>C: 202 Accepted, orb in RESERVING
+
+    Note over A,B: attesa: la prenotazione<br/>deve diventare attiva
+    A->>H: crea lo stack con il flavor della prenotazione
 
     C->>A: GET /v1/orbs/{id}
     A->>H: stato e indirizzo dello stack
-    A->>N: la macchina esiste ed è accesa?
     A-->>C: ACTIVE, indirizzo e utente SSH
 
     C->>A: DELETE /v1/orbs/{id}
-    A->>H: cancella lo stack col token del client
+    A->>H: cancella lo stack
+    A->>B: cancella il lease
+    Note over B: distrugge la macchina,<br/>poi il flavor
     A-->>C: 202 Accepted, orb in DELETING
-
-    Note over A,N: più tardi, il pulitore
-    A->>N: nessuna macchina usa il flavor: cancellalo
 ```
 
-Lo stack e il flavor si cancellano in due momenti diversi perché Nova sconsiglia di cancellare un flavor mentre una macchina lo usa. Il pulitore chiude il conto quando la macchina non c'è più.
+L'attesa al passaggio 5 è necessaria: Blazar crea il flavor subito, ma il progetto può usarlo solo quando la prenotazione è attiva, cioè entro una decina di secondi. La data di fine del lease è fissata lontanissima perché Blazar la esige: la vita dell'orb la decide `DELETE`, non il calendario.
 
 ---
 
@@ -113,20 +109,20 @@ Lo stack e il flavor si cancellano in due momenti diversi perché Nova sconsigli
 ```mermaid
 stateDiagram-v2
     direction LR
-    [*] --> BUILDING
+    [*] --> RESERVING
+    RESERVING --> BUILDING: prenotazione attiva
     BUILDING --> ACTIVE: macchina pronta
     ACTIVE --> DELETING: cancellazione
-    BUILDING --> DELETING: cancellazione
     DELETING --> DELETED
     DELETED --> [*]
 
-    BUILDING --> ERROR: costruzione fallita
+    RESERVING --> ERROR
+    BUILDING --> ERROR
     ACTIVE --> ERROR: cambiato da fuori
-    DELETING --> ERROR: cancellazione fallita
     ERROR --> DELETING: cancellazione esplicita
 ```
 
-Lo stato non lo decide il servizio: lo osserva. Ogni lettura chiede a Heat e a Nova com'è davvero l'orb e corregge la tabella. Un orb in `ERROR` non si cancella da sé: le risorse restano osservabili finché qualcuno non chiede esplicitamente di rimuoverle.
+`RESERVING` e `BUILDING` sono due stati distinti perché sono due attese diverse: la prima aspetta che la capacità diventi utilizzabile, la seconda che le risorse esistano. Lo stato non lo decide il servizio: lo osserva, chiedendo a ogni lettura a Blazar, Heat e Nova com'è davvero l'orb. Un orb in `ERROR` non si cancella da sé: le risorse restano osservabili finché qualcuno non chiede esplicitamente di rimuoverle.
 
 ---
 
@@ -134,7 +130,7 @@ Lo stato non lo decide il servizio: lo osserva. Ogni lettura chiede a Heat e a N
 
 | Metodo e percorso | Effetto |
 | --- | --- |
-| `POST /v1/orbs` | chiede un orb; risponde subito, la costruzione continua in Heat |
+| `POST /v1/orbs` | prenota la capacità e avvia la costruzione; risponde subito |
 | `GET /v1/orbs` | elenca gli orb del proprio progetto |
 | `GET /v1/orbs/{id}` | stato, indirizzo SSH, eventuale motivo dell'errore |
 | `DELETE /v1/orbs/{id}` | fa sparire l'orb; ripetibile senza errore |
@@ -159,9 +155,9 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 | [CONTEXT](CONTEXT.md) | glossario del dominio e dei termini OpenStack usati |
 | [Architettura](docs/architettura.md) | confini di proprietà, sequenza completa, requisiti di installazione |
 | [Contratto della API](docs/design/api.md) | risorse HTTP, stati, errori |
-| [Stato conservato](docs/design/stato.md) | la tabella del servizio, il riallineamento, il pulitore |
+| [Stato conservato](docs/design/stato.md) | la tabella del servizio e il riallineamento |
 | [Template dell'orb](templates/orb.yaml) | descrizione Heat delle risorse di un orb |
-| [Decisioni](docs/adr/) | le quattro scelte di forma, con motivazione e fonti |
+| [Decisioni](docs/adr/) | le cinque scelte di forma, con motivazione e fonti |
 
 ## Stato dei lavori
 
@@ -169,9 +165,8 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Contratto della API, stati e schema dei dati
 - [x] Template dell'orb
 - [ ] Plugin DevStack e scheletro eseguibile del servizio
-- [ ] Flavor su misura e creazione dello stack
+- [ ] Prenotazione, attesa e creazione dello stack
 - [ ] Lettura dello stato reale e cancellazione
-- [ ] Pulitore dei flavor
 - [ ] Plugin per `openstack` da riga di comando
 - [ ] Test automatici
 
