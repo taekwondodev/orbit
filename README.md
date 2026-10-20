@@ -169,7 +169,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Prenotazione della capacità, da verificare su DevStack
 - [x] Attesa della prenotazione e creazione dello stack, da verificare su DevStack
 - [x] Lettura dello stato reale e cancellazione, da verificare su DevStack
-- [ ] Plugin per `openstack` da riga di comando
+- [x] Plugin per `openstack` da riga di comando, da verificare su DevStack
 - [ ] Test automatici
 - [ ] Installazione e percorso completo verificati su DevStack
 
