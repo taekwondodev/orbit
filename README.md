@@ -65,7 +65,7 @@ flowchart LR
     heat --> infra
 ```
 
-Il servizio **non crea risorse da sé**: chiede la capacità a Blazar e le risorse a Heat, sempre col token di chi le chiede. Blazar trasforma la taglia in un flavor privato e, alla cancellazione, distrugge macchina e flavor nell'ordine giusto. Heat costruisce e distrugge chiave, firewall, porta, indirizzo e macchina come un blocco unico.
+Il servizio **non crea risorse da sé**: chiede la capacità a Blazar e le risorse a Heat, sempre col token di chi le chiede. Blazar trasforma la taglia in un flavor privato e, alla cancellazione, distrugge macchina e flavor nell'ordine giusto. Heat costruisce e distrugge rete, router, chiave, firewall, porta, indirizzo e macchina come un blocco unico: ogni orb ha la sua rete ([0006](docs/adr/0006-rete-propria-per-ogni-orb.md)).
 
 Un solo processo, `orbit-api`. Il lavoro che segue la risposta — attendere che la prenotazione si attivi e creare lo stack — dura pochi secondi e gira dentro lo stesso processo, col token della richiesta tenuto in memoria.
 
@@ -183,7 +183,7 @@ I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, co
 | [Contratto della API](docs/design/api.md) | risorse HTTP, stati, errori |
 | [Stato conservato](docs/design/stato.md) | la tabella del servizio e il riallineamento |
 | [Template dell'orb](orbit/templates/orb.yaml) | descrizione Heat delle risorse di un orb |
-| [Decisioni](docs/adr/) | le cinque scelte di forma, con motivazione e fonti |
+| [Decisioni](docs/adr/) | le scelte di forma, con alternative scartate e fonti |
 
 ## Stato dei lavori
 

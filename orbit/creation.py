@@ -101,7 +101,6 @@ class Creator:
             'reservation_id': orb.reservation_id,
             'image': orb.image,
             'public_key': public_key,
-            'network': CONF.orbs.network,
             'public_network': CONF.orbs.public_network,
             'ssh_allowed_cidr': CONF.orbs.ssh_allowed_cidr,
         }

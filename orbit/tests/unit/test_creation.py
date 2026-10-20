@@ -1,6 +1,8 @@
 import datetime
 import unittest
 
+import yaml
+
 from orbit import clients
 from orbit import conf
 from orbit import creation
@@ -69,7 +71,6 @@ class TestCreator(unittest.TestCase):
                           'reservation_id': self.orb.reservation_id,
                           'image': 'cirros',
                           'public_key': fakes.PUBLIC_KEY,
-                          'network': 'private',
                           'public_network': 'public',
                           'ssh_allowed_cidr': '0.0.0.0/0'}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
@@ -168,9 +169,16 @@ class TestCreator(unittest.TestCase):
 
 class TestTemplate(unittest.TestCase):
 
-    def test_packaged_template_declares_every_sent_parameter(self):
-        template = creation.load_template()
+    def setUp(self):
+        conf.CONF([], project='orbit', default_config_files=[])
+        self.addCleanup(conf.CONF.reset)
 
-        for parameter in ('orb_id', 'reservation_id', 'image', 'public_key',
-                          'network', 'public_network', 'ssh_allowed_cidr'):
-            self.assertIn(f'\n  {parameter}:\n', template)
+    def test_creator_sends_exactly_the_parameters_the_template_needs(self):
+        parameters = yaml.safe_load(creation.load_template())['parameters']
+        required = {name for name, spec in parameters.items()
+                    if 'default' not in spec}
+
+        sent = set(creation.Creator._parameters(fakes.orb(), 'key'))
+
+        self.assertLessEqual(required, sent)
+        self.assertLessEqual(sent, set(parameters))

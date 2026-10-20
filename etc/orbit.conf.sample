@@ -489,10 +489,8 @@
 # Minimum value: 1
 #api_timeout = 60
 
-# Rete di progetto a cui collegare gli orb. (string value)
-#network = private
-
-# Rete esterna da cui prendere l'indirizzo raggiungibile. (string value)
+# Rete esterna a cui si collega il router di ogni orb e da cui prende
+# l'indirizzo raggiungibile. (string value)
 #public_network = public
 
 # Da dove e ammesso l'accesso SSH agli orb. (string value)

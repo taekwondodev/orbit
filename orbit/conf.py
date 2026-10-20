@@ -38,11 +38,9 @@ orbs_opts = [
                help='Secondi massimi di attesa di una risposta da Blazar, '
                     'Heat o Nova. La cancellazione di un lease attivo '
                     'risponde solo dopo la distruzione della macchina.'),
-    cfg.StrOpt('network', default='private',
-               help='Rete di progetto a cui collegare gli orb.'),
     cfg.StrOpt('public_network', default='public',
-               help='Rete esterna da cui prendere l\'indirizzo '
-                    'raggiungibile.'),
+               help='Rete esterna a cui si collega il router di ogni '
+                    'orb e da cui prende l\'indirizzo raggiungibile.'),
     cfg.StrOpt('ssh_allowed_cidr', default='0.0.0.0/0',
                help='Da dove e ammesso l\'accesso SSH agli orb.'),
 ]

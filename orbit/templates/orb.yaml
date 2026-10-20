@@ -1,10 +1,11 @@
 heat_template_version: 2021-04-16
 
 description: >
-  Risorse di un orb di orbit: chiave, firewall, porta, indirizzo raggiungibile
-  e macchina, creata dentro una prenotazione Blazar gia attiva. Il lease NON fa
-  parte di questo stack: lo crea prima il servizio e qui arriva la sua
-  prenotazione come parametro. Vedi docs/adr/0005.
+  Risorse di un orb di orbit: rete propria con router verso la rete esterna,
+  chiave, firewall, porta, indirizzo raggiungibile e macchina, creata dentro
+  una prenotazione Blazar gia attiva. Il lease NON fa parte di questo stack:
+  lo crea prima il servizio e qui arriva la sua prenotazione come parametro.
+  Vedi docs/adr/0005 e, per la rete, docs/adr/0006.
 
 parameters:
 
@@ -31,17 +32,18 @@ parameters:
     type: string
     description: Chiave pubblica fornita dal client. Il servizio non genera chiavi.
 
-  network:
-    type: string
-    description: Rete di progetto a cui collegare l'orb.
-    constraints:
-      - custom_constraint: neutron.network
-
   public_network:
     type: string
     description: Rete esterna da cui prendere l'indirizzo raggiungibile.
     constraints:
       - custom_constraint: neutron.network
+
+  cidr:
+    type: string
+    description: >
+      Indirizzi della rete dell'orb. Ogni orb ha la sua rete e il suo router,
+      quindi orb diversi possono usare lo stesso intervallo.
+    default: 10.42.0.0/24
 
   ssh_allowed_cidr:
     type: string
@@ -49,6 +51,32 @@ parameters:
     default: 0.0.0.0/0
 
 resources:
+
+  network:
+    type: OS::Neutron::Net
+    properties:
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
+
+  subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
+      network: { get_resource: network }
+      cidr: { get_param: cidr }
+      ip_version: 4
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
+      external_gateway_info:
+        network: { get_param: public_network }
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router: { get_resource: router }
+      subnet: { get_resource: subnet }
 
   keypair:
     type: OS::Nova::KeyPair
@@ -71,7 +99,9 @@ resources:
   port:
     type: OS::Neutron::Port
     properties:
-      network: { get_param: network }
+      network: { get_resource: network }
+      fixed_ips:
+        - subnet: { get_resource: subnet }
       security_groups:
         - { get_resource: security_group }
 
@@ -82,6 +112,9 @@ resources:
 
   floating_ip_association:
     type: OS::Neutron::FloatingIPAssociation
+    # L'indirizzo esterno si associa solo a una porta raggiungibile dal
+    # router: senza l'interfaccia, Neutron rifiuta l'associazione.
+    depends_on: router_interface
     properties:
       floatingip_id: { get_resource: floating_ip }
       port_id: { get_resource: port }

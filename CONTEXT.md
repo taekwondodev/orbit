@@ -10,7 +10,7 @@ Termini usati nel codice, nei documenti e nei messaggi di commit. Dove un termin
 | **Taglia** | processori, memoria e disco chiesti per un orb | orbit, tradotta in una prenotazione Blazar |
 | **Consumatore** | l'utente Keystone che ha chiesto l'orb; nel caso d'uso originario è un agente | Keystone |
 
-Un orb **non** è una macchina virtuale: è l'insieme di prenotazione, macchina, chiave, firewall, porta e indirizzo, creati e distrutti insieme, più lo stato con cui il servizio li racconta. È la distinzione che rende il servizio diverso da uno script che chiama `openstack server create`.
+Un orb **non** è una macchina virtuale: è l'insieme di prenotazione, rete, router, macchina, chiave, firewall, porta e indirizzo, creati e distrutti insieme, più lo stato con cui il servizio li racconta. È la distinzione che rende il servizio diverso da uno script che chiama `openstack server create`.
 
 Un orb non ha scadenza: la sua vita finisce con una richiesta di cancellazione. Vedi [docs/adr/0003](docs/adr/0003-nessuna-scadenza.md).
 
