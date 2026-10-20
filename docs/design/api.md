@@ -1,6 +1,6 @@
 # Contratto della API
 
-Bozza di progettazione: nessuna di queste risorse è ancora implementata. Tutte le richieste richiedono un token Keystone nell'intestazione `X-Auth-Token`; gli orb sono visibili solo all'interno del progetto a cui appartengono.
+Implementato in `orbit/api/v1.py`, non ancora verificato su DevStack. Tutte le richieste richiedono un token Keystone nell'intestazione `X-Auth-Token`; gli orb sono visibili solo all'interno del progetto a cui appartengono.
 
 ## Risorse
 

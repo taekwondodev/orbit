@@ -28,7 +28,8 @@ class CreateOrb(command.ShowOne):
                             metavar='<GiB>', help='Disco in GiB.')
         parser.add_argument('--public-key', required=True, metavar='<file>',
                             help='File della chiave pubblica SSH da '
-                                 'installare, per esempio ~/.ssh/id_ed25519.pub.')
+                                 'installare, per esempio '
+                                 '~/.ssh/id_ed25519.pub.')
         parser.add_argument('--image', help='Immagine; senza, quella '
                                             'predefinita del servizio.')
         parser.add_argument('--wait', action='store_true',

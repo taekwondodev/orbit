@@ -55,9 +55,10 @@ class FakeBlazar:
         if self.refuse_with:
             raise self.refuse_with
         self.created.append((name, size, end_date))
-        lease = clients.Lease(id=f'lease-{len(self.created)}',
+        number = len(self.created)
+        lease = clients.Lease(id=f'lease-{number}',
                               status='PENDING',
-                              reservation_id=f'reservation-{len(self.created)}',
+                              reservation_id=f'reservation-{number}',
                               reservation_status='pending')
         self.leases[lease.id] = lease
         return lease

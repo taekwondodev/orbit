@@ -148,6 +148,32 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 
 ---
 
+## Provarlo
+
+Su DevStack, nel `local.conf`, dopo i plugin di Heat e Blazar da cui dipende:
+
+```ini
+[[local|localrc]]
+enable_plugin heat   https://opendev.org/openstack/heat
+enable_plugin blazar https://opendev.org/openstack/blazar
+enable_plugin orbit  https://github.com/taekwondodev/orbit
+# solo per i test tempest
+TEMPEST_PLUGINS=/opt/stack/orbit
+```
+
+Dopo `./stack.sh`, col progetto `demo`:
+
+```console
+$ openstack orb create --vcpus 1 --memory 512 --disk 1 \
+      --public-key ~/.ssh/id_ed25519.pub --wait
+$ ssh <ssh_user>@<ssh_host>
+$ openstack orb delete <id>
+```
+
+I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, compreso il rifiuto per capacità esaurita, con `tempest run --regex orbit` sull'installazione.
+
+---
+
 ## Documenti
 
 | Documento | Contenuto |
@@ -170,7 +196,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Attesa della prenotazione e creazione dello stack, da verificare su DevStack
 - [x] Lettura dello stato reale e cancellazione, da verificare su DevStack
 - [x] Plugin per `openstack` da riga di comando, da verificare su DevStack
-- [ ] Test automatici
+- [x] Test automatici: unitari senza OpenStack, tempest da eseguire su DevStack
 - [ ] Installazione e percorso completo verificati su DevStack
 
 Il codice viene scritto prima della verifica su DevStack, che è l'ultimo passo: finché non è stata fatta, nessun componente è stato installato e le affermazioni tecniche nei documenti restano tratte dalla documentazione ufficiale o dal codice sorgente di OpenStack, con il collegamento alla fonte accanto.

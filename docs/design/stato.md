@@ -1,6 +1,6 @@
 # Stato conservato
 
-Bozza di progettazione. Il principio che la governa: **conserviamo solo ciò di cui siamo proprietari**. Tutto il resto si chiede a chi lo possiede.
+Implementato in `orbit/db/api.py` e `orbit/lifecycle.py`, non ancora verificato su DevStack. Il principio che la governa: **conserviamo solo ciò di cui siamo proprietari**. Tutto il resto si chiede a chi lo possiede.
 
 ## Cosa è di altri
 

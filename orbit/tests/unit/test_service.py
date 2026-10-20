@@ -64,7 +64,6 @@ class ServiceTestCase(unittest.TestCase):
         return self.repository.get('project-a', self.orb.id)
 
 
-
 class TestRead(ServiceTestCase):
 
     def test_read_reports_reality_and_records_it(self):

@@ -154,7 +154,7 @@ class TestCreator(unittest.TestCase):
 
 class TestTemplate(unittest.TestCase):
 
-    def test_packaged_template_declares_every_parameter_the_creator_sends(self):
+    def test_packaged_template_declares_every_sent_parameter(self):
         template = creation.load_template()
 
         for parameter in ('orb_id', 'reservation_id', 'image', 'public_key',

@@ -37,7 +37,8 @@ orbs_opts = [
     cfg.StrOpt('network', default='private',
                help='Rete di progetto a cui collegare gli orb.'),
     cfg.StrOpt('public_network', default='public',
-               help='Rete esterna da cui prendere l\'indirizzo raggiungibile.'),
+               help='Rete esterna da cui prendere l\'indirizzo '
+                    'raggiungibile.'),
     cfg.StrOpt('ssh_allowed_cidr', default='0.0.0.0/0',
                help='Da dove e ammesso l\'accesso SSH agli orb.'),
 ]
