@@ -182,3 +182,19 @@ class TestTemplate(unittest.TestCase):
 
         self.assertLessEqual(required, sent)
         self.assertLessEqual(sent, set(parameters))
+
+    def test_machine_is_reachable_only_through_its_own_router(self):
+        resources = yaml.safe_load(creation.load_template())['resources']
+
+        port = resources['port']['properties']
+        self.assertEqual({'get_resource': 'network'}, port['network'])
+        self.assertEqual([{'subnet': {'get_resource': 'subnet'}}],
+                         port['fixed_ips'])
+        self.assertEqual(
+            {'router': {'get_resource': 'router'},
+             'subnet': {'get_resource': 'subnet'}},
+            resources['router_interface']['properties'])
+        # Neutron associa l'indirizzo esterno solo a una porta raggiungibile
+        # dal router.
+        self.assertEqual('router_interface',
+                         resources['floating_ip_association']['depends_on'])

@@ -27,7 +27,7 @@ Un orb non ha scadenza: la sua vita finisce con una richiesta di cancellazione. 
 | **Flavor della prenotazione** | il flavor Nova non pubblico che Blazar crea per la prenotazione, con lo stesso identificativo; il progetto vi accede solo quando la prenotazione è attiva, e Blazar lo cancella con il lease | la macchina dell'orb usa questo flavor |
 | **Fine illimitata** | la data di fine del lease, fissata lontanissima perché Blazar la esige ma l'orb non scade | non è una scadenza: l'orb finisce con `DELETE` |
 | **Nova** | accende, spegne e distrugge macchine virtuali | nessuna chiamata di scrittura: ci arriviamo tramite Heat e Blazar |
-| **Neutron** | reti, porte, firewall, indirizzi raggiungibili | risorse dichiarate nel template |
+| **Neutron** | reti, router, porte, firewall, indirizzi raggiungibili | risorse dichiarate nel template |
 | **Heat** | orchestrazione: legge un template e crea in ordine le risorse elencate, disfacendole se qualcosa fallisce | crea e distrugge le risorse dell'orb tranne il lease |
 | **Stack** | l'insieme di risorse creato da Heat a partire da un template | le risorse di un orb, lease escluso, sono uno stack |
 | **DevStack** | installazione di OpenStack da sorgenti per sviluppo, estendibile con plugin | l'ambiente in cui il servizio viene installato e provato |

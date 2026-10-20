@@ -65,7 +65,7 @@ class TestBlazar(unittest.TestCase):
         with self.assertRaises(clients.Unavailable) as raised:
             self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
 
-        self.assertEqual('reservation non raggiungibile',
+        self.assertEqual('servizio reservation non raggiungibile',
                          str(raised.exception))
         self.assertIn('10.0.0.5', raised.exception.detail)
 
@@ -79,6 +79,22 @@ class TestBlazar(unittest.TestCase):
 
         self.assertEqual(403, raised.exception.code)
         self.assertIn('blazar:leases:post', str(raised.exception))
+
+    def test_missing_endpoint_on_create_is_a_refusal(self):
+        self.http.post(f'{BLAZAR}/leases', status_code=404)
+
+        with self.assertRaises(clients.Rejected) as raised:
+            self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
+
+        self.assertEqual(404, raised.exception.code)
+
+    def test_throttling_is_transient(self):
+        for code in (408, 429):
+            with self.subTest(code=code):
+                self.http.get(f'{BLAZAR}/leases/lease-1', status_code=code)
+
+                with self.assertRaises(clients.Unavailable):
+                    self.blazar.get_lease('lease-1')
 
     def test_calls_have_a_bounded_timeout(self):
         conf.CONF([], project='orbit', default_config_files=[])

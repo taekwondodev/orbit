@@ -24,7 +24,7 @@ class Unavailable(Exception):
     """
 
     def __init__(self, service_type, detail):
-        super().__init__(f'{service_type} non raggiungibile')
+        super().__init__(f'servizio {service_type} non raggiungibile')
         self.detail = detail
 
 
@@ -61,12 +61,21 @@ class _Client:
         self._api = adapter.Adapter(session, service_type=self.service_type,
                                     interface='public')
 
-    def _call(self, method, url, **kwargs):
-        """La risposta; NotFound passa intatto, gli altri errori tradotti."""
+    def _call(self, method, url, missing_ok=False, **kwargs):
+        """La risposta, con gli errori tradotti nelle eccezioni del modulo.
+
+        Con ``missing_ok`` un 404 passa intatto, per chi legge o cancella
+        una risorsa che puo non esistere piu; altrimenti e un rifiuto.
+        """
         try:
             return self._api.request(url, method, **kwargs)
-        except ks_exc.NotFound:
-            raise
+        except ks_exc.NotFound as e:
+            if missing_ok:
+                raise
+            raise Rejected(_message(e), e.http_status) from e
+        except (ks_exc.RequestTimeout, ks_exc.TooManyRequests) as e:
+            # 408 e 429 sono passeggeri: chi chiama ritenta come per un 5xx.
+            raise Unavailable(self.service_type, _error_text(e)) from e
         except ks_exc.HTTPClientError as e:
             raise Rejected(_message(e), e.http_status) from e
         except (ks_exc.ConnectionError, ks_exc.EndpointNotFound,
@@ -78,13 +87,13 @@ class _Client:
 
     def _get_or_none(self, url):
         try:
-            return self._call('GET', url).json()
+            return self._call('GET', url, missing_ok=True).json()
         except ks_exc.NotFound:
             return None
 
     def _delete_if_present(self, url):
         try:
-            self._call('DELETE', url)
+            self._call('DELETE', url, missing_ok=True)
         except ks_exc.NotFound:
             pass
 

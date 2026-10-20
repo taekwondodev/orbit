@@ -47,11 +47,16 @@ function create_orbit_accounts {
 # Nessun lease e creabile finche Blazar non conosce l'host di calcolo.
 # La registrazione e ripetibile: un host gia registrato non si registra due volte.
 function register_compute_hosts_in_blazar {
-    local hosts host
-    hosts=$(openstack --os-cloud devstack-admin hypervisor list \
-        -f value -c "Hypervisor Hostname")
+    local hosts="" host
+    # nova-compute puo registrare il suo hypervisor qualche secondo dopo.
+    for _ in $(seq 1 12); do
+        hosts=$(openstack --os-cloud devstack-admin hypervisor list \
+            -f value -c "Hypervisor Hostname")
+        [[ -n "$hosts" ]] && break
+        sleep 5
+    done
     if [[ -z "$hosts" ]]; then
-        die $LINENO "Nessun hypervisor registrato in Nova da offrire a Blazar"
+        die $LINENO "orbit richiede un nodo di calcolo: nessun hypervisor in Nova da offrire a Blazar"
     fi
     for host in $hosts; do
         if openstack --os-cloud devstack-admin reservation host list \

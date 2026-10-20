@@ -88,7 +88,7 @@ def _rejected(error):
 
 @blueprint.errorhandler(clients.Unavailable)
 def _unavailable(error):
-    return _error(503, f'Servizio non raggiungibile: {error}.')
+    return _error(503, f'{str(error).capitalize()}.')
 
 
 @blueprint.errorhandler(http_exc.HTTPException)
