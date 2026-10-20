@@ -34,6 +34,10 @@ orbs_opts = [
     cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
                  help='Secondi fra due letture del lease mentre si attende '
                       'la prenotazione attiva.'),
+    cfg.IntOpt('api_timeout', default=60, min=1,
+               help='Secondi massimi di attesa di una risposta da Blazar, '
+                    'Heat o Nova. La cancellazione di un lease attivo '
+                    'risponde solo dopo la distruzione della macchina.'),
     cfg.StrOpt('network', default='private',
                help='Rete di progetto a cui collegare gli orb.'),
     cfg.StrOpt('public_network', default='public',

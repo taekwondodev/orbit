@@ -16,7 +16,7 @@ def _row(orb, fields=_FIELDS):
 
 
 class CreateOrb(command.ShowOne):
-    """Crea un orb: prenota la capacita e avvia la costruzione."""
+    """Crea un orb: prenota la capacità e avvia la costruzione."""
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
@@ -82,7 +82,7 @@ class ShowOrb(command.ShowOne):
 
 
 class DeleteOrb(command.Command):
-    """Cancella uno o piu orb, con tutte le loro risorse."""
+    """Cancella uno o più orb, con tutte le loro risorse."""
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)

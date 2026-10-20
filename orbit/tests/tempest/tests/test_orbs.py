@@ -89,7 +89,16 @@ class OrbsTest(test.BaseTestCase):
         _, public_key = _key_pair()
         before = self.orbs.list_orbs()['orbs']
 
-        self.assertRaises(exceptions.Conflict, self.orbs.create_orb,
-                          _size(CONF.orbit.oversized_size), public_key)
+        try:
+            orb = self.orbs.create_orb(_size(CONF.orbit.oversized_size),
+                                       public_key)
+        except exceptions.Conflict:
+            pass
+        else:
+            # L'host era piu grande del previsto: non lasciare il lease.
+            self.addCleanup(self.orbs.wait_for_resource_deletion, orb['id'])
+            self.addCleanup(self._delete_quietly, orb['id'])
+            self.fail('La taglia oversized_size e stata accettata: va '
+                      'alzata oltre la capacita dell\'host.')
 
         self.assertEqual(before, self.orbs.list_orbs()['orbs'])

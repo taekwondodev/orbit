@@ -95,7 +95,7 @@ class TestRead(ServiceTestCase):
 
     def test_unreachable_service_surfaces_as_unavailable(self):
         def down(lease_id):
-            raise clients.Unavailable('reservation: down')
+            raise clients.Unavailable('reservation', 'down')
         self.blazar.get_lease = down
 
         with self.assertRaises(clients.Unavailable):

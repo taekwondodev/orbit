@@ -34,13 +34,15 @@ Durante la richiesta il servizio crea il lease, poi risponde. Dopo la risposta u
   "id": "0d0b...",
   "status": "ACTIVE",
   "size": { "vcpus": 2, "memory_mb": 4096, "disk_gb": 20 },
+  "image": "ubuntu-24.04",
   "ssh_host": "172.24.4.17",
   "ssh_user": "ubuntu",
-  "fault": null
+  "fault": null,
+  "created_at": "2026-10-20T12:00:00"
 }
 ```
 
-Ogni lettura chiede lo stato a Blazar, Heat e Nova con il token del richiedente e lo riporta nella risposta: lo stato salvato è una copia, quello restituito è quello vero. `ssh_host` compare solo in stato `ACTIVE`. `fault` porta il motivo quando lo stato è `ERROR`, preso da chi l'ha prodotto (la prenotazione rifiutata, lo stack fallito) e non riscritto. La data di fine del lease non compare: non è una scadenza.
+Ogni lettura chiede lo stato a Blazar, Heat e Nova con il token del richiedente e lo riporta nella risposta: lo stato salvato è una copia, quello restituito è quello vero. `ssh_host` è valorizzato solo in stato `ACTIVE`. `ssh_user` dipende dall'immagine e viene dalla configurazione del servizio (`[orbs] ssh_users`). `fault` porta il motivo quando lo stato è `ERROR`, preso da chi l'ha prodotto (la prenotazione rifiutata, lo stack fallito) e non riscritto. La data di fine del lease non compare: non è una scadenza.
 
 ### Cancellazione
 
@@ -72,10 +74,12 @@ Un orb in `ERROR` **non** si cancella da sé. È una scelta a favore della diagn
 
 | Codice | Quando |
 | --- | --- |
-| `400` | taglia o chiave pubblica mancanti, malformate o oltre i limiti |
-| `401` | token assente, scaduto o non valido |
+| `400` | taglia o chiave pubblica mancanti, malformate o oltre i limiti; nessuna immagine indicata né configurata; filtro `?status=` con uno stato sconosciuto |
+| `401` | token assente, scaduto o non valido, anche quando lo rifiuta Blazar, Heat o Nova a valle |
+| `403` | token senza ambito di progetto, perché un orb appartiene sempre a un progetto; oppure ruoli insufficienti per Blazar, Heat o Nova |
 | `404` | orb inesistente o di un altro progetto (indistinguibili di proposito) |
 | `409` | capacità esaurita: Blazar ha rifiutato la prenotazione. Blazar non usa un codice dedicato: risponde `500` col messaggio `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) non dichiara un codice, e [lo strato API](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) lo inoltra tale e quale), e il servizio lo riconosce dal messaggio |
-| `503` | Blazar, Heat o Nova non raggiungibili |
+| `502` | Blazar, Heat o Nova hanno rifiutato la richiesta per un motivo che il servizio non sa tradurre; il messaggio riporta il loro |
+| `503` | Blazar, Heat o Nova non raggiungibili o in errore; il dettaglio resta nei log del servizio, perché può contenere indirizzi interni |
 
 Poiché il lease si crea durante la richiesta, la mancanza di capacità è un errore della richiesta e non lascia nessun orb. Il fallimento della costruzione, compresa la quota del progetto esaurita, si manifesta invece come `ERROR` sull'orb con il motivo riportato da Heat: lo stack viene creato dopo la risposta `202`.

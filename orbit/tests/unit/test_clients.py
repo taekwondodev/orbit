@@ -6,6 +6,7 @@ import requests
 import requests_mock
 
 from orbit import clients
+from orbit import conf
 from orbit import orb as orb_model
 
 # Come in DevStack, l'endpoint di Blazar nel catalogo include gia /v1.
@@ -56,13 +57,37 @@ class TestBlazar(unittest.TestCase):
         with self.assertRaises(clients.CapacityExhausted):
             self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
 
-    def test_other_server_errors_mean_unavailable(self):
+    def test_other_server_errors_mean_unavailable_without_their_body(self):
         self.http.post(f'{BLAZAR}/leases', status_code=500, json={
             'error_code': 500, 'error_name': 'INTERNAL_SERVER_ERROR',
-            'error_message': 'Internal Server Error'})
+            'error_message': 'mysql://blazar:secret@10.0.0.5 refused'})
 
-        with self.assertRaises(clients.Unavailable):
+        with self.assertRaises(clients.Unavailable) as raised:
             self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
+
+        self.assertEqual('reservation non raggiungibile',
+                         str(raised.exception))
+        self.assertIn('10.0.0.5', raised.exception.detail)
+
+    def test_refusal_carries_blazar_message_and_status(self):
+        self.http.post(f'{BLAZAR}/leases', status_code=403, json={
+            'error_code': 403, 'error_name': 403,
+            'error_message': 'Policy doesn\'t allow blazar:leases:post'})
+
+        with self.assertRaises(clients.Rejected) as raised:
+            self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
+
+        self.assertEqual(403, raised.exception.code)
+        self.assertIn('blazar:leases:post', str(raised.exception))
+
+    def test_calls_have_a_bounded_timeout(self):
+        conf.CONF([], project='orbit', default_config_files=[])
+        self.addCleanup(conf.CONF.reset)
+        conf.CONF.set_override('api_timeout', 7, 'orbs')
+
+        session = clients.for_auth(None).blazar._api.session
+
+        self.assertEqual(7, session.timeout)
 
     def test_unreachable_blazar_means_unavailable(self):
         self.http.get(f'{BLAZAR}/leases/lease-1',

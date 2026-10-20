@@ -483,6 +483,12 @@
 # Minimum value: 0.1
 #reservation_poll_interval = 2.0
 
+# Secondi massimi di attesa di una risposta da Blazar, Heat o Nova. La
+# cancellazione di un lease attivo risponde solo dopo la distruzione della
+# macchina. (integer value)
+# Minimum value: 1
+#api_timeout = 60
+
 # Rete di progetto a cui collegare gli orb. (string value)
 #network = private
 

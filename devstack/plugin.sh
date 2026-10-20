@@ -53,6 +53,9 @@ function register_compute_hosts_in_blazar {
     local hosts host
     hosts=$(openstack --os-cloud devstack-admin hypervisor list \
         -f value -c "Hypervisor Hostname")
+    if [[ -z "$hosts" ]]; then
+        die $LINENO "Nessun hypervisor registrato in Nova da offrire a Blazar"
+    fi
     for host in $hosts; do
         if openstack --os-cloud devstack-admin reservation host list \
                 -f value -c hypervisor_hostname | grep -qx "$host"; then
@@ -61,9 +64,10 @@ function register_compute_hosts_in_blazar {
         # Blazar e appena stato avviato dal suo plugin: la API puo non
         # rispondere ancora.
         for _ in $(seq 1 12); do
-            openstack --os-cloud devstack-admin reservation host create "$host" && break
+            openstack --os-cloud devstack-admin reservation host create "$host" && continue 2
             sleep 5
         done
+        die $LINENO "Blazar non ha accettato l'host $host: nessun lease sarebbe creabile"
     done
 }
 

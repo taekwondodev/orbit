@@ -71,10 +71,25 @@ class TestCreate(ApiTestCase):
         self.assertEqual([], self.repository.list('project-a'))
         self.assertEqual([], self.creator.started)
 
-    def test_unreachable_blazar_is_503(self):
-        self.blazar.refuse_with = clients.Unavailable('reservation: down')
+    def test_unreachable_blazar_is_503_without_its_details(self):
+        self.blazar.refuse_with = clients.Unavailable(
+            'reservation', 'Traceback ... 10.0.0.5')
 
-        self.assertEqual(503, self.create().status_code)
+        response = self.create()
+
+        self.assertEqual(503, response.status_code)
+        self.assertNotIn('10.0.0.5', response.get_data(as_text=True))
+
+    def test_refusals_downstream_are_json_errors(self):
+        for code, expected in ((401, 401), (403, 403), (400, 502)):
+            with self.subTest(code=code):
+                self.blazar.refuse_with = clients.Rejected('no', code)
+
+                response = self.create()
+
+                self.assertEqual(expected, response.status_code)
+                self.assertEqual(expected,
+                                 response.get_json()['error']['code'])
 
     def test_invalid_requests_are_400_and_reserve_nothing(self):
         invalid = [
@@ -87,7 +102,10 @@ class TestCreate(ApiTestCase):
             {'public_key': None},
             {'public_key': 'not a key'},
             {'public_key': 'ssh-ed25519 not-base64!'},
+            {'public_key': fakes.PUBLIC_KEY + '\nssh-ed25519 AAAA other'},
+            {'public_key': 'ssh-rsa ' + 'A' * 9000},
             {'image': ''},
+            {'image': 'x' * 256},
         ]
         for overrides in invalid:
             with self.subTest(overrides=overrides):

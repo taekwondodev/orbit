@@ -100,7 +100,7 @@ class TestCreator(unittest.TestCase):
         def flaky(lease_id):
             if len(failures) < 2:
                 failures.append(lease_id)
-                raise clients.Unavailable('reservation: down')
+                raise clients.Unavailable('reservation', 'down')
             self.blazar.activate(lease_id)
             return get_lease(lease_id)
         self.blazar.get_lease = flaky
@@ -135,21 +135,35 @@ class TestCreator(unittest.TestCase):
 
     def test_refused_stack_puts_the_orb_in_error_with_heat_reason(self):
         self.blazar.activate(self.orb.lease_id)
-        self.heat.refuse_with = clients.Rejected('Quota exceeded for ports')
+        self.heat.refuse_with = clients.Rejected(
+            'Quota exceeded for ports', 400)
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         self.assertEqual(Status.ERROR, self.stored().status)
         self.assertEqual('Quota exceeded for ports', self.stored().fault)
 
-    def test_unexpected_failure_does_not_escape_the_thread(self):
+    def test_unexpected_failure_is_recorded_inside_the_thread(self):
         def broken(lease_id):
             raise RuntimeError('bug')
         self.blazar.get_lease = broken
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
-        self.assertEqual(Status.RESERVING, self.stored().status)
+        self.assertEqual(Status.ERROR, self.stored().status)
+        self.assertEqual('creazione interrotta da un errore interno',
+                         self.stored().fault)
+
+    def test_lease_read_refused_is_recorded_with_its_reason(self):
+        def refused(lease_id):
+            raise clients.Rejected('The request you have made requires '
+                                   'authentication.', 401)
+        self.blazar.get_lease = refused
+
+        self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
+
+        self.assertEqual(Status.ERROR, self.stored().status)
+        self.assertIn('requires authentication', self.stored().fault)
 
 
 class TestTemplate(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""Le risorse HTTP di /v1. Il contratto e in docs/design/api.md."""
+"""Le risorse HTTP di /v1. Il contratto è in docs/design/api.md."""
 
 import base64
 import binascii
@@ -12,6 +12,11 @@ from orbit import orb as orb_model
 from orbit import service
 
 blueprint = flask.Blueprint('v1', __name__)
+
+# Una chiave RSA a 16384 bit occupa circa 2800 caratteri; la colonna image e
+# lunga 255.
+_MAX_KEY_LENGTH = 8192
+_MAX_IMAGE_LENGTH = 255
 
 _KEY_TYPES = ('ssh-ed25519', 'ssh-rsa', 'ecdsa-sha2-nistp256',
               'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
@@ -69,13 +74,21 @@ def delete_orb(orb_id):
 
 @blueprint.errorhandler(clients.CapacityExhausted)
 def _capacity_exhausted(error):
-    return _error(409, 'Capacita esaurita: nessun host ha posto per la '
+    return _error(409, 'Capacità esaurita: nessun host ha posto per la '
                        'taglia chiesta.')
+
+
+@blueprint.errorhandler(clients.Rejected)
+def _rejected(error):
+    # Un 401 o 403 a valle riguarda il token o i ruoli di chi chiede; ogni
+    # altro rifiuto e una risposta che il servizio non sa gestire.
+    code = error.code if error.code in (401, 403) else 502
+    return _error(code, f'Richiesta rifiutata: {error}')
 
 
 @blueprint.errorhandler(clients.Unavailable)
 def _unavailable(error):
-    return _error(503, f'Servizio non raggiungibile: {error}')
+    return _error(503, f'Servizio non raggiungibile: {error}.')
 
 
 @blueprint.errorhandler(http_exc.HTTPException)
@@ -114,9 +127,11 @@ def _size(size):
 
 def _public_key(key):
     if not isinstance(key, str):
-        raise http_exc.BadRequest('public_key e obbligatoria.')
+        raise http_exc.BadRequest('public_key è obbligatoria.')
+    key = key.strip()
     parts = key.split()
-    if len(parts) < 2 or parts[0] not in _KEY_TYPES:
+    if (len(key) > _MAX_KEY_LENGTH or '\n' in key or '\r' in key
+            or len(parts) < 2 or parts[0] not in _KEY_TYPES):
         raise http_exc.BadRequest(
             'public_key deve essere una chiave pubblica OpenSSH.')
     try:
@@ -124,14 +139,17 @@ def _public_key(key):
     except binascii.Error:
         raise http_exc.BadRequest(
             'public_key deve essere una chiave pubblica OpenSSH.')
-    return key.strip()
+    return key
 
 
 def _image(image):
     image = image if image is not None else CONF.orbs.default_image
     if not isinstance(image, str) or not image:
-        raise http_exc.BadRequest('image e obbligatoria: nessuna immagine '
-                                  'predefinita e configurata.')
+        raise http_exc.BadRequest('image è obbligatoria: nessuna immagine '
+                                  'predefinita è configurata.')
+    if len(image) > _MAX_IMAGE_LENGTH:
+        raise http_exc.BadRequest(
+            f'image supera i {_MAX_IMAGE_LENGTH} caratteri.')
     return image
 
 

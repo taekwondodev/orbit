@@ -9,10 +9,23 @@ import dataclasses
 from keystoneauth1 import adapter
 from keystoneauth1 import exceptions as ks_exc
 from keystoneauth1 import session as ks_session
+from oslo_log import log
+
+from orbit.conf import CONF
+
+LOG = log.getLogger(__name__)
 
 
 class Unavailable(Exception):
-    """Il servizio chiamato non risponde o risponde con un errore suo."""
+    """Il servizio chiamato non risponde o risponde con un errore suo.
+
+    Il messaggio e generico: la risposta originale, che puo contenere
+    indirizzi interni o tracce, resta in ``detail`` e nei log.
+    """
+
+    def __init__(self, service_type, detail):
+        super().__init__(f'{service_type} non raggiungibile')
+        self.detail = detail
 
 
 class CapacityExhausted(Exception):
@@ -21,6 +34,10 @@ class CapacityExhausted(Exception):
 
 class Rejected(Exception):
     """Il servizio chiamato ha rifiutato la richiesta, col suo motivo."""
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,7 +49,7 @@ class Clients:
 
 def for_auth(auth):
     """I client che agiscono a nome di chi possiede ``auth``."""
-    session = ks_session.Session(auth=auth)
+    session = ks_session.Session(auth=auth, timeout=CONF.orbs.api_timeout)
     return Clients(blazar=Blazar(session), heat=Heat(session),
                    nova=Nova(session))
 
@@ -45,12 +62,19 @@ class _Client:
                                     interface='public')
 
     def _call(self, method, url, **kwargs):
+        """La risposta; NotFound passa intatto, gli altri errori tradotti."""
         try:
             return self._api.request(url, method, **kwargs)
-        except (ks_exc.ConnectionError, ks_exc.EndpointNotFound) as e:
-            raise Unavailable(f'{self.service_type}: {e}') from e
-        except ks_exc.HttpServerError as e:
-            raise Unavailable(f'{self.service_type}: {_error_text(e)}') from e
+        except ks_exc.NotFound:
+            raise
+        except ks_exc.HTTPClientError as e:
+            raise Rejected(_message(e), e.http_status) from e
+        except (ks_exc.ConnectionError, ks_exc.EndpointNotFound,
+                ks_exc.HttpServerError) as e:
+            detail = _error_text(e)
+            LOG.warning('%s %s su %s: %s', method, url, self.service_type,
+                        detail)
+            raise Unavailable(self.service_type, detail) from e
 
     def _get_or_none(self, url):
         try:
@@ -66,7 +90,24 @@ class _Client:
 
 
 def _error_text(error):
-    return error.response.text if error.response is not None else str(error)
+    response = getattr(error, 'response', None)
+    return response.text if response is not None else str(error)
+
+
+def _message(error):
+    """Il motivo di un rifiuto, nei formati di Heat, Blazar e Nova."""
+    try:
+        body = error.response.json()
+    except (AttributeError, ValueError):
+        return _error_text(error)
+    if isinstance(body.get('error'), dict) and 'message' in body['error']:
+        return body['error']['message']
+    if 'error_message' in body:
+        return body['error_message']
+    for value in body.values():
+        if isinstance(value, dict) and 'message' in value:
+            return value['message']
+    return _error_text(error)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -113,7 +154,7 @@ class Blazar(_Client):
         try:
             response = self._call('POST', '/leases', json=body)
         except Unavailable as e:
-            if self._CAPACITY_MESSAGE in str(e):
+            if self._CAPACITY_MESSAGE in e.detail:
                 raise CapacityExhausted(self._CAPACITY_MESSAGE) from e
             raise
         return _lease(response.json()['lease'])
@@ -161,11 +202,7 @@ class Heat(_Client):
             # solo DELETE sull'orb (docs/design/api.md).
             'disable_rollback': True,
         }
-        try:
-            response = self._call('POST', '/stacks', json=body)
-        except ks_exc.HTTPClientError as e:
-            raise Rejected(_heat_message(e)) from e
-        return response.json()['stack']['id']
+        return self._call('POST', '/stacks', json=body).json()['stack']['id']
 
     def get_stack(self, name):
         """Lo stack col nome dato, o None se non esiste o e gia cancellato.
@@ -192,13 +229,6 @@ class Heat(_Client):
         stack = self.get_stack(name)
         if stack is not None:
             self._delete_if_present(f'/stacks/{name}/{stack.id}')
-
-
-def _heat_message(error):
-    try:
-        return error.response.json()['error']['message']
-    except (AttributeError, KeyError, TypeError, ValueError):
-        return _error_text(error)
 
 
 @dataclasses.dataclass(frozen=True)

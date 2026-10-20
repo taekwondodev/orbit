@@ -45,8 +45,15 @@ class Creator:
     def run(self, orb, clients, public_key):
         try:
             self._create(orb, clients, public_key)
+        except orbit_clients.Rejected as e:
+            self._fail(orb, f'prenotazione non leggibile: {e}')
         except Exception:
             LOG.exception('Creazione di %s interrotta', orb.resource_name)
+            self._fail(orb, 'creazione interrotta da un errore interno')
+
+    def _fail(self, orb, fault):
+        self._repository.update(orb.id, Status.RESERVING,
+                                status=Status.ERROR, fault=fault)
 
     def _create(self, orb, clients, public_key):
         if not self._wait_for_reservation(orb, clients.blazar):
@@ -61,8 +68,7 @@ class Creator:
                 orb.resource_name, self._template,
                 self._parameters(orb, public_key), STACK_TAG)
         except (orbit_clients.Rejected, orbit_clients.Unavailable) as e:
-            self._repository.update(orb.id, Status.RESERVING,
-                                    status=Status.ERROR, fault=str(e))
+            self._fail(orb, str(e))
             return
         if not self._repository.update(orb.id, Status.RESERVING,
                                        status=Status.BUILDING,
