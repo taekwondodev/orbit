@@ -1,0 +1,17 @@
+# Plugin DevStack di orbit. Va abilitato dopo heat e blazar nel local.conf:
+# l'ordine reale delle fasi lo decide l'ordine delle righe enable_plugin.
+define_plugin orbit
+plugin_requires orbit heat
+plugin_requires orbit blazar
+
+enable_service orbit-api
+
+ORBIT_DIR=${ORBIT_DIR:-$DEST/orbit}
+ORBIT_CONF_DIR=${ORBIT_CONF_DIR:-/etc/orbit}
+ORBIT_CONF=$ORBIT_CONF_DIR/orbit.conf
+ORBIT_UWSGI=orbit.api.wsgi:application
+ORBIT_UWSGI_CONF=$ORBIT_CONF_DIR/orbit-api-uwsgi.ini
+
+# Tipo di servizio nel catalogo di Keystone. Non e registrato presso la
+# service types authority di OpenStack: e una scelta locale del progetto.
+ORBIT_SERVICE_TYPE=${ORBIT_SERVICE_TYPE:-orbit}

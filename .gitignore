@@ -8,3 +8,9 @@ venv/
 .coverage
 htmlcov/
 .DS_Store
+.eggs/
+build/
+dist/
+.stestr/
+AUTHORS
+ChangeLog

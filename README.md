@@ -14,7 +14,7 @@
 | **Componenti integrati** | Keystone, Blazar, Heat; Nova e Neutron indirettamente |
 | **Interfacce** | API REST, plugin per `openstack` da riga di comando |
 | **Risorsa gestita** | l'*orb*: una macchina isolata, con capacità prenotata su misura e le sue risorse di contorno |
-| **Stato** | progettazione conclusa, implementazione da iniziare |
+| **Stato** | implementazione in corso, nulla ancora verificato su DevStack |
 
 ---
 
@@ -164,10 +164,11 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Decisioni di forma registrate, con fonti verificate
 - [x] Contratto della API, stati e schema dei dati
 - [x] Template dell'orb
-- [ ] Plugin DevStack e scheletro eseguibile del servizio
+- [x] Plugin DevStack e scheletro eseguibile del servizio, da verificare su DevStack
 - [ ] Prenotazione, attesa e creazione dello stack
 - [ ] Lettura dello stato reale e cancellazione
 - [ ] Plugin per `openstack` da riga di comando
 - [ ] Test automatici
+- [ ] Installazione e percorso completo verificati su DevStack
 
-Nessun componente è stato ancora installato: tutte le affermazioni tecniche nei documenti sono tratte dalla documentazione ufficiale o dal codice sorgente di OpenStack, con il collegamento alla fonte accanto.
+Il codice viene scritto prima della verifica su DevStack, che è l'ultimo passo: finché non è stata fatta, nessun componente è stato installato e le affermazioni tecniche nei documenti restano tratte dalla documentazione ufficiale o dal codice sorgente di OpenStack, con il collegamento alla fonte accanto.
