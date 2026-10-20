@@ -165,6 +165,7 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 - [x] Contratto della API, stati e schema dei dati
 - [x] Template dell'orb
 - [x] Plugin DevStack e scheletro eseguibile del servizio, da verificare su DevStack
+- [x] Tabella `orbs` e accesso ai dati, da verificare su DevStack
 - [ ] Prenotazione, attesa e creazione dello stack
 - [ ] Lettura dello stato reale e cancellazione
 - [ ] Plugin per `openstack` da riga di comando

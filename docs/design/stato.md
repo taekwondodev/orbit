@@ -22,6 +22,7 @@ user_id             string      chi ha chiesto l'orb
 vcpus               int         la taglia chiesta
 memory_mb           int
 disk_gb             int
+image               string      l'immagine chiesta, da cui dipende l'utente SSH
 lease_id            uuid        il lease Blazar
 reservation_id      uuid        la prenotazione dentro quel lease, usata come flavor
 stack_id            uuid        lo stack Heat, vuoto finché non è creato
@@ -32,7 +33,7 @@ updated_at          timestamp
 deleted_at          timestamp   conservata per lo storico
 ```
 
-La tabella esiste perché il servizio possiede tre cose che nessun altro conserva: il legame fra un orb, il suo lease e il suo stack; la taglia chiesta, che sopravvive al lease; la storia degli orb cancellati. Due colonne sono copie dichiarate:
+La tabella esiste perché il servizio possiede tre cose che nessun altro conserva: il legame fra un orb, il suo lease e il suo stack; la taglia e l'immagine chieste, che sopravvivono al lease; la storia degli orb cancellati. Due colonne sono copie dichiarate:
 
 - `status` è una copia dell'ultima osservazione. Ogni lettura la ricalcola da Blazar, Heat e Nova e la riscrive; serve a filtrare l'elenco.
 - `fault` è una copia del motivo di un fallimento altrui, conservata perché lo stack in errore potrebbe essere cancellato prima che qualcuno legga l'orb.

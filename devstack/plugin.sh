@@ -14,6 +14,7 @@ function configure_orbit {
     iniset $ORBIT_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
     setup_logging $ORBIT_CONF
     configure_keystone_authtoken_middleware $ORBIT_CONF orbit
+    iniset $ORBIT_CONF database connection "$(database_connection_url orbit)"
 
     write_uwsgi_config "$ORBIT_UWSGI_CONF" "$ORBIT_UWSGI" "/orbit" "" "orbit-api"
     # Un solo processo: il compito di creazione vive nella memoria del
@@ -21,6 +22,11 @@ function configure_orbit {
     # servono a non accodare le richieste mentre una aspetta Blazar o Heat.
     iniset $ORBIT_UWSGI_CONF uwsgi processes 1
     iniset $ORBIT_UWSGI_CONF uwsgi threads 4
+}
+
+function init_orbit {
+    recreate_database orbit
+    orbit-dbsync --config-file $ORBIT_CONF
 }
 
 function create_orbit_accounts {
@@ -72,6 +78,7 @@ if is_service_enabled orbit-api; then
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         echo_summary "Configuring orbit"
         configure_orbit
+        init_orbit
         create_orbit_accounts
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         echo_summary "Starting orbit"
