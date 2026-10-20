@@ -1,0 +1,111 @@
+heat_template_version: 2021-04-16
+
+description: >
+  Sandbox di una sessione agentsession: chiave, firewall, porta, indirizzo
+  raggiungibile e macchina, creata dentro una prenotazione Blazar gia attiva.
+  La prenotazione NON fa parte di questo stack: viene creata prima dal
+  servizio e qui arriva come parametro. Vedi docs/adr/0005.
+
+parameters:
+
+  session_id:
+    type: string
+    description: Identificativo della sessione, usato per nominare le risorse.
+
+  reservation_id:
+    type: string
+    description: >
+      Identificativo della prenotazione Blazar. Blazar pubblica, finche la
+      prenotazione e attiva, un flavor non pubblico con questo stesso
+      identificativo: creare la macchina con quel flavor e il modo con cui
+      la macchina finisce dentro la prenotazione.
+
+  image:
+    type: string
+    description: Immagine del sistema operativo della sandbox.
+    constraints:
+      - custom_constraint: glance.image
+
+  public_key:
+    type: string
+    description: Chiave pubblica fornita dal client. Il servizio non genera chiavi.
+
+  network:
+    type: string
+    description: Rete di progetto a cui collegare la sandbox.
+    constraints:
+      - custom_constraint: neutron.network
+
+  public_network:
+    type: string
+    description: Rete esterna da cui prendere l'indirizzo raggiungibile.
+    constraints:
+      - custom_constraint: neutron.network
+
+  ssh_allowed_cidr:
+    type: string
+    description: Da dove e ammesso l'accesso SSH alla sandbox.
+    default: 0.0.0.0/0
+
+resources:
+
+  keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
+      public_key: { get_param: public_key }
+      save_private_key: false
+
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
+      description: Accesso alla sandbox di una sessione agentsession.
+      rules:
+        - protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+          remote_ip_prefix: { get_param: ssh_allowed_cidr }
+
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: network }
+      security_groups:
+        - { get_resource: security_group }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_network }
+
+  floating_ip_association:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: floating_ip }
+      port_id: { get_resource: port }
+
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
+      image: { get_param: image }
+      flavor: { get_param: reservation_id }
+      key_name: { get_resource: keypair }
+      networks:
+        - port: { get_resource: port }
+      metadata:
+        agentsession_id: { get_param: session_id }
+
+outputs:
+
+  ssh_host:
+    description: Indirizzo a cui il client si collega.
+    value: { get_attr: [floating_ip, floating_ip_address] }
+
+  server_id:
+    description: >
+      Macchina della sandbox. Alla scadenza del lease e Blazar a terminarla:
+      lo stack restera con questa risorsa inesistente finche il pulitore del
+      servizio non lo cancella. Vedi docs/adr/0004.
+    value: { get_resource: server }
