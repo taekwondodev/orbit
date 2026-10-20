@@ -6,59 +6,61 @@ Chi fa cosa, dove passa il confine di proprietà e in che ordine avvengono le co
 
 | Componente | Responsabilità | Non fa |
 | --- | --- | --- |
-| `agentsession-api` | riceve le richieste HTTP, autentica il token, valida, scrive la sessione in stato iniziale e risponde subito | non chiama Heat né Blazar |
-| `agentsession-engine` | esegue la sequenza lenta: trust, prenotazione, attesa, stack; aggiorna lo stato della sessione | non riceve richieste HTTP |
-| `agentsession-cleaner` | compito periodico: cancella gli stack delle sessioni il cui lease è finito, e riallinea lo stato quando la realtà è cambiata da fuori | non decide quando una sessione scade |
-| tabella `sessions` | il legame fra sessione, lease e stack, il trust ID cifrato e lo stato | non è la verità sulle risorse |
+| `orbit-api` | riceve le richieste HTTP, autentica il token, valida, crea flavor e stack, legge lo stato reale a ogni richiesta e risponde | non agisce mai senza una richiesta dell'utente |
+| `orbit-cleaner` | compito periodico: cancella i flavor degli orb che nessuna macchina usa più | non tocca stack né risorse dell'utente, non cambia lo stato degli orb |
+| tabella `orbs` | il legame fra orb, flavor e stack, la taglia, lo stato osservato | non è la verità sulle risorse |
 
-La separazione fra API e motore esiste per una ragione concreta, non per simmetria con gli altri servizi OpenStack: fra la creazione del lease e la disponibilità del flavor della prenotazione c'è un'attesa, e una richiesta HTTP non può restare appesa per tutto quel tempo. La API risponde `202` e il motore continua.
+Non c'è un processo che esegua lavori lenti in sottofondo: le chiamate del servizio durano poco, perché l'unica attesa lunga, la costruzione delle risorse, la fa Heat in modo asincrono. Il servizio chiede, risponde `202`, e scopre l'esito alla lettura successiva.
 
 ## Confine di proprietà
 
 ```
-                     ┌──────────────── agentsession ────────────────┐
-  client  ──HTTP──▶  │  api  ──coda──▶  engine        cleaner       │
-                     │        tabella: sessione, lease, stack, trust│
+                     ┌──────────────── orbit ───────────────────────┐
+  client  ──HTTP──▶  │  api                          cleaner        │
+                     │        tabella: orb, flavor, stack, stato    │
                      └───────┬──────────────┬──────────────┬────────┘
                              │              │              │
-                        Keystone         Blazar           Heat
-                      (chi sei,        (quanta         (quali risorse,
-                       e la delega)     capacità        create e distrutte
-                                        e fino a        in ordine)
-                                        quando)              │
-                                                         Nova, Neutron
+                        Keystone          Nova            Heat
+                       (chi sei)       (flavor su       (quali risorse,
+                                        misura, con      create e distrutte
+                                        la credenziale   in ordine, col
+                                        del servizio)    token dell'utente)
+                                                              │
+                                                        Nova, Neutron
 ```
 
 Regole che non vanno violate perché sono il senso del progetto:
 
-- **Il servizio non crea risorse.** Non chiama Nova né Neutron. Se un giorno serve una risorsa in più nella sandbox, si aggiunge al template.
-- **Il servizio non decide la scadenza.** La verità sull'ora di fine è il lease: la colonna `expires_at` è una copia di comodo, da rileggere e non da credere.
-- **Il servizio non entra nella sandbox.** Non esegue comandi, non copia file, non sa cosa ci gira. Consegna un indirizzo e un utente SSH.
+- **Il servizio non crea le risorse dell'utente.** Le descrive nel template e le fa creare a Heat. Se un giorno serve una risorsa in più nell'orb, si aggiunge al template.
+- **La credenziale del servizio serve solo ai flavor.** Tutto ciò che sta nel progetto dell'utente si tocca col token dell'utente, durante la sua richiesta.
+- **Il servizio non entra nell'orb.** Non esegue comandi, non copia file, non sa cosa ci gira. Consegna un indirizzo e un utente SSH.
 
-## Sequenza di una sessione
+## Sequenza di un orb
 
 ```
-client            api           engine          Keystone   Blazar        Heat
-  │  POST /sessions │              │                │         │            │
-  ├────────────────▶│              │                │         │            │
-  │                 ├─ trust ──────┼───────────────▶│         │            │
-  │                 │◀─ trust ID ──┼────────────────┤         │            │
-  │   202 BUILDING  │              │                │         │            │
-  │◀────────────────┤─── compito ─▶│                │         │            │
-  │                 │              ├─ lease (taglia, fine) ──▶│            │
-  │                 │              │◀─ reservation_id ────────┤            │
-  │                 │              ├─ attesa: prenotazione attiva ─────────┤
-  │                 │              ├─ stack(flavor=reservation_id) ───────▶│
-  │                 │              │◀─ indirizzo SSH ──────────────────────┤
-  │  GET /sessions/{id} → ACTIVE   │                │         │            │
-  │                 │              │                │         │            │
-  │  POST /{id}/renew              ├─ nuova data di fine ────▶│            │
-  │                 │              │                │         │            │
-  │                 │   scadenza   │                ├─ termina la macchina │
-  │                 │   cleaner ──▶│─ token dal trust ──────▶ cancella ───▶│
+client              api                       Nova                Heat
+  │  POST /v1/orbs   │                          │                   │
+  ├─────────────────▶│─ flavor (credenziale) ──▶│                   │
+  │                  │─ accesso al progetto ───▶│                   │
+  │                  │─ stack(flavor) col token dell'utente ───────▶│
+  │  202 BUILDING    │                          │                   │
+  │◀─────────────────┤                          │◀── crea macchina ─┤
+  │                  │                          │                   │
+  │  GET /v1/orbs/{id}                          │                   │
+  ├─────────────────▶│─ stato e output dello stack ────────────────▶│
+  │                  │─ stato della macchina ──▶│                   │
+  │  200 ACTIVE      │                          │                   │
+  │◀─────────────────┤                          │                   │
+  │                  │                          │                   │
+  │  DELETE /v1/orbs/{id}                       │                   │
+  ├─────────────────▶│─ cancella lo stack col token dell'utente ───▶│
+  │  202 DELETING    │                          │◀─ distrugge ──────┤
+  │◀─────────────────┤                          │                   │
+  │                  │                          │                   │
+  │       cleaner ──▶│─ nessuna macchina usa il flavor? cancellalo ▶│
 ```
 
-Il passaggio che richiede attenzione è l'ultimo: Blazar termina la macchina prenotata, non lo stack. Senza il pulitore, resterebbe uno stack con dentro una macchina inesistente, e con esso chiave, firewall e indirizzo. È il debito che l'adozione di Blazar introduce, ed è il motivo per cui il pulitore non è un dettaglio implementativo ma un componente dichiarato.
+Il passaggio che richiede attenzione è l'ultimo: lo stack si cancella subito, il flavor no, perché Nova sconsiglia di cancellare un flavor usato da una macchina ancora esistente. Il pulitore chiude il conto quando la macchina non c'è più, senza dipendere dal fatto che qualcuno rilegga l'orb.
 
 ## Installazione
 
@@ -66,6 +68,5 @@ Il servizio si installa come plugin DevStack: un repository con una cartella `de
 
 Oltre ai propri processi, il plugin deve:
 
-- dichiarare la dipendenza dai plugin di Heat e Blazar, che vanno abilitati prima nel `local.conf`;
-- registrare servizio ed endpoint nel catalogo di Keystone;
-- registrare l'host di calcolo in Blazar, senza il quale nessun lease è creabile.
+- dichiarare la dipendenza dal plugin di Heat, che va abilitato prima nel `local.conf`;
+- creare l'utente del servizio e registrare servizio ed endpoint nel catalogo di Keystone.

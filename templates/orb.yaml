@@ -1,28 +1,25 @@
 heat_template_version: 2021-04-16
 
 description: >
-  Sandbox di una sessione agentsession: chiave, firewall, porta, indirizzo
-  raggiungibile e macchina, creata dentro una prenotazione Blazar gia attiva.
-  La prenotazione NON fa parte di questo stack: viene creata prima dal
-  servizio e qui arriva come parametro. Vedi docs/adr/0005.
+  Risorse di un orb di orbit: chiave, firewall, porta, indirizzo raggiungibile
+  e macchina. Il flavor NON fa parte di questo stack: lo crea prima il servizio
+  con la propria credenziale e qui arriva come parametro. Vedi docs/adr/0004.
 
 parameters:
 
-  session_id:
+  orb_id:
     type: string
-    description: Identificativo della sessione, usato per nominare le risorse.
+    description: Identificativo dell'orb, usato per nominare le risorse.
 
-  reservation_id:
+  flavor:
     type: string
     description: >
-      Identificativo della prenotazione Blazar. Blazar pubblica, finche la
-      prenotazione e attiva, un flavor non pubblico con questo stesso
-      identificativo: creare la macchina con quel flavor e il modo con cui
-      la macchina finisce dentro la prenotazione.
+      Flavor privato dell'orb, creato dal servizio con la taglia richiesta e
+      accessibile solo al progetto che crea questo stack.
 
   image:
     type: string
-    description: Immagine del sistema operativo della sandbox.
+    description: Immagine del sistema operativo dell'orb.
     constraints:
       - custom_constraint: glance.image
 
@@ -32,7 +29,7 @@ parameters:
 
   network:
     type: string
-    description: Rete di progetto a cui collegare la sandbox.
+    description: Rete di progetto a cui collegare l'orb.
     constraints:
       - custom_constraint: neutron.network
 
@@ -44,7 +41,7 @@ parameters:
 
   ssh_allowed_cidr:
     type: string
-    description: Da dove e ammesso l'accesso SSH alla sandbox.
+    description: Da dove e ammesso l'accesso SSH all'orb.
     default: 0.0.0.0/0
 
 resources:
@@ -52,15 +49,15 @@ resources:
   keypair:
     type: OS::Nova::KeyPair
     properties:
-      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
       public_key: { get_param: public_key }
       save_private_key: false
 
   security_group:
     type: OS::Neutron::SecurityGroup
     properties:
-      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
-      description: Accesso alla sandbox di una sessione agentsession.
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
+      description: Accesso SSH a un orb di orbit.
       rules:
         - protocol: tcp
           port_range_min: 22
@@ -88,14 +85,14 @@ resources:
   server:
     type: OS::Nova::Server
     properties:
-      name: { list_join: ['-', ['agentsess', { get_param: session_id }]] }
+      name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
       image: { get_param: image }
-      flavor: { get_param: reservation_id }
+      flavor: { get_param: flavor }
       key_name: { get_resource: keypair }
       networks:
         - port: { get_resource: port }
       metadata:
-        agentsession_id: { get_param: session_id }
+        orbit_orb_id: { get_param: orb_id }
 
 outputs:
 
@@ -105,7 +102,7 @@ outputs:
 
   server_id:
     description: >
-      Macchina della sandbox. Alla scadenza del lease e Blazar a terminarla:
-      lo stack restera con questa risorsa inesistente finche il pulitore del
-      servizio non lo cancella. Vedi docs/adr/0004.
+      Macchina dell'orb. Il servizio la legge a ogni lettura dell'orb, perche
+      Heat non si accorge se viene cancellata o spenta da fuori: lo stack
+      resterebbe CREATE_COMPLETE. Vedi docs/design/stato.md.
     value: { get_resource: server }
