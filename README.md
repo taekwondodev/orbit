@@ -14,7 +14,7 @@
 | **Componenti integrati** | Keystone, Blazar, Heat; Nova e Neutron indirettamente |
 | **Interfacce** | API REST, plugin per `openstack` da riga di comando |
 | **Risorsa gestita** | l'*orb*: una macchina isolata, con capacità prenotata su misura e le sue risorse di contorno |
-| **Stato** | implementazione in corso, nulla ancora verificato su DevStack |
+| **Stato** | installazione e percorso completo verificati su DevStack |
 
 ---
 
@@ -161,6 +161,15 @@ enable_plugin orbit  https://github.com/taekwondodev/orbit
 TEMPEST_PLUGINS=/opt/stack/orbit
 ```
 
+Su un host aarch64 senza KVM, per esempio una macchina virtuale su Apple Silicon, DevStack imposta `cpu_mode = host-passthrough`, che QEMU emulato rifiuta: nessuna macchina parte, e l'orb finisce in `ERROR`. Va scelto un modello di processore:
+
+```ini
+[[post-config|$NOVA_CONF]]
+[libvirt]
+cpu_mode = custom
+cpu_models = cortex-a72
+```
+
 Dopo `./stack.sh`, col progetto `demo`:
 
 ```console
@@ -190,13 +199,13 @@ I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, co
 - [x] Decisioni di forma registrate, con fonti verificate
 - [x] Contratto della API, stati e schema dei dati
 - [x] Template dell'orb
-- [x] Plugin DevStack e scheletro eseguibile del servizio, da verificare su DevStack
-- [x] Tabella `orbs` e accesso ai dati, da verificare su DevStack
-- [x] Prenotazione della capacità, da verificare su DevStack
-- [x] Attesa della prenotazione e creazione dello stack, da verificare su DevStack
-- [x] Lettura dello stato reale e cancellazione, da verificare su DevStack
-- [x] Plugin per `openstack` da riga di comando, da verificare su DevStack
-- [x] Test automatici: unitari senza OpenStack, tempest da eseguire su DevStack
-- [ ] Installazione e percorso completo verificati su DevStack
+- [x] Plugin DevStack e scheletro eseguibile del servizio
+- [x] Tabella `orbs` e accesso ai dati
+- [x] Prenotazione della capacità
+- [x] Attesa della prenotazione e creazione dello stack
+- [x] Lettura dello stato reale e cancellazione
+- [x] Plugin per `openstack` da riga di comando
+- [x] Test automatici: unitari senza OpenStack, tempest su DevStack
+- [x] Installazione e percorso completo verificati su DevStack
 
-Il codice viene scritto prima della verifica su DevStack, che è l'ultimo passo: finché non è stata fatta, nessun componente è stato installato e le affermazioni tecniche nei documenti restano tratte dalla documentazione ufficiale o dal codice sorgente di OpenStack, con il collegamento alla fonte accanto.
+La verifica è stata fatta su DevStack 2027.1, Ubuntu 24.04 aarch64, QEMU senza KVM, con l'immagine cirros: `stack.sh` completo, un orb creato, raggiunto in SSH e cancellato senza risorse residue, uno stato `ERROR` osservato dopo la cancellazione della macchina fuori dal servizio, e `tempest run --regex orbit` con entrambi i test superati.
