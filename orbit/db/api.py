@@ -1,4 +1,4 @@
-"""Accesso alla tabella orbs."""
+"""Access to the orbs table."""
 
 import sqlalchemy as sa
 
@@ -50,7 +50,7 @@ class OrbRepository:
             ))
 
     def get(self, project_id, orb_id):
-        """L'orb, o None se non esiste o appartiene a un altro progetto."""
+        """The orb, or None if missing or in another project."""
         query = orbs.select().where(orbs.c.id == orb_id,
                                     orbs.c.project_id == project_id)
         with self._engine.connect() as conn:
@@ -67,11 +67,11 @@ class OrbRepository:
             return [_to_orb(row) for row in conn.execute(query)]
 
     def update(self, orb_id, expected_status, **changes):
-        """Applica le modifiche solo se lo stato e ancora quello atteso.
+        """Apply the changes only if the status is still the expected one.
 
-        Il compito di creazione e le letture scrivono sulla stessa riga: chi
-        ha letto uno stato superato non sovrascrive quello piu recente.
-        Restituisce True se la riga e stata aggiornata.
+        The creation task and the reads write to the same row: whoever read
+        an outdated status does not overwrite the more recent one.
+        Returns True if the row was updated.
         """
         values = {key: value.value if key == 'status' else value
                   for key, value in changes.items()}

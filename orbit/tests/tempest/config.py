@@ -1,25 +1,25 @@
 from oslo_config import cfg
 
 service_option = cfg.BoolOpt('orbit', default=True,
-                             help='orbit e installato e va provato.')
+                             help='orbit is installed and must be tested.')
 
-orbit_group = cfg.OptGroup(name='orbit', title='Opzioni dei test di orbit')
+orbit_group = cfg.OptGroup(name='orbit', title='orbit test options')
 
 orbit_opts = [
     cfg.IntOpt('build_timeout', default=300,
-               help='Secondi entro cui un orb deve arrivare in ACTIVE o '
-                    'in DELETED.'),
+               help='Seconds within which an orb must reach ACTIVE or '
+                    'DELETED.'),
     cfg.IntOpt('build_interval', default=5,
-               help='Secondi fra due letture dell\'orb.'),
+               help='Seconds between two reads of the orb.'),
     cfg.DictOpt('size', default={'vcpus': '1', 'memory_mb': '512',
                                  'disk_gb': '1'},
-                help='Taglia dell\'orb dei test: deve stare sull\'host.'),
+                help='Size of the test orb: it must fit on the host.'),
     cfg.DictOpt('oversized_size', default={'vcpus': '1',
                                            'memory_mb': '16384',
                                            'disk_gb': '1'},
-                help='Taglia che nessun host puo ospitare. Blazar confronta '
-                     'la richiesta con processori, memoria e disco reali '
-                     'dell\'host, senza sovrallocazione.'),
+                help='Size no host can hold. Blazar compares the request '
+                     'with the real processors, memory and disk of the '
+                     'host, without overcommit.'),
     cfg.BoolOpt('ssh_check', default=True,
-                help='Entra nell\'orb in SSH prima di cancellarlo.'),
+                help='Log into the orb over SSH before deleting it.'),
 ]

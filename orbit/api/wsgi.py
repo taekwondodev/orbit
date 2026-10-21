@@ -1,4 +1,4 @@
-"""Punto d'ingresso per uwsgi: ``module = orbit.api.wsgi:application``."""
+"""Entry point for uwsgi: ``module = orbit.api.wsgi:application``."""
 
 from orbit.api import app
 from orbit import conf

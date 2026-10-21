@@ -443,55 +443,53 @@
 # From orbit
 #
 
-# Processori massimi di un orb. (integer value)
+# Maximum processors of an orb. (integer value)
 # Minimum value: 1
 #max_vcpus = 8
 
-# Memoria massima di un orb, in MiB. (integer value)
+# Maximum memory of an orb, in MiB. (integer value)
 # Minimum value: 1
 #max_memory_mb = 16384
 
-# Disco massimo di un orb, in GiB. (integer value)
+# Maximum disk of an orb, in GiB. (integer value)
 # Minimum value: 1
 #max_disk_gb = 80
 
-# Immagine usata quando la richiesta non ne indica una. Senza valore, la
-# richiesta deve indicarla. (string value)
+# Image used when the request does not name one. Without a value, the request
+# must name it. (string value)
 #default_image = <None>
 
-# Utente SSH restituito per le immagini senza una voce in ssh_users. (string
-# value)
+# SSH user returned for images without an entry in ssh_users. (string value)
 #default_ssh_user = ubuntu
 
-# Utente SSH per immagine, come immagine:utente. L'utente dipende dall'immagine
-# e il client non deve indovinarlo. (dict value)
+# SSH user per image, as image:user. The user depends on the image and the
+# client must not have to guess it. (dict value)
 #ssh_users =
 
-# Data di fine dei lease, nel formato di Blazar "AAAA-MM-GG hh:mm". Non e una
-# scadenza: Blazar esige una fine, l'orb finisce con DELETE (docs/adr/0003).
+# End date of the leases, in the Blazar format "YYYY-MM-DD hh:mm". Not an
+# expiry: Blazar requires an end, the orb ends with DELETE (docs/adr/0003).
 # (string value)
 #lease_end_date = 2099-12-31 23:59
 
-# Secondi entro cui la prenotazione deve attivarsi e lo stack essere creato.
-# Oltre, il compito di creazione rinuncia e un orb senza stack risulta
-# interrotto. (integer value)
+# Seconds within which the reservation must activate and the stack be created.
+# Beyond that, the creation task gives up and an orb without a stack counts as
+# interrupted. (integer value)
 # Minimum value: 1
 #creation_timeout = 120
 
-# Secondi fra due letture del lease mentre si attende la prenotazione attiva.
-# (floating point value)
+# Seconds between two reads of the lease while waiting for the reservation to
+# be active. (floating point value)
 # Minimum value: 0.1
 #reservation_poll_interval = 2.0
 
-# Secondi massimi di attesa di una risposta da Blazar, Heat o Nova. La
-# cancellazione di un lease attivo risponde solo dopo la distruzione della
-# macchina. (integer value)
+# Maximum seconds to wait for a response from Blazar, Heat or Nova. Deleting an
+# active lease responds only after the machine is destroyed. (integer value)
 # Minimum value: 1
 #api_timeout = 60
 
-# Rete esterna a cui si collega il router di ogni orb e da cui prende
-# l'indirizzo raggiungibile. (string value)
+# External network that the router of each orb connects to and that provides
+# the reachable address. (string value)
 #public_network = public
 
-# Da dove e ammesso l'accesso SSH agli orb. (string value)
+# Where SSH access to the orbs is allowed from. (string value)
 #ssh_allowed_cidr = 0.0.0.0/0

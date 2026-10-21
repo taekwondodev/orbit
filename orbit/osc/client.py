@@ -1,4 +1,4 @@
-"""Client della API di orbit per i comandi ``openstack orb``."""
+"""orbit API client for the ``openstack orb`` commands."""
 
 from keystoneauth1 import adapter
 from keystoneauth1 import exceptions as ks_exc

@@ -1,4 +1,4 @@
-"""L'applicazione WSGI di orbit-api: Flask dietro keystonemiddleware."""
+"""The WSGI application of orbit-api: Flask behind keystonemiddleware."""
 
 import flask
 from keystonemiddleware import auth_token
@@ -13,7 +13,7 @@ from orbit import service
 
 
 def create_app(orbs):
-    """L'applicazione senza autenticazione, per i test."""
+    """The application without authentication, for the tests."""
     app = flask.Flask('orbit')
     app.config['ORBS'] = orbs
     app.register_blueprint(v1.blueprint, url_prefix='/v1')
@@ -21,7 +21,7 @@ def create_app(orbs):
 
 
 def create_wsgi_app():
-    """L'applicazione servita: ogni richiesta passa da Keystone."""
+    """The served application: every request goes through Keystone."""
     repository = db_api.OrbRepository(enginefacade.writer.get_engine())
     creator = creation.Creator(repository, creation.load_template())
     orbs = service.Orbs(repository, clients.for_auth, creator)

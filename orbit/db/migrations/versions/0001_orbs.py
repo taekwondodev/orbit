@@ -1,4 +1,4 @@
-"""La tabella orbs.
+"""The orbs table.
 
 Revision ID: 0001
 Revises:

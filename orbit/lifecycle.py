@@ -1,7 +1,7 @@
-"""Lo stato di un orb ricavato da cio che Blazar, Heat e Nova mostrano.
+"""The status of an orb derived from what Blazar, Heat and Nova show.
 
-Traduce la tabella di riallineamento di docs/design/state.md: se la realta e
-la tabella orbs divergono, ha ragione la realta.
+Translates the reconciliation table of docs/design/state.md: if reality and
+the orbs table diverge, reality is right.
 """
 
 import dataclasses
@@ -10,10 +10,10 @@ from orbit import orb as orb_model
 
 Status = orb_model.Status
 
-INTERRUPTED = 'creazione interrotta'
-LEASE_GONE = 'prenotazione non più presente'
-STACK_GONE = 'stack non più presente'
-SERVER_GONE = 'macchina non più disponibile'
+INTERRUPTED = 'creation interrupted'
+LEASE_GONE = 'reservation no longer present'
+STACK_GONE = 'stack no longer present'
+SERVER_GONE = 'machine no longer available'
 
 
 @dataclasses.dataclass(frozen=True)
@@ -24,16 +24,16 @@ class Observation:
 
 
 def observe(orb, now, creation_timeout, lease, stack, server):
-    """Lo stato di ``orb`` dati lease, stack e macchina osservati.
+    """The status of ``orb`` given the observed lease, stack and machine.
 
-    ``lease``, ``stack`` e ``server`` valgono None quando la risorsa non
-    esiste. Lo stack conta solo se l'orb ne ha registrato uno o e in
-    cancellazione; la macchina solo se lo stack e completo.
+    ``lease``, ``stack`` and ``server`` are None when the resource does not
+    exist. The stack counts only if the orb has recorded one or is being
+    deleted; the machine only if the stack is complete.
     """
     observation = _observe(orb, now, creation_timeout, lease, stack, server)
     if observation.status is Status.ERROR and orb.status is Status.ERROR:
-        # Il primo motivo e quello utile: lo stack fallito potrebbe essere
-        # gia stato cancellato quando qualcuno rilegge l'orb.
+        # The first reason is the useful one: the failed stack might already
+        # have been deleted when someone reads the orb again.
         return Observation(Status.ERROR, orb.fault or observation.fault)
     return observation
 
@@ -52,8 +52,8 @@ def _observe(orb, now, creation_timeout, lease, stack, server):
         return Observation(Status.ERROR, LEASE_GONE)
     if lease.is_failed:
         return Observation(
-            Status.ERROR, f'prenotazione in errore: lease {lease.status}, '
-                          f'prenotazione {lease.reservation_status}')
+            Status.ERROR, f'reservation in error: lease {lease.status}, '
+                          f'reservation {lease.reservation_status}')
 
     if orb.stack_id is None:
         if orb.status is Status.ERROR:
@@ -73,4 +73,4 @@ def _observe(orb, now, creation_timeout, lease, stack, server):
                            ssh_host=stack.outputs.get('ssh_host'))
     if stack.status in ('CREATE_FAILED', 'DELETE_FAILED'):
         return Observation(Status.ERROR, stack.status_reason)
-    return Observation(Status.ERROR, f'stack in stato {stack.status}')
+    return Observation(Status.ERROR, f'stack in status {stack.status}')

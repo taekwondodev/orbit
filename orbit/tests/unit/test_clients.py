@@ -9,7 +9,7 @@ from orbit import clients
 from orbit import conf
 from orbit import orb as orb_model
 
-# Come in DevStack, l'endpoint di Blazar nel catalogo include gia /v1.
+# As in DevStack, Blazar's endpoint in the catalog already includes /v1.
 BLAZAR = 'http://blazar.test/reservation/v1'
 SIZE = orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20)
 
@@ -65,7 +65,7 @@ class TestBlazar(unittest.TestCase):
         with self.assertRaises(clients.Unavailable) as raised:
             self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
 
-        self.assertEqual('servizio reservation non raggiungibile',
+        self.assertEqual('service reservation unreachable',
                          str(raised.exception))
         self.assertIn('10.0.0.5', raised.exception.detail)
 
@@ -131,7 +131,7 @@ class TestBlazar(unittest.TestCase):
         self.assertEqual('DELETE', self.http.last_request.method)
 
 
-# Come in DevStack, l'endpoint di Heat nel catalogo include il progetto.
+# As in DevStack, Heat's endpoint in the catalog includes the project.
 HEAT = 'http://heat.test/heat-api/v1/project-a'
 
 

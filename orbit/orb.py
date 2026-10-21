@@ -1,4 +1,4 @@
-"""L'orb come lo conserva il servizio. Vedi docs/design/state.md."""
+"""The orb as the service stores it. See docs/design/state.md."""
 
 import dataclasses
 import datetime
@@ -39,10 +39,10 @@ class Orb:
 
     @property
     def resource_name(self):
-        """Nome di lease e stack: ritrova le risorse anche senza la tabella."""
+        """Name of lease and stack: finds the resources even without the table."""
         return f'orbit-{self.id}'
 
 
 def utcnow():
-    """Ora UTC senza fuso, come la conserva il database."""
+    """UTC time without time zone, as the database stores it."""
     return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)

@@ -1,4 +1,4 @@
-"""Porta lo schema del database all'ultima versione. Ripetibile."""
+"""Brings the database schema to the latest version. Repeatable."""
 
 from alembic import command
 from alembic import config as alembic_config

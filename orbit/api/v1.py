@@ -1,4 +1,4 @@
-"""Le risorse HTTP di /v1. Il contratto è in docs/design/api.md."""
+"""The HTTP resources of /v1. The contract is in docs/design/api.md."""
 
 import base64
 import binascii
@@ -13,8 +13,8 @@ from orbit import service
 
 blueprint = flask.Blueprint('v1', __name__)
 
-# Una chiave RSA a 16384 bit occupa circa 2800 caratteri; la colonna image e
-# lunga 255.
+# A 16384-bit RSA key takes about 2800 characters; the image column is 255
+# long.
 _MAX_KEY_LENGTH = 8192
 _MAX_IMAGE_LENGTH = 255
 
@@ -32,7 +32,7 @@ def _context():
     environ = flask.request.environ
     project_id = environ.get('HTTP_X_PROJECT_ID')
     if not project_id:
-        raise http_exc.Forbidden('Serve un token con ambito di progetto.')
+        raise http_exc.Forbidden('A project-scoped token is required.')
     return service.Context(project_id=project_id,
                            user_id=environ.get('HTTP_X_USER_ID'),
                            auth=environ.get('keystone.token_auth'))
@@ -52,7 +52,7 @@ def list_orbs():
         try:
             status = orb_model.Status(status)
         except ValueError:
-            raise http_exc.BadRequest(f'Stato sconosciuto: {status}')
+            raise http_exc.BadRequest(f'Unknown status: {status}')
     return {'orbs': [_view(o) for o in _orbs().list(_context(), status)]}
 
 
@@ -60,7 +60,7 @@ def list_orbs():
 def show_orb(orb_id):
     observed = _orbs().get(_context(), orb_id)
     if observed is None:
-        raise http_exc.NotFound(f'Orb {orb_id} non trovato.')
+        raise http_exc.NotFound(f'Orb {orb_id} not found.')
     return _view(observed)
 
 
@@ -68,22 +68,22 @@ def show_orb(orb_id):
 def delete_orb(orb_id):
     observed = _orbs().delete(_context(), orb_id)
     if observed is None:
-        raise http_exc.NotFound(f'Orb {orb_id} non trovato.')
+        raise http_exc.NotFound(f'Orb {orb_id} not found.')
     return _view(observed), 202
 
 
 @blueprint.errorhandler(clients.CapacityExhausted)
 def _capacity_exhausted(error):
-    return _error(409, 'Capacità esaurita: nessun host ha posto per la '
-                       'taglia chiesta.')
+    return _error(409, 'Capacity exhausted: no host has room for the '
+                       'requested size.')
 
 
 @blueprint.errorhandler(clients.Rejected)
 def _rejected(error):
-    # Un 401 o 403 a valle riguarda il token o i ruoli di chi chiede; ogni
-    # altro rifiuto e una risposta che il servizio non sa gestire.
+    # A downstream 401 or 403 concerns the requester's token or roles; any
+    # other rejection is a response the service cannot handle.
     code = error.code if error.code in (401, 403) else 502
-    return _error(code, f'Richiesta rifiutata: {error}')
+    return _error(code, f'Request rejected: {error}')
 
 
 @blueprint.errorhandler(clients.Unavailable)
@@ -102,7 +102,7 @@ def _error(code, message):
 
 def _create_request(body):
     if not isinstance(body, dict):
-        raise http_exc.BadRequest('Il corpo deve essere un oggetto JSON.')
+        raise http_exc.BadRequest('The body must be a JSON object.')
     return service.CreateRequest(
         size=_size(body.get('size')),
         public_key=_public_key(body.get('public_key')),
@@ -113,7 +113,7 @@ def _create_request(body):
 def _size(size):
     if not isinstance(size, dict):
         raise http_exc.BadRequest(
-            'size deve indicare vcpus, memory_mb e disk_gb.')
+            'size must specify vcpus, memory_mb and disk_gb.')
     limits = {'vcpus': CONF.orbs.max_vcpus,
               'memory_mb': CONF.orbs.max_memory_mb,
               'disk_gb': CONF.orbs.max_disk_gb}
@@ -121,35 +121,35 @@ def _size(size):
         value = size.get(field)
         if type(value) is not int or not 1 <= value <= limit:
             raise http_exc.BadRequest(
-                f'size.{field} deve essere un intero fra 1 e {limit}.')
+                f'size.{field} must be an integer between 1 and {limit}.')
     return orb_model.Size(**{field: size[field] for field in limits})
 
 
 def _public_key(key):
     if not isinstance(key, str):
-        raise http_exc.BadRequest('public_key è obbligatoria.')
+        raise http_exc.BadRequest('public_key is required.')
     key = key.strip()
     parts = key.split()
     if (len(key) > _MAX_KEY_LENGTH or '\n' in key or '\r' in key
             or len(parts) < 2 or parts[0] not in _KEY_TYPES):
         raise http_exc.BadRequest(
-            'public_key deve essere una chiave pubblica OpenSSH.')
+            'public_key must be an OpenSSH public key.')
     try:
         base64.b64decode(parts[1], validate=True)
     except binascii.Error:
         raise http_exc.BadRequest(
-            'public_key deve essere una chiave pubblica OpenSSH.')
+            'public_key must be an OpenSSH public key.')
     return key
 
 
 def _image(image):
     image = image if image is not None else CONF.orbs.default_image
     if not isinstance(image, str) or not image:
-        raise http_exc.BadRequest('image è obbligatoria: nessuna immagine '
-                                  'predefinita è configurata.')
+        raise http_exc.BadRequest('image is required: no default image '
+                                  'is configured.')
     if len(image) > _MAX_IMAGE_LENGTH:
         raise http_exc.BadRequest(
-            f'image supera i {_MAX_IMAGE_LENGTH} caratteri.')
+            f'image exceeds {_MAX_IMAGE_LENGTH} characters.')
     return image
 
 

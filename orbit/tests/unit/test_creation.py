@@ -14,7 +14,7 @@ START = datetime.datetime(2026, 10, 20, 12, 0, 0)
 
 
 class FakeClock:
-    """Il tempo avanza solo quando il compito attende."""
+    """Time advances only when the task waits."""
 
     def __init__(self):
         self.now = START
@@ -152,7 +152,7 @@ class TestCreator(unittest.TestCase):
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         self.assertEqual(Status.ERROR, self.stored().status)
-        self.assertEqual('creazione interrotta da un errore interno',
+        self.assertEqual('creation interrupted by an internal error',
                          self.stored().fault)
 
     def test_lease_read_refused_is_recorded_with_its_reason(self):
@@ -194,7 +194,7 @@ class TestTemplate(unittest.TestCase):
             {'router': {'get_resource': 'router'},
              'subnet': {'get_resource': 'subnet'}},
             resources['router_interface']['properties'])
-        # Neutron associa l'indirizzo esterno solo a una porta raggiungibile
-        # dal router.
+        # Neutron associates the external address only with a port reachable
+        # from the router.
         self.assertEqual('router_interface',
                          resources['floating_ip_association']['depends_on'])

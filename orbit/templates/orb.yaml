@@ -1,53 +1,53 @@
 heat_template_version: 2021-04-16
 
 description: >
-  Risorse di un orb di orbit: rete propria con router verso la rete esterna,
-  chiave, firewall, porta, indirizzo raggiungibile e macchina, creata dentro
-  una prenotazione Blazar gia attiva. Il lease NON fa parte di questo stack:
-  lo crea prima il servizio e qui arriva la sua prenotazione come parametro.
-  Vedi docs/adr/0005 e, per la rete, docs/adr/0006.
+  Resources of an orbit orb: its own network with a router to the external
+  network, key, firewall, port, reachable address and machine, created inside
+  an already active Blazar reservation. The lease is NOT part of this stack:
+  the service creates it first and its reservation arrives here as a
+  parameter. See docs/adr/0005 and, for the network, docs/adr/0006.
 
 parameters:
 
   orb_id:
     type: string
-    description: Identificativo dell'orb, usato per nominare le risorse.
+    description: Identifier of the orb, used to name the resources.
 
   reservation_id:
     type: string
     description: >
-      Identificativo della prenotazione Blazar. Blazar crea un flavor non
-      pubblico con questo stesso identificativo e la taglia dell'orb, e lo
-      rende accessibile al progetto quando la prenotazione diventa attiva:
-      creare la macchina con quel flavor e il modo con cui la macchina
-      finisce dentro la prenotazione.
+      Identifier of the Blazar reservation. Blazar creates a non-public
+      flavor with this same identifier and the orb's size, and makes it
+      accessible to the project when the reservation becomes active:
+      creating the machine with that flavor is how the machine ends up
+      inside the reservation.
 
   image:
     type: string
-    description: Immagine del sistema operativo dell'orb.
+    description: Operating system image of the orb.
     constraints:
       - custom_constraint: glance.image
 
   public_key:
     type: string
-    description: Chiave pubblica fornita dal client. Il servizio non genera chiavi.
+    description: Public key supplied by the client. The service generates no keys.
 
   public_network:
     type: string
-    description: Rete esterna da cui prendere l'indirizzo raggiungibile.
+    description: External network that provides the reachable address.
     constraints:
       - custom_constraint: neutron.network
 
   cidr:
     type: string
     description: >
-      Indirizzi della rete dell'orb. Ogni orb ha la sua rete e il suo router,
-      quindi orb diversi possono usare lo stesso intervallo.
+      Addresses of the orb's network. Each orb has its own network and router,
+      so different orbs can use the same range.
     default: 10.42.0.0/24
 
   ssh_allowed_cidr:
     type: string
-    description: Da dove e ammesso l'accesso SSH all'orb.
+    description: Where SSH access to the orb is allowed from.
     default: 0.0.0.0/0
 
 resources:
@@ -89,7 +89,7 @@ resources:
     type: OS::Neutron::SecurityGroup
     properties:
       name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
-      description: Accesso SSH a un orb di orbit.
+      description: SSH access to an orbit orb.
       rules:
         - protocol: tcp
           port_range_min: 22
@@ -112,8 +112,8 @@ resources:
 
   floating_ip_association:
     type: OS::Neutron::FloatingIPAssociation
-    # L'indirizzo esterno si associa solo a una porta raggiungibile dal
-    # router: senza l'interfaccia, Neutron rifiuta l'associazione.
+    # The external address can be associated only with a port reachable from
+    # the router: without the interface, Neutron rejects the association.
     depends_on: router_interface
     properties:
       floatingip_id: { get_resource: floating_ip }
@@ -134,13 +134,13 @@ resources:
 outputs:
 
   ssh_host:
-    description: Indirizzo a cui il client si collega.
+    description: Address the client connects to.
     value: { get_attr: [floating_ip, floating_ip_address] }
 
   server_id:
     description: >
-      Macchina dell'orb. Il servizio la legge a ogni lettura dell'orb, perche
-      Heat non si accorge se viene cancellata o spenta da fuori, anche da
-      Blazar alla cancellazione del lease: lo stack resterebbe CREATE_COMPLETE.
-      Vedi docs/design/state.md.
+      Machine of the orb. The service reads it on every read of the orb,
+      because Heat does not notice if it is deleted or stopped from outside,
+      also by Blazar when the lease is deleted: the stack would stay
+      CREATE_COMPLETE. See docs/design/state.md.
     value: { get_resource: server }

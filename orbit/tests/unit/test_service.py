@@ -50,7 +50,7 @@ class ServiceTestCase(unittest.TestCase):
         self.orb = self.orbs.create(CONTEXT, REQUEST).orb
 
     def build(self):
-        """Porta l'orb fino a una macchina accesa, come farebbe il compito."""
+        """Bring the orb up to a running machine, as the task would."""
         self.blazar.activate(self.orb.lease_id)
         stack_id = self.heat.create_stack(self.orb.resource_name, 't', {},
                                           'orbit')
@@ -83,7 +83,7 @@ class TestRead(ServiceTestCase):
         observed = self.orbs.get(CONTEXT, self.orb.id)
 
         self.assertEqual(Status.ERROR, observed.orb.status)
-        self.assertEqual('macchina non più disponibile', observed.orb.fault)
+        self.assertEqual('machine no longer available', observed.orb.fault)
         self.assertIsNone(observed.ssh_host)
 
     def test_list_filters_on_the_observed_status(self):
@@ -134,8 +134,8 @@ class TestDelete(ServiceTestCase):
         self.assertEqual(Status.DELETED, observed.orb.status)
 
     def test_delete_while_reserving_finds_a_stack_by_its_name(self):
-        # Il compito di creazione ha creato lo stack ma non l'ha ancora
-        # registrato: il nome deterministico lo ritrova.
+        # The creation task created the stack but has not recorded it yet:
+        # the deterministic name finds it.
         self.heat.create_stack(self.orb.resource_name, 't', {}, 'orbit')
 
         self.orbs.delete(CONTEXT, self.orb.id)

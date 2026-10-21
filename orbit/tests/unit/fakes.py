@@ -1,4 +1,4 @@
-"""Oggetti di prova condivisi dai test unitari."""
+"""Test doubles shared by the unit tests."""
 
 import dataclasses
 
@@ -11,7 +11,7 @@ from orbit import orb as orb_model
 
 
 def database():
-    """Un database SQLite in memoria con lo schema delle migrazioni."""
+    """An in-memory SQLite database with the migrations' schema."""
     engine = sa.create_engine('sqlite://',
                               poolclass=sa.pool.StaticPool,
                               connect_args={'check_same_thread': False})
@@ -44,7 +44,7 @@ PUBLIC_KEY = ('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGOhftmAAN4BAVfQqYzlzcso'
 
 
 class FakeBlazar:
-    """Un Blazar in memoria: i lease nascono in attesa di attivazione."""
+    """An in-memory Blazar: leases are born waiting for activation."""
 
     def __init__(self):
         self.leases = {}
@@ -76,7 +76,7 @@ class FakeBlazar:
 
 
 class FakeHeat:
-    """Un Heat in memoria: gli stack nascono in costruzione."""
+    """An in-memory Heat: stacks are born under construction."""
 
     def __init__(self):
         self.stacks = {}
@@ -106,7 +106,7 @@ class FakeHeat:
 
 
 class FakeCreator:
-    """Registra le creazioni avviate senza eseguirle."""
+    """Records the started creations without running them."""
 
     def __init__(self):
         self.started = []

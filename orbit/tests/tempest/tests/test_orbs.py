@@ -1,4 +1,4 @@
-"""Il percorso completo di un orb su un'installazione reale."""
+"""The full path of an orb on a real installation."""
 
 import time
 
@@ -30,7 +30,7 @@ class OrbsTest(test.BaseTestCase):
     def skip_checks(cls):
         super().skip_checks()
         if not CONF.service_available.orbit:
-            raise cls.skipException('orbit non e disponibile.')
+            raise cls.skipException('orbit is not available.')
 
     @classmethod
     def setup_clients(cls):
@@ -54,8 +54,8 @@ class OrbsTest(test.BaseTestCase):
             if orb['status'] == 'ERROR':
                 self.fail(f"Orb {orb_id} in ERROR: {orb['fault']}")
             if time.time() > deadline:
-                self.fail(f"Orb {orb_id} ancora in {orb['status']} dopo "
-                          f"{CONF.orbit.build_timeout} secondi")
+                self.fail(f"Orb {orb_id} still in {orb['status']} after "
+                          f"{CONF.orbit.build_timeout} seconds")
             time.sleep(CONF.orbit.build_interval)
 
     def _delete_quietly(self, orb_id):
@@ -95,10 +95,10 @@ class OrbsTest(test.BaseTestCase):
         except exceptions.Conflict:
             pass
         else:
-            # L'host era piu grande del previsto: non lasciare il lease.
+            # The host was bigger than expected: do not leave the lease.
             self.addCleanup(self.orbs.wait_for_resource_deletion, orb['id'])
             self.addCleanup(self._delete_quietly, orb['id'])
-            self.fail('La taglia oversized_size e stata accettata: va '
-                      'alzata oltre la capacita dell\'host.')
+            self.fail('The oversized_size size was accepted: raise it '
+                      'beyond the host capacity.')
 
         self.assertEqual(before, self.orbs.list_orbs()['orbs'])

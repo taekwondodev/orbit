@@ -1,7 +1,7 @@
-"""Chiamate a Blazar, Heat e Nova col token di chi ha fatto la richiesta.
+"""Calls to Blazar, Heat and Nova with the token of whoever made the request.
 
-Ogni client traduce le risposte nei pochi fatti che servono al servizio e
-nelle eccezioni di questo modulo; il resto del codice non vede HTTP.
+Each client translates the responses into the few facts the service needs and
+into this module's exceptions; the rest of the code does not see HTTP.
 """
 
 import dataclasses
@@ -17,23 +17,23 @@ LOG = log.getLogger(__name__)
 
 
 class Unavailable(Exception):
-    """Il servizio chiamato non risponde o risponde con un errore suo.
+    """The called service does not respond or responds with its own error.
 
-    Il messaggio e generico: la risposta originale, che puo contenere
-    indirizzi interni o tracce, resta in ``detail`` e nei log.
+    The message is generic: the original response, which may contain
+    internal addresses or tracebacks, stays in ``detail`` and in the logs.
     """
 
     def __init__(self, service_type, detail):
-        super().__init__(f'servizio {service_type} non raggiungibile')
+        super().__init__(f'service {service_type} unreachable')
         self.detail = detail
 
 
 class CapacityExhausted(Exception):
-    """Blazar non ha un host con posto per la taglia chiesta."""
+    """Blazar has no host with room for the requested size."""
 
 
 class Rejected(Exception):
-    """Il servizio chiamato ha rifiutato la richiesta, col suo motivo."""
+    """The called service rejected the request, with its reason."""
 
     def __init__(self, message, code):
         super().__init__(message)
@@ -48,7 +48,7 @@ class Clients:
 
 
 def for_auth(auth):
-    """I client che agiscono a nome di chi possiede ``auth``."""
+    """The clients that act on behalf of whoever holds ``auth``."""
     session = ks_session.Session(auth=auth, timeout=CONF.orbs.api_timeout)
     return Clients(blazar=Blazar(session), heat=Heat(session),
                    nova=Nova(session))
@@ -62,10 +62,11 @@ class _Client:
                                     interface='public')
 
     def _call(self, method, url, missing_ok=False, **kwargs):
-        """La risposta, con gli errori tradotti nelle eccezioni del modulo.
+        """The response, with errors translated into the module's exceptions.
 
-        Con ``missing_ok`` un 404 passa intatto, per chi legge o cancella
-        una risorsa che puo non esistere piu; altrimenti e un rifiuto.
+        With ``missing_ok`` a 404 passes through untouched, for callers that
+        read or delete a resource that may no longer exist; otherwise it is a
+        rejection.
         """
         try:
             return self._api.request(url, method, **kwargs)
@@ -74,14 +75,14 @@ class _Client:
                 raise
             raise Rejected(_message(e), e.http_status) from e
         except (ks_exc.RequestTimeout, ks_exc.TooManyRequests) as e:
-            # 408 e 429 sono passeggeri: chi chiama ritenta come per un 5xx.
+            # 408 and 429 are transient: the caller retries as for a 5xx.
             raise Unavailable(self.service_type, _error_text(e)) from e
         except ks_exc.HTTPClientError as e:
             raise Rejected(_message(e), e.http_status) from e
         except (ks_exc.ConnectionError, ks_exc.EndpointNotFound,
                 ks_exc.HttpServerError) as e:
             detail = _error_text(e)
-            LOG.warning('%s %s su %s: %s', method, url, self.service_type,
+            LOG.warning('%s %s on %s: %s', method, url, self.service_type,
                         detail)
             raise Unavailable(self.service_type, detail) from e
 
@@ -104,7 +105,7 @@ def _error_text(error):
 
 
 def _message(error):
-    """Il motivo di un rifiuto, nei formati di Heat, Blazar e Nova."""
+    """The reason for a rejection, in the Heat, Blazar and Nova formats."""
     try:
         body = error.response.json()
     except (AttributeError, ValueError):
@@ -138,9 +139,9 @@ class Lease:
 class Blazar(_Client):
     service_type = 'reservation'
 
-    # Blazar segnala la capacita esaurita con l'eccezione
-    # NotEnoughHostsAvailable, che non dichiara un codice: arriva come 500 e
-    # si riconosce solo dal messaggio. Fonti: blazar/manager/exceptions.py e
+    # Blazar reports exhausted capacity with the NotEnoughHostsAvailable
+    # exception, which declares no code: it arrives as a 500 and can only be
+    # recognized by its message. Sources: blazar/manager/exceptions.py and
     # blazar/api/v1/utils.py.
     _CAPACITY_MESSAGE = 'Not enough hosts available'
 
@@ -169,12 +170,12 @@ class Blazar(_Client):
         return _lease(response.json()['lease'])
 
     def get_lease(self, lease_id):
-        """Il lease, o None se non esiste piu."""
+        """The lease, or None if it no longer exists."""
         body = self._get_or_none(f'/leases/{lease_id}')
         return _lease(body['lease']) if body else None
 
     def delete_lease(self, lease_id):
-        """Cancella il lease; un lease gia sparito non e un errore."""
+        """Delete the lease; a lease already gone is not an error."""
         self._delete_if_present(f'/leases/{lease_id}')
 
 
@@ -197,27 +198,27 @@ class Heat(_Client):
     service_type = 'orchestration'
 
     def create_stack(self, name, template, parameters, tag):
-        """Crea lo stack e ne restituisce l'identificativo.
+        """Create the stack and return its identifier.
 
-        Heat costruisce in modo asincrono: la risposta arriva appena lo stack
-        e accettato, e lo stato si scopre leggendolo.
+        Heat builds asynchronously: the response arrives as soon as the stack
+        is accepted, and its status is discovered by reading it.
         """
         body = {
             'stack_name': name,
             'template': template,
             'parameters': parameters,
             'tags': tag,
-            # Uno stack fallito resta in piedi per la diagnosi: lo cancella
-            # solo DELETE sull'orb (docs/design/api.md).
+            # A failed stack stays up for diagnosis: only DELETE on the orb
+            # deletes it (docs/design/api.md).
             'disable_rollback': True,
         }
         return self._call('POST', '/stacks', json=body).json()['stack']['id']
 
     def get_stack(self, name):
-        """Lo stack col nome dato, o None se non esiste o e gia cancellato.
+        """The stack with the given name, or None if missing or deleted.
 
-        Heat risponde a /stacks/{nome} con un rinvio a /stacks/{nome}/{id},
-        che keystoneauth segue.
+        Heat answers /stacks/{name} with a redirect to /stacks/{name}/{id},
+        which keystoneauth follows.
         """
         body = self._get_or_none(f'/stacks/{name}')
         if body is None or body['stack']['stack_status'] == 'DELETE_COMPLETE':
@@ -230,10 +231,10 @@ class Heat(_Client):
                      outputs=outputs)
 
     def delete_stack(self, name):
-        """Cancella lo stack; uno stack gia sparito non e un errore.
+        """Delete the stack; a stack already gone is not an error.
 
-        Il rinvio di /stacks/{nome} vale solo per le letture: la
-        cancellazione va fatta sull'indirizzo completo, con l'identificativo.
+        The /stacks/{name} redirect applies only to reads: the deletion must
+        target the full address, with the identifier.
         """
         stack = self.get_stack(name)
         if stack is not None:
@@ -250,10 +251,10 @@ class Nova(_Client):
     service_type = 'compute'
 
     def get_server(self, server_id):
-        """La macchina, o None se non esiste piu.
+        """The machine, or None if it no longer exists.
 
-        Heat non si accorge di una macchina cancellata o spenta da fuori:
-        lo stack resta CREATE_COMPLETE, quindi la macchina va letta qui.
+        Heat does not notice a machine deleted or stopped from outside: the
+        stack stays CREATE_COMPLETE, so the machine must be read here.
         """
         body = self._get_or_none(f'/servers/{server_id}')
         if body is None:

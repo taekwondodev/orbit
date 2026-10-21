@@ -1,4 +1,4 @@
-"""Opzioni di configurazione di orbit, lette da /etc/orbit/orbit.conf."""
+"""orbit's configuration options, read from /etc/orbit/orbit.conf."""
 
 from oslo_config import cfg
 from oslo_db import options as db_options
@@ -8,41 +8,42 @@ CONF = cfg.CONF
 
 orbs_opts = [
     cfg.IntOpt('max_vcpus', default=8, min=1,
-               help='Processori massimi di un orb.'),
+               help='Maximum processors of an orb.'),
     cfg.IntOpt('max_memory_mb', default=16384, min=1,
-               help='Memoria massima di un orb, in MiB.'),
+               help='Maximum memory of an orb, in MiB.'),
     cfg.IntOpt('max_disk_gb', default=80, min=1,
-               help='Disco massimo di un orb, in GiB.'),
+               help='Maximum disk of an orb, in GiB.'),
     cfg.StrOpt('default_image',
-               help='Immagine usata quando la richiesta non ne indica una. '
-                    'Senza valore, la richiesta deve indicarla.'),
+               help='Image used when the request does not name one. '
+                    'Without a value, the request must name it.'),
     cfg.StrOpt('default_ssh_user', default='ubuntu',
-               help='Utente SSH restituito per le immagini senza una voce '
+               help='SSH user returned for images without an entry '
                     'in ssh_users.'),
     cfg.DictOpt('ssh_users', default={},
-                help='Utente SSH per immagine, come immagine:utente. '
-                     'L\'utente dipende dall\'immagine e il client non deve '
-                     'indovinarlo.'),
+                help='SSH user per image, as image:user. '
+                     'The user depends on the image and the client must not '
+                     'have to guess it.'),
     cfg.StrOpt('lease_end_date', default='2099-12-31 23:59',
-               help='Data di fine dei lease, nel formato di Blazar '
-                    '"AAAA-MM-GG hh:mm". Non e una scadenza: Blazar esige '
-                    'una fine, l\'orb finisce con DELETE (docs/adr/0003).'),
+               help='End date of the leases, in the Blazar format '
+                    '"YYYY-MM-DD hh:mm". Not an expiry: Blazar requires '
+                    'an end, the orb ends with DELETE (docs/adr/0003).'),
     cfg.IntOpt('creation_timeout', default=120, min=1,
-               help='Secondi entro cui la prenotazione deve attivarsi e lo '
-                    'stack essere creato. Oltre, il compito di creazione '
-                    'rinuncia e un orb senza stack risulta interrotto.'),
+               help='Seconds within which the reservation must activate and '
+                    'the stack be created. Beyond that, the creation task '
+                    'gives up and an orb without a stack counts as '
+                    'interrupted.'),
     cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
-                 help='Secondi fra due letture del lease mentre si attende '
-                      'la prenotazione attiva.'),
+                 help='Seconds between two reads of the lease while waiting '
+                      'for the reservation to be active.'),
     cfg.IntOpt('api_timeout', default=60, min=1,
-               help='Secondi massimi di attesa di una risposta da Blazar, '
-                    'Heat o Nova. La cancellazione di un lease attivo '
-                    'risponde solo dopo la distruzione della macchina.'),
+               help='Maximum seconds to wait for a response from Blazar, '
+                    'Heat or Nova. Deleting an active lease responds only '
+                    'after the machine is destroyed.'),
     cfg.StrOpt('public_network', default='public',
-               help='Rete esterna a cui si collega il router di ogni '
-                    'orb e da cui prende l\'indirizzo raggiungibile.'),
+               help='External network that the router of each orb '
+                    'connects to and that provides the reachable address.'),
     cfg.StrOpt('ssh_allowed_cidr', default='0.0.0.0/0',
-               help='Da dove e ammesso l\'accesso SSH agli orb.'),
+               help='Where SSH access to the orbs is allowed from.'),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')

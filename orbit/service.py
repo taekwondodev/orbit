@@ -1,4 +1,4 @@
-"""Le operazioni sugli orb, indipendenti da HTTP."""
+"""The operations on orbs, independent of HTTP."""
 
 import dataclasses
 import uuid
@@ -12,7 +12,7 @@ Status = orb_model.Status
 
 @dataclasses.dataclass(frozen=True)
 class Context:
-    """Chi fa la richiesta, e la sua autenticazione per agire a suo nome."""
+    """Who makes the request, and their authentication to act for them."""
     project_id: str
     user_id: str
     auth: object
@@ -27,7 +27,7 @@ class CreateRequest:
 
 @dataclasses.dataclass(frozen=True)
 class Observed:
-    """Un orb come appare adesso, con l'indirizzo se e raggiungibile."""
+    """An orb as it looks now, with the address if it is reachable."""
     orb: orb_model.Orb
     ssh_host: str | None = None
 
@@ -40,10 +40,10 @@ class Orbs:
         self._creator = creator
 
     def create(self, context, request):
-        """Prenota la capacita, registra l'orb in RESERVING e avvia la
-        creazione, che prosegue dopo la risposta.
+        """Reserve the capacity, record the orb in RESERVING and start the
+        creation, which goes on after the response.
 
-        Se Blazar rifiuta la prenotazione non resta nulla: ne lease ne riga.
+        If Blazar rejects the reservation nothing is left: no lease, no row.
         """
         clients = self._clients_for(context.auth)
         orb_id = str(uuid.uuid4())
@@ -69,7 +69,7 @@ class Orbs:
         return Observed(orb)
 
     def get(self, context, orb_id):
-        """L'orb come appare adesso, o None se non esiste nel progetto."""
+        """The orb as it looks now, or None if not in the project."""
         orb = self._repository.get(context.project_id, orb_id)
         if orb is None:
             return None
@@ -84,9 +84,9 @@ class Orbs:
         return [o for o in observed if o.orb.status is status]
 
     def delete(self, context, orb_id):
-        """Cancella stack e lease. Ripetibile: ritenta cio che e rimasto.
+        """Delete stack and lease. Repeatable: retries what is left.
 
-        Restituisce None se l'orb non esiste nel progetto.
+        Returns None if the orb does not exist in the project.
         """
         orb = self._repository.get(context.project_id, orb_id)
         if orb is None:
@@ -98,15 +98,15 @@ class Orbs:
             orb = self._repository.get(context.project_id, orb_id)
         if orb.status is not Status.DELETED:
             clients = self._clients_for(context.auth)
-            # Prima lo stack, poi il lease: cancellando il lease Blazar
-            # distrugge comunque la macchina, l'ordine serve alla pulizia di
-            # Heat (docs/adr/0005).
+            # First the stack, then the lease: deleting the lease, Blazar
+            # destroys the machine anyway; the order serves Heat's cleanup
+            # (docs/adr/0005).
             clients.heat.delete_stack(orb.resource_name)
             clients.blazar.delete_lease(orb.lease_id)
         return Observed(self._repository.get(context.project_id, orb_id))
 
     def _observe(self, orb, clients):
-        """Rilegge lease, stack e macchina, e corregge la tabella."""
+        """Re-read lease, stack and machine, and correct the table."""
         if orb.status is Status.DELETED:
             return Observed(orb)
         lease = clients.blazar.get_lease(orb.lease_id)
@@ -126,8 +126,8 @@ class Orbs:
         if not self._repository.update(orb.id, orb.status,
                                        status=observation.status,
                                        fault=observation.fault):
-            # Un'altra richiesta, o il compito di creazione, ha scritto per
-            # prima: vale la sua versione, rivista alla prossima lettura.
+            # Another request, or the creation task, wrote first: its
+            # version wins, and is checked again on the next read.
             return Observed(self._repository.get(orb.project_id, orb.id))
         return Observed(self._repository.get(orb.project_id, orb.id),
                         observation.ssh_host)

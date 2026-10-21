@@ -1,4 +1,4 @@
-"""I comandi ``openstack orb create|list|show|delete``."""
+"""The ``openstack orb create|list|show|delete`` commands."""
 
 import time
 
@@ -16,24 +16,24 @@ def _row(orb, fields=_FIELDS):
 
 
 class CreateOrb(command.ShowOne):
-    """Crea un orb: prenota la capacità e avvia la costruzione."""
+    """Create an orb: reserve the capacity and start the build."""
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
         parser.add_argument('--vcpus', type=int, required=True,
-                            help='Processori.')
+                            help='Processors.')
         parser.add_argument('--memory', type=int, required=True,
-                            metavar='<MiB>', help='Memoria in MiB.')
+                            metavar='<MiB>', help='Memory in MiB.')
         parser.add_argument('--disk', type=int, required=True,
-                            metavar='<GiB>', help='Disco in GiB.')
+                            metavar='<GiB>', help='Disk in GiB.')
         parser.add_argument('--public-key', required=True, metavar='<file>',
-                            help='File della chiave pubblica SSH da '
-                                 'installare, per esempio '
+                            help='File of the SSH public key to '
+                                 'install, for example '
                                  '~/.ssh/id_ed25519.pub.')
-        parser.add_argument('--image', help='Immagine; senza, quella '
-                                            'predefinita del servizio.')
+        parser.add_argument('--image', help='Image; without it, the '
+                                            'service default.')
         parser.add_argument('--wait', action='store_true',
-                            help='Attende che l\'orb sia ACTIVE o ERROR.')
+                            help='Wait until the orb is ACTIVE or ERROR.')
         return parser
 
     def take_action(self, parsed_args):
@@ -42,7 +42,7 @@ class CreateOrb(command.ShowOne):
                 public_key = key_file.read()
         except OSError as e:
             raise exceptions.CommandError(
-                f'Chiave pubblica non leggibile: {e}') from e
+                f'Public key not readable: {e}') from e
         client = self.app.client_manager.orbit
         orb = client.create({'vcpus': parsed_args.vcpus,
                              'memory_mb': parsed_args.memory,
@@ -54,13 +54,13 @@ class CreateOrb(command.ShowOne):
 
 
 class ListOrb(command.Lister):
-    """Elenca gli orb del progetto."""
+    """List the project's orbs."""
 
     _COLUMNS = ('id', 'status', 'vcpus', 'memory_mb', 'disk_gb', 'ssh_host')
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
-        parser.add_argument('--status', help='Solo gli orb in questo stato.')
+        parser.add_argument('--status', help='Only the orbs in this status.')
         return parser
 
     def take_action(self, parsed_args):
@@ -69,11 +69,11 @@ class ListOrb(command.Lister):
 
 
 class ShowOrb(command.ShowOne):
-    """Mostra un orb com'e adesso."""
+    """Show an orb as it is now."""
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
-        parser.add_argument('orb', help='Identificativo dell\'orb.')
+        parser.add_argument('orb', help='Identifier of the orb.')
         return parser
 
     def take_action(self, parsed_args):
@@ -82,12 +82,12 @@ class ShowOrb(command.ShowOne):
 
 
 class DeleteOrb(command.Command):
-    """Cancella uno o più orb, con tutte le loro risorse."""
+    """Delete one or more orbs, with all their resources."""
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
         parser.add_argument('orbs', nargs='+', metavar='<orb>',
-                            help='Identificativi degli orb.')
+                            help='Identifiers of the orbs.')
         return parser
 
     def take_action(self, parsed_args):
@@ -101,8 +101,8 @@ class DeleteOrb(command.Command):
                 failed.append(orb_id)
         if failed:
             raise exceptions.CommandError(
-                f'{len(failed)} di {len(parsed_args.orbs)} orb non '
-                f'cancellati.')
+                f'{len(failed)} of {len(parsed_args.orbs)} orbs not '
+                f'deleted.')
 
 
 def _wait(client, orb, interval=2, sleep=time.sleep):

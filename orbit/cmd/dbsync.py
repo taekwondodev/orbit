@@ -1,4 +1,4 @@
-"""orbit-dbsync: crea o aggiorna lo schema del database. Ripetibile."""
+"""orbit-dbsync: creates or upgrades the database schema. Repeatable."""
 
 import sys
 

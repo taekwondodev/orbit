@@ -1,4 +1,4 @@
-# Installa e avvia orbit-api dentro DevStack.
+# Installs and starts orbit-api inside DevStack.
 
 XTRACE=$(set +o | grep xtrace)
 set +o xtrace
@@ -23,9 +23,9 @@ function configure_orbit {
     fi
 
     write_uwsgi_config "$ORBIT_UWSGI_CONF" "$ORBIT_UWSGI" "/orbit" "" "orbit-api"
-    # Un solo processo: il compito di creazione vive nella memoria del
-    # processo che ha ricevuto la richiesta (docs/architecture.md). I thread
-    # servono a non accodare le richieste mentre una aspetta Blazar o Heat.
+    # A single process: the creation task lives in the memory of the process
+    # that received the request (docs/architecture.md). The threads keep
+    # requests from queuing while one waits for Blazar or Heat.
     iniset $ORBIT_UWSGI_CONF uwsgi processes 1
     iniset $ORBIT_UWSGI_CONF uwsgi threads 4
 }
@@ -39,19 +39,19 @@ function create_orbit_accounts {
     create_service_user orbit
 
     local service
-    service=$(get_or_create_service orbit $ORBIT_SERVICE_TYPE "Orb effimeri")
+    service=$(get_or_create_service orbit $ORBIT_SERVICE_TYPE "Ephemeral sandboxes")
     get_or_create_endpoint $service "$REGION_NAME" \
         "$SERVICE_PROTOCOL://$SERVICE_HOST/orbit"
 }
 
-# Nessun lease e creabile finche Blazar non conosce l'host di calcolo.
-# La registrazione e ripetibile: un host gia registrato non si registra due volte.
+# No lease can be created until Blazar knows the compute host.
+# Registration is repeatable: a host already registered is not registered twice.
 function register_compute_hosts_in_blazar {
     local hosts="" host
-    # nova-compute puo registrare il suo hypervisor qualche secondo dopo.
+    # nova-compute may register its hypervisor a few seconds later.
     for _ in $(seq 1 12); do
-        # DevStack mappa gli host nella cella solo dopo la fase extra, e la
-        # API di Nova non mostra gli hypervisor non mappati. Ripetibile.
+        # DevStack maps hosts into the cell only after the extra phase, and
+        # the Nova API does not show unmapped hypervisors. Repeatable.
         $NOVA_BIN_DIR/nova-manage --config-file $NOVA_CONF cell_v2 discover_hosts
         hosts=$(openstack --os-cloud devstack-admin hypervisor list \
             -f value -c "Hypervisor Hostname")
@@ -59,20 +59,20 @@ function register_compute_hosts_in_blazar {
         sleep 5
     done
     if [[ -z "$hosts" ]]; then
-        die $LINENO "orbit richiede un nodo di calcolo: nessun hypervisor in Nova da offrire a Blazar"
+        die $LINENO "orbit requires a compute node: no hypervisor in Nova to offer to Blazar"
     fi
     for host in $hosts; do
         if openstack --os-cloud devstack-admin reservation host list \
                 -f value -c hypervisor_hostname | grep -qx "$host"; then
             continue
         fi
-        # Blazar e appena stato avviato dal suo plugin: la API puo non
-        # rispondere ancora.
+        # Blazar has just been started by its plugin: the API may not
+        # respond yet.
         for _ in $(seq 1 12); do
             openstack --os-cloud devstack-admin reservation host create "$host" && continue 2
             sleep 5
         done
-        die $LINENO "Blazar non ha accettato l'host $host: nessun lease sarebbe creabile"
+        die $LINENO "Blazar did not accept host $host: no lease could be created"
     done
 }
 

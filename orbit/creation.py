@@ -1,8 +1,8 @@
-"""Il compito di creazione: attende la prenotazione attiva e crea lo stack.
+"""The creation task: waits for the active reservation and creates the stack.
 
-Gira in un thread del processo che ha ricevuto la richiesta, col token di
-quella richiesta, e non sopravvive a un riavvio: un orb rimasto senza stack
-oltre creation_timeout risulta interrotto alla lettura successiva
+Runs in a thread of the process that received the request, with that
+request's token, and does not survive a restart: an orb left without a stack
+beyond creation_timeout counts as interrupted on the next read
 (docs/design/state.md, Reconciliation).
 """
 
@@ -46,8 +46,8 @@ class Creator:
         try:
             self._create(orb, clients, public_key)
         except Exception:
-            LOG.exception('Creazione di %s interrotta', orb.resource_name)
-            self._fail(orb, 'creazione interrotta da un errore interno')
+            LOG.exception('Creation of %s interrupted', orb.resource_name)
+            self._fail(orb, 'creation interrupted by an internal error')
 
     def _fail(self, orb, fault):
         self._repository.update(orb.id, Status.RESERVING,
@@ -57,12 +57,12 @@ class Creator:
         try:
             active = self._wait_for_reservation(orb, clients.blazar)
         except orbit_clients.Rejected as e:
-            LOG.warning('Blazar rifiuta la lettura di %s: %s',
+            LOG.warning('Blazar rejects the read of %s: %s',
                         orb.resource_name, e)
-            self._fail(orb, f'prenotazione non leggibile: {e}')
+            self._fail(orb, f'reservation not readable: {e}')
             return
         if not active:
-            LOG.warning('Prenotazione di %s non attiva: nessuno stack',
+            LOG.warning('Reservation of %s not active: no stack',
                         orb.resource_name)
             return
         current = self._repository.get(orb.project_id, orb.id)
@@ -78,8 +78,9 @@ class Creator:
         if not self._repository.update(orb.id, Status.RESERVING,
                                        status=Status.BUILDING,
                                        stack_id=stack_id):
-            # L'orb e cambiato mentre lo stack nasceva: e stato cancellato,
-            # o dichiarato interrotto. Lo stack non gli appartiene piu.
+            # The orb changed while the stack was being created: it was
+            # deleted, or declared interrupted. The stack no longer belongs
+            # to it.
             clients.heat.delete_stack(orb.resource_name)
 
     def _wait_for_reservation(self, orb, blazar):
@@ -89,7 +90,7 @@ class Creator:
             try:
                 lease = blazar.get_lease(orb.lease_id)
             except orbit_clients.Unavailable:
-                LOG.warning('Blazar non risponde, ritento per %s',
+                LOG.warning('Blazar does not respond, retrying for %s',
                             orb.resource_name)
             else:
                 if lease is None or lease.is_failed:

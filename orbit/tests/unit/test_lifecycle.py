@@ -1,4 +1,4 @@
-"""Una prova per riga della tabella di riallineamento in state.md."""
+"""One test per row of the reconciliation table in state.md."""
 
 import datetime
 import unittest
