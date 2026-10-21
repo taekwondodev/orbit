@@ -14,3 +14,4 @@ dist/
 .stestr/
 AUTHORS
 ChangeLog
+HANDOFF.md

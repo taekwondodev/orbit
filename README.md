@@ -145,7 +145,7 @@ I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, co
 
 | Documento | Contenuto |
 | --- | --- |
-| [CONTEXT](CONTEXT.md) | glossario del dominio e dei termini OpenStack usati |
+| [GLOSSARY](GLOSSARY.md) | glossario del dominio e dei termini OpenStack usati |
 | [Architettura](docs/architettura.md) | confini di proprietà, sequenza completa, requisiti di installazione |
 | [Contratto della API](docs/design/api.md) | risorse HTTP, stati, errori |
 | [Stato conservato](docs/design/stato.md) | la tabella del servizio e il riallineamento |
