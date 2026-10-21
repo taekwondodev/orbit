@@ -14,19 +14,7 @@ C'è un solo processo. Il lavoro dopo la risposta dura pochi secondi, il tempo c
 
 ## Confine di proprietà
 
-```
-                     ┌──────────────── orbit ───────────────────────┐
-  client  ──HTTP──▶  │  orbit-api  (+ compito di creazione)         │
-                     │        tabella: orb, lease, stack, stato     │
-                     └───────┬──────────────┬──────────────┬────────┘
-                             │              │              │
-                        Keystone         Blazar           Heat
-                       (chi sei)       (capacità e      (quali risorse,
-                                        flavor su        create e distrutte
-                                        misura)          in ordine)
-                                            │              │
-                                          Nova          Nova, Neutron
-```
+![Architettura: il client parla con orbit-api; orbit chiede capacità e flavor a Blazar e le risorse a Heat col token dell'utente, e legge soltanto da Nova](img/architettura.svg)
 
 Tutte le chiamate verso Blazar e Heat usano il token dell'utente. Il servizio non ha privilegi propri sulle risorse degli utenti.
 
@@ -38,35 +26,19 @@ Regole che non vanno violate perché sono il senso del progetto:
 
 ## Sequenza di un orb
 
-```
-client            orbit-api                 Blazar               Heat
-  │  POST /v1/orbs   │                         │                    │
-  ├─────────────────▶│─ lease (taglia, ora,  ─▶│                    │
-  │                  │   fine illimitata)      │─ crea il flavor    │
-  │                  │◀─ reservation_id ───────┤                    │
-  │  202 RESERVING   │                         │                    │
-  │◀─────────────────┤                         │                    │
-  │                  │ compito di creazione:   │                    │
-  │                  │─ prenotazione attiva? ─▶│─ accesso al flavor │
-  │                  │─ stack(flavor = reservation_id) ────────────▶│
-  │                  │                         │                    │
-  │  GET /v1/orbs/{id}                         │                    │
-  ├─────────────────▶│─ stato di lease, stack e macchina ──────────▶│
-  │  200 ACTIVE      │                         │                    │
-  │◀─────────────────┤                         │                    │
-  │                  │                         │                    │
-  │  DELETE /v1/orbs/{id}                      │                    │
-  ├─────────────────▶│─ cancella lo stack ────────────────────────▶│
-  │                  │─ cancella il lease ────▶│─ distrugge la      │
-  │  202 DELETING    │                         │  macchina, poi il  │
-  │◀─────────────────┤                         │  flavor            │
-```
+Le chiamate fra client, orbit, Blazar e Heat sono nel diagramma di sequenza del [README](../README.md#ciclo-di-vita-di-un-orb); qui, cosa succede nel tempo e cosa distrugge chi.
+
+![Creazione nel tempo, con i tempi misurati su DevStack](img/creazione.svg)
+
+![Cancellazione: prima lo stack, poi il lease](img/cancellazione.svg)
 
 Il passaggio che richiede attenzione è l'attesa fra lease e stack: il flavor della prenotazione esiste da subito, ma il progetto lo può usare solo quando la prenotazione è attiva ([0005](adr/0005-prenotazione-accanto-allo-stack.md)). Alla cancellazione, invece, l'ordine lo garantisce Blazar: distrugge la macchina, aspetta che non esista più, e solo allora cancella il flavor.
 
 ## Installazione
 
-Il servizio si installa come plugin DevStack: un repository con una cartella `devstack/` contenente `settings` (che dichiara il plugin e abilita i servizi) e `plugin.sh`, chiamato nelle fasi `pre-install`, `install`, `post-config` ed `extra` di `stack.sh`, più `unstack` e `clean`.
+![Installazione: cosa fanno i plugin di Heat, Blazar e orbit in ogni fase di stack.sh](img/installazione.svg)
+
+Il servizio si installa come plugin DevStack: un repository con una cartella `devstack/` contenente `settings` (che dichiara il plugin e abilita i servizi) e `plugin.sh`, chiamato nelle fasi `install`, `post-config` ed `extra` di `stack.sh`, più `unstack` e `clean`.
 
 Oltre ai propri processi, il plugin deve:
 
@@ -74,3 +46,7 @@ Oltre ai propri processi, il plugin deve:
 - registrare servizio ed endpoint nel catalogo di Keystone;
 - registrare l'host di calcolo in Blazar, senza il quale nessun lease è creabile;
 - lasciare `max_lease_duration` di Blazar al valore predefinito `-1`, che non limita la durata dei lease.
+
+La registrazione dell'host avviene nella fase `extra`, ma DevStack mappa gli host nella cella di Nova solo dopo quella fase, e la API di Nova non mostra gli hypervisor non mappati. Il plugin esegue quindi `nova-manage cell_v2 discover_hosts`, ripetibile, prima di cercarli.
+
+Con l'host registrato, il filtro `BlazarFilter` di Nova lo riserva alle prenotazioni: su un DevStack con un solo host, una macchina creata senza prenotazione non trova posto (osservato: "BlazarFilter returned 0 hosts").

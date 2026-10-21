@@ -20,13 +20,13 @@
 
 ## Il problema
 
-Chi esegue lavori non fidati o distruttivi — compilazioni, test, un agente che modifica un repository — ha bisogno di una macchina intera, non di una cartella. Quella macchina deve essere **isolata**, **dimensionata sul lavoro** e, quando il lavoro finisce, deve sparire **senza lasciare niente dietro**: né la macchina, né la chiave, né il firewall, né l'indirizzo.
+Chi esegue lavori non fidati o distruttivi, come compilazioni, test o un agente che modifica un repository, ha bisogno di una macchina intera, non di una cartella. Quella macchina deve essere **isolata**, **dimensionata sul lavoro** e, quando il lavoro finisce, deve sparire **senza lasciare niente dietro**: né la macchina, né la chiave, né il firewall, né l'indirizzo.
 
 Fatto a mano, con una manciata di comandi `openstack`, ognuno di questi punti si rompe: le taglie disponibili sono quelle del catalogo, una macchina può non trovare posto dopo che il resto è già stato creato, una creazione fallita a metà lascia pezzi sparsi, una cancellazione dimenticata lascia un indirizzo occupato. `orbit` tratta la sandbox come un oggetto unico, l'orb, che nasce intero e muore intero.
 
 ## Cosa fa
 
-- Accetta la **taglia** richiesta — processori, memoria, disco — orb per orb, senza cataloghi di dimensioni prefissate.
+- Accetta la **taglia** richiesta (processori, memoria, disco) orb per orb, senza cataloghi di dimensioni prefissate.
 - **Prenota la capacità** prima di costruire: se non c'è posto lo dice subito, invece di fallire a metà.
 - Crea l'orb nel **progetto di chi lo chiede**: compare fra le sue risorse e consuma la sua quota.
 - Installa la **chiave pubblica fornita dal client** e restituisce indirizzo e utente per l'accesso SSH.
@@ -41,33 +41,13 @@ Non entra nell'orb: non esegue comandi, non copia file, non sa cosa ci gira dent
 
 ## Architettura
 
-```mermaid
-flowchart LR
-    client["Client<br/>riga di comando, script, agente"]
+![Architettura: il client parla con orbit-api; orbit chiede capacità e flavor a Blazar e le risorse a Heat col token dell'utente, e legge soltanto da Nova](docs/img/architettura.svg)
 
-    subgraph svc["orbit"]
-        direction TB
-        api["orbit-api<br/>autentica, prenota, crea,<br/>legge lo stato reale"]
-        db[("tabella<br/>orbs")]
-    end
+Il servizio **non crea risorse da sé**: chiede la capacità a Blazar e le risorse a Heat, sempre col token di chi le chiede. Un solo processo, `orbit-api`: il lavoro che segue la risposta, cioè attendere che la prenotazione si attivi e creare lo stack, dura pochi secondi e gira in un thread dello stesso processo, col token della richiesta tenuto in memoria.
 
-    ks["Keystone<br/>identità"]
-    blz["Blazar<br/>capacità e flavor su misura"]
-    heat["Heat<br/>risorse dell'orb"]
-    infra["Nova + Neutron<br/>macchina, rete, firewall"]
+![Composizione di un orb: un lease Blazar con prenotazione e flavor, fuori dallo stack, e uno stack Heat con rete, sottorete, router, security group, porta, IP flottante, chiave e macchina](docs/img/orb.svg)
 
-    client -->|HTTP| api
-    api --- db
-    api --> ks
-    api -->|token dell'utente| blz
-    api -->|token dell'utente| heat
-    blz --> infra
-    heat --> infra
-```
-
-Il servizio **non crea risorse da sé**: chiede la capacità a Blazar e le risorse a Heat, sempre col token di chi le chiede. Blazar trasforma la taglia in un flavor privato e, alla cancellazione, distrugge macchina e flavor nell'ordine giusto. Heat costruisce e distrugge rete, router, chiave, firewall, porta, indirizzo e macchina come un blocco unico: ogni orb ha la sua rete ([0006](docs/adr/0006-rete-propria-per-ogni-orb.md)).
-
-Un solo processo, `orbit-api`. Il lavoro che segue la risposta — attendere che la prenotazione si attivi e creare lo stack — dura pochi secondi e gira dentro lo stesso processo, col token della richiesta tenuto in memoria.
+Un orb è una riga della tabella `orbs` che lega due oggetti altrui. Blazar possiede la capacità e il flavor su misura e, alla cancellazione, distrugge macchina e flavor nell'ordine giusto. Heat costruisce e distrugge il resto come un blocco unico, rete e router compresi: ogni orb ha la sua rete ([0006](docs/adr/0006-rete-propria-per-ogni-orb.md)). Il lease resta fuori dallo stack perché Heat non aspetterebbe la prenotazione attiva ([0005](docs/adr/0005-prenotazione-accanto-allo-stack.md)).
 
 ---
 
@@ -100,29 +80,29 @@ sequenceDiagram
     A-->>C: 202 Accepted, orb in DELETING
 ```
 
-L'attesa al passaggio 5 è necessaria: Blazar crea il flavor subito, ma il progetto può usarlo solo quando la prenotazione è attiva, cioè entro una decina di secondi. La data di fine del lease è fissata lontanissima perché Blazar la esige: la vita dell'orb la decide `DELETE`, non il calendario.
+L'attesa al passaggio 5 è necessaria: Blazar crea il flavor subito, ma il progetto può usarlo solo quando la prenotazione è attiva. La data di fine del lease è fissata lontanissima perché Blazar la esige: la vita dell'orb la decide `DELETE`, non il calendario ([0003](docs/adr/0003-nessuna-scadenza.md)).
+
+### Creazione
+
+![Creazione nel tempo: RESERVING fino a circa 8 secondi, BUILDING fino a 14-18 secondi, poi ACTIVE; SSH risponde dopo circa 55 secondi](docs/img/creazione.svg)
+
+### Cancellazione
+
+![Cancellazione: l'orb passa in DELETING, Heat cancella lo stack, Blazar cancella il lease distruggendo macchina e flavor, la risposta è 202 e la lettura successiva vede DELETED](docs/img/cancellazione.svg)
 
 ---
 
 ## Stati di un orb
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> RESERVING
-    RESERVING --> BUILDING: prenotazione attiva
-    BUILDING --> ACTIVE: macchina pronta
-    ACTIVE --> DELETING: cancellazione
-    DELETING --> DELETED
-    DELETED --> [*]
+![Macchina a stati: RESERVING, BUILDING, ACTIVE, DELETING, DELETED, con ERROR raggiungibile da ogni stato di lavoro e uscita con DELETE](docs/img/stati.svg)
 
-    RESERVING --> ERROR
-    BUILDING --> ERROR
-    ACTIVE --> ERROR: cambiato da fuori
-    ERROR --> DELETING: cancellazione esplicita
-```
+Lo stato non lo decide il servizio: lo osserva. Ogni lettura chiede a Blazar, Heat e Nova com'è davvero l'orb e corregge la tabella, secondo questa catena di controlli:
 
-`RESERVING` e `BUILDING` sono due stati distinti perché sono due attese diverse: la prima aspetta che la capacità diventi utilizzabile, la seconda che le risorse esistano. Lo stato non lo decide il servizio: lo osserva, chiedendo a ogni lettura a Blazar, Heat e Nova com'è davvero l'orb. Un orb in `ERROR` non si cancella da sé: le risorse restano osservabili finché qualcuno non chiede esplicitamente di rimuoverle.
+![Riallineamento: la sequenza di controlli su lease, stack e macchina che produce lo stato restituito](docs/img/riallineamento.svg)
+
+### Dove si vede un fallimento
+
+![Fallimenti: prima della risposta diventano errori HTTP e non lasciano nulla; dopo la risposta portano l'orb in ERROR con le risorse lasciate per la diagnosi](docs/img/errori.svg)
 
 ---
 
@@ -150,7 +130,9 @@ Il contratto completo, con codici di errore e transizioni, è in [docs/design/ap
 
 ## Provarlo
 
-Su DevStack, nel `local.conf`, dopo i plugin di Heat e Blazar da cui dipende:
+![Installazione: nelle fasi install, post-config ed extra di stack.sh girano in ordine i plugin di Heat, Blazar e orbit; DevStack mappa gli host solo dopo extra](docs/img/installazione.svg)
+
+Nel `local.conf` di DevStack, con orbit dopo i plugin di Heat e Blazar da cui dipende:
 
 ```ini
 [[local|localrc]]
@@ -181,6 +163,8 @@ $ openstack orb delete <id>
 
 I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, compreso il rifiuto per capacità esaurita, con `tempest run --regex orbit` sull'installazione.
 
+L'host di calcolo registrato in Blazar accetta solo macchine prenotate: su un DevStack con un solo host, le macchine create fuori da orbit non trovano posto.
+
 ---
 
 ## Documenti
@@ -208,4 +192,12 @@ I test unitari girano senza OpenStack con `tox -e py3`; il percorso completo, co
 - [x] Test automatici: unitari senza OpenStack, tempest su DevStack
 - [x] Installazione e percorso completo verificati su DevStack
 
-La verifica è stata fatta su DevStack 2027.1, Ubuntu 24.04 aarch64, QEMU senza KVM, con l'immagine cirros: `stack.sh` completo, un orb creato, raggiunto in SSH e cancellato senza risorse residue, uno stato `ERROR` osservato dopo la cancellazione della macchina fuori dal servizio, e `tempest run --regex orbit` con entrambi i test superati.
+La verifica è stata fatta su DevStack 2027.1, Ubuntu 24.04 aarch64, QEMU senza KVM, con l'immagine cirros. Osservati sull'installazione:
+
+- `stack.sh` completo, endpoint `orbit` nel catalogo, host registrato in Blazar; `401` senza token e `200` con `{"orbs": []}` con un token;
+- un orb creato in `ACTIVE` in 14-18 secondi, sul flavor privato della prenotazione, raggiunto in SSH e cancellato in circa 7 secondi senza risorse residue; un secondo `DELETE` risponde allo stesso modo;
+- `409` per una taglia oltre l'host, senza lease né orb residui;
+- `ERROR` "macchina non più disponibile" dopo la cancellazione della macchina fuori dal servizio, ed `ERROR` "creazione interrotta" dopo un riavvio di `orbit-api` durante `RESERVING`;
+- `tempest run --regex orbit` con entrambi i test superati, ciascuno in un progetto creato per il test.
+
+Restano da osservare: il flavor della prenotazione invisibile a un membro di un altro progetto, l'`ERROR` col motivo di Neutron a quota esaurita, e `./unstack.sh`.

@@ -17,7 +17,7 @@ Così la taglia su misura non richiede privilegi al servizio, e la cancellazione
 - **Data di fine fittizia.** Blazar esige una fine; il servizio la fissa a un valore configurato lontanissimo. Blazar non pone un limite alla durata finché `max_lease_duration` resta al valore predefinito `-1`: l'installazione deve lasciarlo così.
 - **Attesa prima della costruzione.** Il flavor esiste dalla creazione del lease, ma il progetto vi accede solo quando la prenotazione diventa attiva, cioè al successivo giro del ciclo di eventi di Blazar, che gira ogni dieci secondi. Lo stack si crea dopo: l'orb ha uno stato `RESERVING` distinto da `BUILDING`.
 - **Capacità verificata subito.** Se nessun host ha posto per la taglia, Blazar rifiuta la creazione del lease: l'orb fallisce prima di costruire qualunque cosa.
-- **Installazione più pesante.** Servono i pacchetti `blazar`, `blazar-nova` e `python-blazarclient`, e nessun lease è creabile finché l'host di calcolo non è stato registrato in Blazar (`openstack reservation host create <host>`): la registrazione entra nel plugin di installazione.
+- **Installazione più pesante.** Servono i pacchetti `blazar`, `blazar-nova` e `python-blazarclient`, e nessun lease è creabile finché l'host di calcolo non è stato registrato in Blazar (`openstack reservation host create <host>`): la registrazione entra nel plugin di installazione. Registrato, l'host accetta solo macchine prenotate: il filtro `BlazarFilter` di Nova scarta per esso le richieste senza prenotazione, e su un DevStack con un solo host le macchine create fuori da orbit non trovano posto (osservato su DevStack).
 
 ## Fonti
 

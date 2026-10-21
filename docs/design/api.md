@@ -1,6 +1,6 @@
 # Contratto della API
 
-Implementato in `orbit/api/v1.py`, non ancora verificato su DevStack. Tutte le richieste richiedono un token Keystone nell'intestazione `X-Auth-Token`; gli orb sono visibili solo all'interno del progetto a cui appartengono.
+Implementato in `orbit/api/v1.py` e verificato su DevStack (vedi lo stato dei lavori nel [README](../../README.md#stato-dei-lavori)). Tutte le richieste richiedono un token Keystone nell'intestazione `X-Auth-Token`; gli orb sono visibili solo all'interno del progetto a cui appartengono.
 
 ## Risorse
 
@@ -50,12 +50,7 @@ Chiede a Heat di cancellare lo stack, poi chiede a Blazar di cancellare il lease
 
 ## Macchina a stati
 
-```
-RESERVING ─▶ BUILDING ─▶ ACTIVE ─▶ DELETING ─▶ DELETED
-    │            │          │          │          ▲
-    └────────────┴──────────┴──────────┴─▶ ERROR ─┘
-                                     (cancellazione esplicita)
-```
+![Macchina a stati di un orb](../img/stati.svg)
 
 | Stato | Significato | Osservazione che lo produce |
 | --- | --- | --- |
@@ -78,8 +73,10 @@ Un orb in `ERROR` **non** si cancella da sé. È una scelta a favore della diagn
 | `401` | token assente, scaduto o non valido, anche quando lo rifiuta Blazar, Heat o Nova a valle |
 | `403` | token senza ambito di progetto, perché un orb appartiene sempre a un progetto; oppure ruoli insufficienti per Blazar, Heat o Nova |
 | `404` | orb inesistente o di un altro progetto (indistinguibili di proposito) |
-| `409` | capacità esaurita: Blazar ha rifiutato la prenotazione. Blazar non usa un codice dedicato: risponde `500` col messaggio `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) non dichiara un codice, e [lo strato API](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) lo inoltra tale e quale), e il servizio lo riconosce dal messaggio |
+| `409` | capacità esaurita: Blazar ha rifiutato la prenotazione. Blazar non usa un codice dedicato: risponde `500` col messaggio `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) non dichiara un codice, e [lo strato API](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) lo inoltra tale e quale), e il servizio lo riconosce dal messaggio. Corpo osservato: `{"error_code": 500, "error_message": "Not enough hosts available", "error_name": 500}` |
 | `502` | Blazar, Heat o Nova hanno rifiutato la richiesta per un motivo che il servizio non sa tradurre; il messaggio riporta il loro |
 | `503` | Blazar, Heat o Nova non raggiungibili o in errore; il dettaglio resta nei log del servizio, perché può contenere indirizzi interni |
 
 Poiché il lease si crea durante la richiesta, la mancanza di capacità è un errore della richiesta e non lascia nessun orb. Il fallimento della costruzione, compresa la quota del progetto esaurita, si manifesta invece come `ERROR` sull'orb con il motivo riportato da Heat: lo stack viene creato dopo la risposta `202`.
+
+![Dove si manifesta un fallimento: errore HTTP prima della risposta, ERROR dopo](../img/errori.svg)
