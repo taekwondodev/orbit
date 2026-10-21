@@ -33,7 +33,8 @@ class CreateOrb(command.ShowOne):
         parser.add_argument('--image', help='Image; without it, the '
                                             'service default.')
         parser.add_argument('--wait', action='store_true',
-                            help='Wait until the orb is ACTIVE or ERROR.')
+                            help='Wait until the orb is ACTIVE; fail if '
+                                 'it ends in another status.')
         return parser
 
     def take_action(self, parsed_args):
@@ -50,6 +51,11 @@ class CreateOrb(command.ShowOne):
                             public_key, parsed_args.image)
         if parsed_args.wait:
             orb = _wait(client, orb)
+            # Like server create --wait: a script must see the failure.
+            if orb['status'] != 'ACTIVE':
+                raise exceptions.CommandError(
+                    f"Orb {orb['id']} ended in {orb['status']}: "
+                    f"{orb['fault']}")
         return _FIELDS, _row(orb)
 
 

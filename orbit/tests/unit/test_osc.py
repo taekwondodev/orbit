@@ -104,6 +104,19 @@ class TestCommands(CommandTestCase):
         self.assertEqual('ACTIVE', orb['status'])
         self.assertEqual(2, client.get.call_count)
 
+    def test_create_wait_ending_in_error_is_a_command_error(self):
+        self.orbit.create.return_value = dict(
+            ORB, status='ERROR', fault='Quota exceeded')
+        with tempfile.NamedTemporaryFile('w', suffix='.pub') as key:
+            key.write(fakes.PUBLIC_KEY)
+            key.flush()
+
+            with self.assertRaisesRegex(exceptions.CommandError,
+                                        'orb-1 .*ERROR.*Quota exceeded'):
+                self.run_command(v1.CreateOrb, [
+                    '--vcpus', '2', '--memory', '4096', '--disk', '20',
+                    '--public-key', key.name, '--wait'])
+
     def test_list_flattens_the_size(self):
         self.orbit.list.return_value = [ORB]
 
