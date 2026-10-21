@@ -50,6 +50,9 @@ function register_compute_hosts_in_blazar {
     local hosts="" host
     # nova-compute puo registrare il suo hypervisor qualche secondo dopo.
     for _ in $(seq 1 12); do
+        # DevStack mappa gli host nella cella solo dopo la fase extra, e la
+        # API di Nova non mostra gli hypervisor non mappati. Ripetibile.
+        $NOVA_BIN_DIR/nova-manage --config-file $NOVA_CONF cell_v2 discover_hosts
         hosts=$(openstack --os-cloud devstack-admin hypervisor list \
             -f value -c "Hypervisor Hostname")
         [[ -n "$hosts" ]] && break
