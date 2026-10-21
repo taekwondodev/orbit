@@ -3,7 +3,7 @@
 Gira in un thread del processo che ha ricevuto la richiesta, col token di
 quella richiesta, e non sopravvive a un riavvio: un orb rimasto senza stack
 oltre creation_timeout risulta interrotto alla lettura successiva
-(docs/design/stato.md, Riallineamento).
+(docs/design/state.md, Reconciliation).
 """
 
 import datetime

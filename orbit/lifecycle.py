@@ -1,6 +1,6 @@
 """Lo stato di un orb ricavato da cio che Blazar, Heat e Nova mostrano.
 
-Traduce la tabella di riallineamento di docs/design/stato.md: se la realta e
+Traduce la tabella di riallineamento di docs/design/state.md: se la realta e
 la tabella orbs divergono, ha ragione la realta.
 """
 

@@ -1,41 +1,41 @@
-# Glossario di dominio
+# Domain glossary
 
-Termini usati nel codice, nei documenti e nei messaggi di commit. Dove un termine appartiene a un componente OpenStack, la colonna "proprietario" dice chi ne possiede la definizione: non siamo liberi di cambiargliela.
+Terms used in the code, in the documents and in commit messages. Where a term belongs to an OpenStack component, the "owner" column says who owns its definition: we are not free to change it.
 
-## Il dominio del servizio
+## The service's domain
 
-| Termine | Significato | Proprietario |
+| Term | Meaning | Owner |
 | --- | --- | --- |
-| **Orb** | una sandbox effimera: una macchina isolata, dimensionata su richiesta, raggiungibile in SSH, che vive finché qualcuno non la cancella | orbit |
-| **Taglia** | processori, memoria e disco chiesti per un orb | orbit, tradotta in una prenotazione Blazar |
-| **Consumatore** | l'utente Keystone che ha chiesto l'orb; nel caso d'uso originario è un agente | Keystone |
+| **Orb** | an ephemeral sandbox: an isolated machine, sized on request, reachable over SSH, that lives until someone deletes it | orbit |
+| **Size** | the processors, memory and disk requested for an orb | orbit, translated into a Blazar reservation |
+| **Consumer** | the Keystone user who requested the orb; in the original use case it is an agent | Keystone |
 
-Un orb **non** è una macchina virtuale: è l'insieme di prenotazione, rete, router, macchina, chiave, firewall, porta e indirizzo, creati e distrutti insieme, più lo stato con cui il servizio li racconta. È la distinzione che rende il servizio diverso da uno script che chiama `openstack server create`.
+An orb is **not** a virtual machine: it is the set of reservation, network, router, machine, key, firewall, port and address, created and destroyed together, plus the status through which the service reports them. This distinction is what makes the service different from a script that calls `openstack server create`.
 
-Un orb non ha scadenza: la sua vita finisce con una richiesta di cancellazione. Vedi [docs/adr/0003](docs/adr/0003-nessuna-scadenza.md).
+An orb has no expiry: its life ends with a deletion request. See [docs/adr/0003](docs/adr/0003-no-expiry.md).
 
-## I componenti OpenStack e cosa ci mettiamo dentro
+## The OpenStack components and what we put in them
 
-| Termine | Significato | Dove lo usiamo |
+| Term | Meaning | Where we use it |
 | --- | --- | --- |
-| **Keystone** | identità, progetti, ruoli; rilascia i token | autentica le richieste |
-| **Token** | prova temporanea di identità allegata a ogni richiesta; dura circa un'ora | arriva dal client, serve a creare, leggere e cancellare le risorse a suo nome; il servizio non lo conserva |
-| **Progetto** | lo spazio a cui appartengono le risorse, con la sua quota | gli orb nascono nel progetto del consumatore |
-| **Blazar** | prenotazione di risorse: concede capacità a un progetto fra un inizio e una fine, e la riprende alla fine o alla cancellazione | trasforma la taglia in capacità garantita e in un flavor su misura |
-| **Lease** | per Blazar, l'accordo con inizio e fine; contiene una o più prenotazioni | un lease per orb, con inizio "adesso" e fine illimitata |
-| **Prenotazione** | la capacità concessa da un lease; per il tipo `virtual:instance` è descritta da `vcpus`, `memory_mb`, `disk_gb`, `amount` | è qui che finisce la taglia dell'orb |
-| **Flavor della prenotazione** | il flavor Nova non pubblico che Blazar crea per la prenotazione, con lo stesso identificativo; il progetto vi accede solo quando la prenotazione è attiva, e Blazar lo cancella con il lease | la macchina dell'orb usa questo flavor |
-| **Fine illimitata** | la data di fine del lease, fissata lontanissima perché Blazar la esige ma l'orb non scade | non è una scadenza: l'orb finisce con `DELETE` |
-| **Nova** | accende, spegne e distrugge macchine virtuali | nessuna chiamata di scrittura: ci arriviamo tramite Heat e Blazar |
-| **Neutron** | reti, router, porte, firewall, indirizzi raggiungibili | risorse dichiarate nel template |
-| **Heat** | orchestrazione: legge un template e crea in ordine le risorse elencate, disfacendole se qualcosa fallisce | crea e distrugge le risorse dell'orb tranne il lease |
-| **Stack** | l'insieme di risorse creato da Heat a partire da un template | le risorse di un orb, lease escluso, sono uno stack |
-| **DevStack** | installazione di OpenStack da sorgenti per sviluppo, estendibile con plugin | l'ambiente in cui il servizio viene installato e provato |
+| **Keystone** | identity, projects, roles; issues tokens | authenticates requests |
+| **Token** | temporary proof of identity attached to every request; lasts about an hour | comes from the client, used to create, read and delete resources on their behalf; the service does not keep it |
+| **Project** | the space resources belong to, with its quota | orbs are born in the consumer's project |
+| **Blazar** | resource reservation: grants capacity to a project between a start and an end, and takes it back at the end or on deletion | turns the size into guaranteed capacity and a tailored flavor |
+| **Lease** | for Blazar, the agreement with a start and an end; contains one or more reservations | one lease per orb, starting "now" with an unlimited end |
+| **Reservation** | the capacity granted by a lease; for the `virtual:instance` type it is described by `vcpus`, `memory_mb`, `disk_gb`, `amount` | this is where the orb's size ends up |
+| **Reservation flavor** | the non-public Nova flavor Blazar creates for the reservation, with the same identifier; the project can use it only while the reservation is active, and Blazar deletes it with the lease | the orb's machine uses this flavor |
+| **Unlimited end** | the lease's end date, set very far away because Blazar requires one but the orb does not expire | not an expiry: the orb ends with `DELETE` |
+| **Nova** | starts, stops and destroys virtual machines | no write calls: we reach it through Heat and Blazar |
+| **Neutron** | networks, routers, ports, firewalls, reachable addresses | resources declared in the template |
+| **Heat** | orchestration: reads a template and creates the listed resources in order, undoing them if something fails | creates and destroys the orb's resources except the lease |
+| **Stack** | the set of resources Heat creates from a template | an orb's resources, lease excluded, are a stack |
+| **DevStack** | an installation of OpenStack from source for development, extensible with plugins | the environment where the service is installed and tried out |
 
-## Conflitti di terminologia da non creare
+## Terminology conflicts not to create
 
-Blazar chiama **lease** il proprio accordo a tempo. Per noi un lease non è un orb né una scadenza: è un attributo dell'orb, l'oggetto Blazar che ne garantisce la capacità. Nel codice: `lease` e `reservation` solo per gli oggetti Blazar.
+Blazar calls its time-bound agreement a **lease**. For us a lease is neither an orb nor an expiry: it is an attribute of the orb, the Blazar object that guarantees its capacity. In the code: `lease` and `reservation` only for Blazar objects.
 
-Heat chiama **stack** l'insieme delle risorse. Nel nostro dominio l'oggetto è l'**orb**, e lo stack è un suo attributo. Nel codice, i campi che conservano gli identificativi si chiamano `lease_id`, `reservation_id` e `stack_id`, perché sono identificativi di oggetti altrui.
+Heat calls the set of resources a **stack**. In our domain the object is the **orb**, and the stack is one of its attributes. In the code, the fields that hold the identifiers are named `lease_id`, `reservation_id` and `stack_id`, because they identify other components' objects.
 
-**Orbit** è il nome del servizio, **orb** il nome della risorsa che gestisce. Non usare "sessione" o "sandbox" per un orb.
+**Orbit** is the name of the service, **orb** the name of the resource it manages. Do not use "session" or "sandbox" for an orb.

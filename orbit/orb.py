@@ -1,4 +1,4 @@
-"""L'orb come lo conserva il servizio. Vedi docs/design/stato.md."""
+"""L'orb come lo conserva il servizio. Vedi docs/design/state.md."""
 
 import dataclasses
 import datetime

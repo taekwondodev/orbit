@@ -24,7 +24,7 @@ function configure_orbit {
 
     write_uwsgi_config "$ORBIT_UWSGI_CONF" "$ORBIT_UWSGI" "/orbit" "" "orbit-api"
     # Un solo processo: il compito di creazione vive nella memoria del
-    # processo che ha ricevuto la richiesta (docs/architettura.md). I thread
+    # processo che ha ricevuto la richiesta (docs/architecture.md). I thread
     # servono a non accodare le richieste mentre una aspetta Blazar o Heat.
     iniset $ORBIT_UWSGI_CONF uwsgi processes 1
     iniset $ORBIT_UWSGI_CONF uwsgi threads 4

@@ -1,17 +1,17 @@
-# Contratto della API
+# API contract
 
-Implementato in `orbit/api/v1.py`. Tutte le richieste richiedono un token Keystone nell'intestazione `X-Auth-Token`; gli orb sono visibili solo all'interno del progetto a cui appartengono.
+Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X-Auth-Token` header; orbs are visible only within the project they belong to.
 
-## Risorse
+## Resources
 
-| Metodo e percorso | Corpo | Risposta |
+| Method and path | Body | Response |
 | --- | --- | --- |
-| `POST /v1/orbs` | `{size, public_key, image?}` | `202` con l'orb in stato `RESERVING` |
-| `GET /v1/orbs` | filtri `?status=` | `200` con l'elenco degli orb del progetto |
-| `GET /v1/orbs/{id}` | — | `200` con stato, indirizzo ed eventuale errore |
-| `DELETE /v1/orbs/{id}` | — | `202` con l'orb in stato `DELETING`, ripetibile senza errore |
+| `POST /v1/orbs` | `{size, public_key, image?}` | `202` with the orb in status `RESERVING` |
+| `GET /v1/orbs` | `?status=` filters | `200` with the list of the project's orbs |
+| `GET /v1/orbs/{id}` | — | `200` with status, address and any error |
+| `DELETE /v1/orbs/{id}` | — | `202` with the orb in status `DELETING`, repeatable without error |
 
-### Creazione
+### Creation
 
 ```json
 {
@@ -21,13 +21,13 @@ Implementato in `orbit/api/v1.py`. Tutte le richieste richiedono un token Keysto
 }
 ```
 
-`size` finisce tale e quale nella prenotazione Blazar ([0004](../adr/0004-taglia-come-prenotazione-blazar.md)): è il requisito "ogni orb con risorse diverse" espresso dove ha effetto. Ogni valore è limitato da un massimo configurato; oltre si risponde `400`.
+`size` goes unchanged into the Blazar reservation ([0004](../adr/0004-size-as-blazar-reservation.md)): it is the "every orb with different resources" requirement, expressed where it takes effect. Each value is capped by a configured maximum; beyond it the response is `400`.
 
-`public_key` è obbligatoria. Il servizio non genera coppie di chiavi e non vede mai una chiave privata: è una scelta deliberata per non avere segreti dell'utente da consegnare né da custodire.
+`public_key` is mandatory. The service does not generate key pairs and never sees a private key: a deliberate choice so that it has no user secrets to hand over or to guard.
 
-La risposta arriva quando la capacità è prenotata, prima che le risorse esistano: l'avanzamento si segue con `GET`. Cosa succede dopo la risposta è in [architettura](../architettura.md#sequenza-di-un-orb).
+The response arrives once the capacity is reserved, before the resources exist: progress is followed with `GET`. What happens after the response is in [architecture](../architecture.md#sequence-of-an-orb).
 
-### Lettura
+### Read
 
 ```json
 {
@@ -42,41 +42,43 @@ La risposta arriva quando la capacità è prenotata, prima che le risorse esista
 }
 ```
 
-Lo stato restituito è quello delle risorse reali, ricavato a ogni lettura ([riallineamento](stato.md#riallineamento)). `ssh_host` è valorizzato solo in stato `ACTIVE`. `ssh_user` dipende dall'immagine e viene dalla configurazione del servizio (`[orbs] ssh_users`). `fault` porta il motivo quando lo stato è `ERROR`, preso da chi l'ha prodotto (la prenotazione rifiutata, lo stack fallito) e non riscritto. La data di fine del lease non compare: non è una scadenza.
+The returned status is that of the real resources, derived on every read ([reconciliation](state.md#reconciliation)). `ssh_host` is set only in status `ACTIVE`. `ssh_user` depends on the image and comes from the service configuration (`[orbs] ssh_users`). `fault` carries the reason when the status is `ERROR`, taken from whoever produced it (the rejected reservation, the failed stack) and not rewritten. The lease's end date does not appear: it is not an expiry.
 
-### Cancellazione
+### Deletion
 
-Porta l'orb in `DELETING` e avvia la distruzione di tutte le sue risorse; l'orb diventa `DELETED` quando non ne resta nessuna. Su un orb già in `DELETING` o `DELETED`, o con risorse già sparite, risponde allo stesso modo. In che ordine si distrugge è in [architettura](../architettura.md#sequenza-di-un-orb).
+Moves the orb to `DELETING` and starts destroying all of its resources; the orb becomes `DELETED` when none is left. On an orb already in `DELETING` or `DELETED`, or whose resources are already gone, it responds the same way. The order of destruction is in [architecture](../architecture.md#sequence-of-an-orb).
 
-## Macchina a stati
+## State machine
 
-![Macchina a stati di un orb](../img/stati.svg)
+![State machine of an orb](../img/states.svg)
 
-| Stato | Significato |
+| Status | Meaning |
 | --- | --- |
-| `RESERVING` | lease creato, si attende che la prenotazione diventi attiva |
-| `BUILDING` | stack in costruzione |
-| `ACTIVE` | macchina raggiungibile, indirizzo disponibile |
-| `ERROR` | qualcosa è fallito o è cambiato da fuori; le risorse restano in piedi per ispezione |
-| `DELETING` | cancellazione richiesta, in corso |
-| `DELETED` | stack e lease rimossi, riga conservata |
+| `RESERVING` | lease created, waiting for the reservation to become active |
+| `BUILDING` | stack being built |
+| `ACTIVE` | machine reachable, address available |
+| `ERROR` | something failed or was changed from outside; the resources stay up for inspection |
+| `DELETING` | deletion requested, in progress |
+| `DELETED` | stack and lease removed, row kept |
 
-Come una lettura ricava lo stato dalle risorse reali è in [stato conservato](stato.md#riallineamento).
+How a read derives the status from the real resources is in [stored state](state.md#reconciliation).
 
-`RESERVING` e `BUILDING` sono attese distinte perché lo stack non può nascere prima che la prenotazione sia attiva ([0005](../adr/0005-prenotazione-accanto-allo-stack.md)).
+`RESERVING` and `BUILDING` are distinct waits because the stack cannot be created before the reservation is active ([0005](../adr/0005-lease-beside-the-stack.md)).
 
-Un orb in `ERROR` **non** si cancella da sé. È una scelta a favore della diagnosi: le risorse restano osservabili finché qualcuno non chiama `DELETE`.
+An orb in `ERROR` does **not** delete itself. It is a choice in favor of diagnosis: the resources stay observable until someone calls `DELETE`.
 
-## Codici di errore
+## Error codes
 
-| Codice | Quando |
+![Failures: before the response they become HTTP errors and leave nothing; after the response they move the orb to ERROR with the resources left for diagnosis](../img/failures.svg)
+
+| Code | When |
 | --- | --- |
-| `400` | taglia o chiave pubblica mancanti, malformate o oltre i limiti; nessuna immagine indicata né configurata; filtro `?status=` con uno stato sconosciuto |
-| `401` | token assente, scaduto o non valido, anche quando lo rifiuta Blazar, Heat o Nova a valle |
-| `403` | token senza ambito di progetto, perché un orb appartiene sempre a un progetto; oppure ruoli insufficienti per Blazar, Heat o Nova |
-| `404` | orb inesistente o di un altro progetto (indistinguibili di proposito) |
-| `409` | capacità esaurita: Blazar ha rifiutato la prenotazione. Blazar non usa un codice dedicato: risponde `500` col messaggio `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) non dichiara un codice, e [lo strato API](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) lo inoltra tale e quale), e il servizio lo riconosce dal messaggio. |
-| `502` | Blazar, Heat o Nova hanno rifiutato la richiesta per un motivo che il servizio non sa tradurre; il messaggio riporta il loro |
-| `503` | Blazar, Heat o Nova non raggiungibili o in errore; il dettaglio resta nei log del servizio, perché può contenere indirizzi interni |
+| `400` | size or public key missing, malformed or beyond the limits; no image given or configured; `?status=` filter with an unknown status |
+| `401` | token missing, expired or invalid, also when Blazar, Heat or Nova reject it downstream |
+| `403` | token without project scope, because an orb always belongs to a project; or insufficient roles for Blazar, Heat or Nova |
+| `404` | orb that does not exist or belongs to another project (indistinguishable on purpose) |
+| `409` | exhausted capacity: Blazar rejected the reservation. Blazar does not use a dedicated code: it responds `500` with the message `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) declares no code, and [the API layer](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) forwards it as is), and the service recognizes it from the message. |
+| `502` | Blazar, Heat or Nova rejected the request for a reason the service cannot translate; the message carries theirs |
+| `503` | Blazar, Heat or Nova unreachable or failing; the details stay in the service logs, because they may contain internal addresses |
 
-Poiché il lease si crea durante la richiesta, la mancanza di capacità è un errore della richiesta e non lascia nessun orb. Il fallimento della costruzione, compresa la quota del progetto esaurita, si manifesta invece come `ERROR` sull'orb con il motivo riportato da Heat: lo stack viene creato dopo la risposta `202`.
+Since the lease is created during the request, missing capacity is an error of the request and leaves no orb behind. A build failure, including an exhausted project quota, shows up instead as `ERROR` on the orb with the reason reported by Heat: the stack is created after the `202` response.

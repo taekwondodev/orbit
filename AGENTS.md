@@ -14,4 +14,4 @@ Direct push to `main` by default. Before implementation or delivery, read `docs/
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` (Italian) and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

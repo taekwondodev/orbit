@@ -142,5 +142,5 @@ outputs:
       Macchina dell'orb. Il servizio la legge a ogni lettura dell'orb, perche
       Heat non si accorge se viene cancellata o spenta da fuori, anche da
       Blazar alla cancellazione del lease: lo stack resterebbe CREATE_COMPLETE.
-      Vedi docs/design/stato.md.
+      Vedi docs/design/state.md.
     value: { get_resource: server }
