@@ -18,17 +18,15 @@ C'è un solo processo. Il lavoro dopo la risposta dura pochi secondi, il tempo c
 
 Tutte le chiamate verso Blazar e Heat usano il token dell'utente. Il servizio non ha privilegi propri sulle risorse degli utenti.
 
-Regole che non vanno violate perché sono il senso del progetto:
+La regola che non va violata perché è il senso del progetto: **il servizio non crea risorse da sé.** Non chiama Nova né Neutron in scrittura. La capacità e il flavor li crea Blazar, il resto Heat. Se un giorno serve una risorsa in più nell'orb, si aggiunge al template.
 
-- **Il servizio non crea risorse da sé.** Non chiama Nova né Neutron in scrittura. La capacità e il flavor li crea Blazar, il resto Heat. Se un giorno serve una risorsa in più nell'orb, si aggiunge al template.
-- **Il servizio non decide quando un orb finisce.** Lo decide il consumatore con `DELETE`. La data di fine del lease è fittizia ([0003](adr/0003-nessuna-scadenza.md)).
-- **Il servizio non entra nell'orb.** Non esegue comandi, non copia file, non sa cosa ci gira. Consegna un indirizzo e un utente SSH.
+Cosa il servizio non fa, come entrare nell'orb o decidere quando finisce, è nel [README](../README.md#cosa-non-fa).
 
 ## Sequenza di un orb
 
 Le chiamate fra client, orbit, Blazar e Heat sono nel diagramma di sequenza del [README](../README.md#ciclo-di-vita-di-un-orb); qui, cosa succede nel tempo e cosa distrugge chi.
 
-![Creazione nel tempo, con i tempi misurati su DevStack](img/creazione.svg)
+![Creazione: le due attese e il limite creation_timeout](img/creazione.svg)
 
 ![Cancellazione: prima lo stack, poi il lease](img/cancellazione.svg)
 
@@ -49,4 +47,4 @@ Oltre ai propri processi, il plugin deve:
 
 La registrazione dell'host avviene nella fase `extra`, ma DevStack mappa gli host nella cella di Nova solo dopo quella fase, e la API di Nova non mostra gli hypervisor non mappati. Il plugin esegue quindi `nova-manage cell_v2 discover_hosts`, ripetibile, prima di cercarli.
 
-Con l'host registrato, il filtro `BlazarFilter` di Nova lo riserva alle prenotazioni: su un DevStack con un solo host, una macchina creata senza prenotazione non trova posto (osservato: "BlazarFilter returned 0 hosts").
+Con l'host registrato, il filtro `BlazarFilter` di Nova lo riserva alle prenotazioni: una richiesta senza prenotazione non passa su un host che appartiene a un aggregato di Blazar, compreso `freepool`. Su un DevStack con un solo host, le macchine create fuori da orbit non trovano posto. Fonte: `host_passes` in <https://opendev.org/openstack/blazar-nova/src/branch/master/blazarnova/scheduler/filters/blazar_filter.py>

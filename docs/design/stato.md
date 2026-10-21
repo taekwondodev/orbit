@@ -1,6 +1,6 @@
 # Stato conservato
 
-Implementato in `orbit/db/api.py` e `orbit/lifecycle.py`, e verificato su DevStack. Il principio che la governa: **conserviamo solo ciò di cui siamo proprietari**. Tutto il resto si chiede a chi lo possiede.
+Implementato in `orbit/db/api.py` e `orbit/lifecycle.py`. Il principio che la governa: **conserviamo solo ciò di cui siamo proprietari**. Tutto il resto si chiede a chi lo possiede.
 
 ## Cosa è di altri
 
@@ -59,10 +59,6 @@ Ogni lettura di un orb, singola o in elenco, confronta ciò che la tabella affer
 | orb in `DELETING`, stack o lease ancora presenti | `DELETING` |
 | orb in `DELETING`, stack e lease assenti | `DELETED` |
 | stack `DELETE_FAILED` | `ERROR`, motivo dallo stack; un nuovo `DELETE` ritenta |
-
-La stessa tabella come sequenza di controlli, nell'ordine in cui la applica `orbit/lifecycle.py`:
-
-![Riallineamento a ogni lettura](../img/riallineamento.svg)
 
 Un orb già in `ERROR` che resta in errore conserva il primo motivo, che è quello utile alla diagnosi; se invece la realtà torna a posto, per esempio una macchina spenta viene riaccesa, l'orb torna `ACTIVE`. Durante la cancellazione lo stack si cerca per nome anche se l'orb non ne ha registrato uno: il compito di creazione potrebbe averlo creato senza aver fatto in tempo a scriverlo.
 
