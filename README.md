@@ -112,7 +112,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    $ source openrc demo demo
    ```
 
-5. Create an orb and wait until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only.
+5. Create an orb and wait until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only. On the DevStack host it is `172.24.4.1`. From another machine, first run `tools/reach-orbs.sh <host>` there, again after either machine restarts, and use that machine's address on the network it shares with the host.
 
    ```console
    $ openstack orb create --vcpus 1 --memory 512 --disk 1 \
