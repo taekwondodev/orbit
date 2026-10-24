@@ -120,7 +120,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
          --public-key ~/.ssh/id_ed25519.pub --wait
    ```
 
-6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD` and open **Project → Orbit → Orbs**. DevStack installs the panel whenever Horizon is enabled, as it is by default.
+6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack also makes the `demo` user a member of `invisible_to_admin` and gives it no default project, so Horizon may open that one, where the list is empty. DevStack installs the panel whenever Horizon is enabled, as it is by default.
 
 7. Connect with the `ssh_user` and `ssh_host` printed in step 5:
 
