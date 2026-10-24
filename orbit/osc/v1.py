@@ -7,7 +7,8 @@ from osc_lib.command import command
 from osc_lib import exceptions
 
 _FIELDS = ('id', 'status', 'vcpus', 'memory_mb', 'disk_gb', 'image',
-           'ssh_host', 'ssh_user', 'ssh_host_keys', 'fault', 'created_at')
+           'ssh_host', 'ssh_user', 'ssh_host_keys', 'ssh_allowed_cidr',
+           'fault', 'created_at')
 _FINAL_STATUSES = ('ACTIVE', 'ERROR', 'DELETED')
 
 
@@ -35,6 +36,11 @@ class CreateOrb(command.ShowOne):
                             help='File of the SSH public key to '
                                  'install, for example '
                                  '~/.ssh/id_ed25519.pub.')
+        parser.add_argument('--ssh-allowed-cidr', required=True,
+                            metavar='<cidr>',
+                            help='Network the orb admits SSH from, for '
+                                 'example the address you connect from '
+                                 'as 198.51.100.20/32.')
         parser.add_argument('--image', help='Image; without it, the '
                                             'service default.')
         parser.add_argument('--wait', action='store_true',
@@ -53,7 +59,8 @@ class CreateOrb(command.ShowOne):
         orb = client.create({'vcpus': parsed_args.vcpus,
                              'memory_mb': parsed_args.memory,
                              'disk_gb': parsed_args.disk},
-                            public_key, parsed_args.image)
+                            public_key, parsed_args.ssh_allowed_cidr,
+                            parsed_args.image)
         if parsed_args.wait:
             orb = _wait(client, orb)
             # Like server create --wait: a script must see the failure.

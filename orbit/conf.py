@@ -53,10 +53,11 @@ orbs_opts = [
                help='External network that the router of each orb '
                     'connects to and that provides the reachable address.'),
     cfg.StrOpt('ssh_allowed_cidr',
-               help='Network SSH access to the orbs is allowed from, as a '
-                    'CIDR: the one the harness connects from. Required, '
-                    'and it cannot be the whole Internet: orbit-api does '
-                    'not start without it.'),
+               help='Cap on the networks SSH to the orbs may be admitted '
+                    'from, as an IPv4 CIDR. Each creation request names its own '
+                    'network, which must lie inside this one. Without a '
+                    'value, any network but the whole Internet is '
+                    'accepted.'),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')
@@ -78,19 +79,13 @@ def check_api_options():
 
     Only orbit-api needs them: orbit-dbsync reads the same file without them.
     """
-    cidr = CONF.orbs.ssh_allowed_cidr
-    if not cidr:
-        raise InvalidOption('[orbs] ssh_allowed_cidr is required: the network '
-                            'the harness connects to the orbs from.')
-    try:
-        network = ipaddress.ip_network(cidr)
-    except ValueError as e:
-        raise InvalidOption(
-            f'[orbs] ssh_allowed_cidr is not a network: {e}') from e
-    if network.prefixlen == 0:
-        raise InvalidOption(
-            f'[orbs] ssh_allowed_cidr {cidr} admits the whole Internet: name '
-            f'the network the harness connects to the orbs from.')
+    cap = CONF.orbs.ssh_allowed_cidr
+    if cap is not None:
+        try:
+            ipaddress.IPv4Network(cap)
+        except ValueError as e:
+            raise InvalidOption(
+                f'[orbs] ssh_allowed_cidr is not an IPv4 network: {e}') from e
     if CONF.orbs.ready_timeout <= CONF.orbs.creation_timeout:
         raise InvalidOption(
             '[orbs] ready_timeout must be greater than creation_timeout: '

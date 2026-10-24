@@ -20,6 +20,7 @@ orbs = sa.Table(
     sa.Column('stack_id', sa.String(36)),
     sa.Column('status', sa.String(16), nullable=False),
     sa.Column('fault', sa.Text),
+    sa.Column('ssh_allowed_cidr', sa.String(18)),
     # One key per line: an OpenSSH key holds no line break.
     sa.Column('ssh_host_keys', sa.Text),
     sa.Column('created_at', sa.DateTime, nullable=False),
@@ -48,6 +49,7 @@ class OrbRepository:
                 stack_id=orb.stack_id,
                 status=orb.status.value,
                 fault=orb.fault,
+                ssh_allowed_cidr=orb.ssh_allowed_cidr,
                 created_at=orb.created_at,
             ))
 
@@ -113,6 +115,7 @@ def _to_orb(row):
         stack_id=row.stack_id,
         status=orb_model.Status(row.status),
         fault=row.fault,
+        ssh_allowed_cidr=row.ssh_allowed_cidr,
         ssh_host_keys=(tuple(row.ssh_host_keys.split('\n'))
                        if row.ssh_host_keys is not None else None),
         created_at=row.created_at,

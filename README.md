@@ -29,7 +29,7 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - **Reserves the capacity** before building: if there is no room it says so right away, instead of failing halfway.
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
 - Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
-- Admits SSH only from the **network the operator names**: never from the whole Internet by default.
+- Admits SSH only from the **network the client names** in each request, within an optional cap set by the operator, never from the whole Internet.
 - **Deletes everything** with a single request, repeatable without error: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
@@ -97,8 +97,6 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
-   # required: the address the orbs see your client connect from
-   ORBIT_SSH_ALLOWED_CIDR=<client-address>/32
    EOF
    ```
 
@@ -114,11 +112,12 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    $ source openrc demo demo
    ```
 
-5. Create an orb and wait until it is `ACTIVE`:
+5. Create an orb and wait until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only.
 
    ```console
    $ openstack orb create --vcpus 1 --memory 512 --disk 1 \
-         --public-key ~/.ssh/id_ed25519.pub --wait
+         --public-key ~/.ssh/id_ed25519.pub \
+         --ssh-allowed-cidr <your-address>/32 --wait
    ```
 
 6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.

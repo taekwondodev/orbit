@@ -28,6 +28,7 @@ class CreateRequest:
     size: orb_model.Size
     public_key: str
     image: str
+    ssh_allowed_cidr: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -60,6 +61,7 @@ class Orbs:
             user_id=context.user_id,
             size=request.size,
             image=request.image,
+            ssh_allowed_cidr=request.ssh_allowed_cidr,
             lease_id=lease.id,
             reservation_id=lease.reservation_id,
             status=Status.RESERVING,

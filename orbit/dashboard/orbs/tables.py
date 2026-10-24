@@ -8,7 +8,8 @@ from horizon.utils import filters
 from orbit.dashboard import client
 
 CREATE_COMMAND = ('openstack orb create --vcpus 1 --memory 512 --disk 1 '
-                  '--public-key ~/.ssh/id_ed25519.pub')
+                  '--public-key ~/.ssh/id_ed25519.pub '
+                  '--ssh-allowed-cidr <your-address>/32')
 
 STATUS_DISPLAY_CHOICES = (
     ('RESERVING', pgettext_lazy('Current status of an orb', 'Reserving')),

@@ -24,6 +24,7 @@ vcpus               int         the requested size
 memory_mb           int
 disk_gb             int
 image               string      the requested image, which determines the SSH user
+ssh_allowed_cidr    string      the requested network the orb admits SSH from
 lease_id            uuid        the Blazar lease
 reservation_id      uuid        the reservation inside that lease, used as flavor
 stack_id            uuid        the Heat stack, empty until it is created
@@ -35,7 +36,7 @@ updated_at          timestamp
 deleted_at          timestamp   kept for history
 ```
 
-The table exists because the service owns three things nobody else keeps: the link between an orb, its lease and its stack; the requested size and image, which outlive the lease; the history of deleted orbs. Three columns are declared copies:
+The table exists because the service owns three things nobody else keeps: the link between an orb, its lease and its stack; the requested size, image and SSH network, which outlive the lease; the history of deleted orbs. Three columns are declared copies:
 
 - `status` is a copy of the last observation. Every read recomputes it from Blazar, Heat and Nova and writes it back; it is used to filter the list.
 - `fault` is a copy of the reason for someone else's failure, kept because the failed stack might be deleted before anyone reads the orb.

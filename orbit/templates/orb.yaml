@@ -48,9 +48,9 @@ parameters:
   ssh_allowed_cidr:
     type: string
     description: >
-      Network SSH access to the orb is allowed from: the one the harness
-      connects from. No default, so that no orb is open to the whole Internet
-      by omission.
+      Network SSH access to the orb is allowed from, named by the creation
+      request (docs/adr/0008). No default, so that no orb is open to the whole
+      Internet by omission.
 
 resources:
 

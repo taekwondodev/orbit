@@ -31,7 +31,6 @@ class TestCreator(unittest.TestCase):
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
-        conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.20/32', 'orbs')
         self.clients = fakes.fake_clients()
         self.blazar, self.heat = self.clients.blazar, self.clients.heat
         self.repository = fakes.repository()
@@ -42,7 +41,8 @@ class TestCreator(unittest.TestCase):
         lease = self.blazar.create_lease('orbit-x', None, None)
         self.orb = fakes.orb(lease_id=lease.id,
                              reservation_id=lease.reservation_id,
-                             created_at=START)
+                             created_at=START,
+                             ssh_allowed_cidr='203.0.113.0/24')
         self.repository.add(self.orb)
 
     def stored(self):
@@ -73,7 +73,7 @@ class TestCreator(unittest.TestCase):
                           'image': 'cirros',
                           'public_key': fakes.PUBLIC_KEY,
                           'public_network': 'public',
-                          'ssh_allowed_cidr': '198.51.100.20/32'}, parameters)
+                          'ssh_allowed_cidr': '203.0.113.0/24'}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual(START + datetime.timedelta(seconds=4),

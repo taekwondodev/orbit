@@ -66,7 +66,8 @@ class IndexTests(OrbsTestCase):
 
         self.assertContains(
             res, '<code>openstack orb create --vcpus 1 --memory 512 '
-                 '--disk 1 --public-key ~/.ssh/id_ed25519.pub</code>',
+                 '--disk 1 --public-key ~/.ssh/id_ed25519.pub '
+                 '--ssh-allowed-cidr &lt;your-address&gt;/32</code>',
             html=True)
 
     def test_unavailable_orbit_shows_its_message_not_an_empty_project(self):

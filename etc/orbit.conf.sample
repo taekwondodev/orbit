@@ -499,7 +499,8 @@
 # the reachable address. (string value)
 #public_network = public
 
-# Network SSH access to the orbs is allowed from, as a CIDR: the one the
-# harness connects from. Required, and it cannot be the whole Internet: orbit-
-# api does not start without it. (string value)
+# Cap on the networks SSH to the orbs may be admitted from, as an IPv4 CIDR.
+# Each creation request names its own network, which must lie inside this one.
+# Without a value, any network but the whole Internet is accepted. (string
+# value)
 #ssh_allowed_cidr = <None>

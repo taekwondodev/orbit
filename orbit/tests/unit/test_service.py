@@ -12,7 +12,8 @@ Status = orb_model.Status
 CONTEXT = service.Context('project-a', 'user-a', auth='auth')
 REQUEST = service.CreateRequest(
     size=orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
-    public_key=fakes.PUBLIC_KEY, image='cirros')
+    public_key=fakes.PUBLIC_KEY, image='cirros',
+    ssh_allowed_cidr='198.51.100.20/32')
 HOST_KEYS = (fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519)
 
 

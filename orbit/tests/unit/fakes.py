@@ -30,6 +30,7 @@ def orb(**overrides):
         reservation_id='reservation-1',
         status=orb_model.Status.RESERVING,
         created_at=orb_model.utcnow(),
+        ssh_allowed_cidr='198.51.100.20/32',
     )
     values.update(overrides)
     return orb_model.Orb(**values)

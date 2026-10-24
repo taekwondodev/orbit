@@ -34,6 +34,7 @@ class Orb:
     created_at: datetime.datetime
     stack_id: str | None = None
     fault: str | None = None
+    ssh_allowed_cidr: str | None = None
     # Read once from the console at boot: see docs/adr/0007.
     ssh_host_keys: tuple[str, ...] | None = None
     updated_at: datetime.datetime | None = None

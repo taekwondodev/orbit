@@ -35,7 +35,8 @@ class ApiTestCase(unittest.TestCase):
 
     def create(self, **overrides):
         body = {'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
-                'public_key': fakes.PUBLIC_KEY}
+                'public_key': fakes.PUBLIC_KEY,
+                'ssh_allowed_cidr': '198.51.100.20/32'}
         body.update(overrides)
         return self.request('POST', '/v1/orbs', json=body)
 
@@ -54,6 +55,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('cirros', orb['ssh_user'])
         self.assertIsNone(orb['ssh_host'])
         self.assertIsNone(orb['ssh_host_keys'])
+        self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
         name, size, end_date = self.blazar.created[0]
         self.assertEqual(f"orbit-{orb['id']}", name)
         self.assertEqual('2099-12-31 23:59', end_date)
@@ -61,6 +63,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('lease-1', stored.lease_id)
         self.assertEqual('reservation-1', stored.reservation_id)
         self.assertEqual(size, stored.size)
+        self.assertEqual('198.51.100.20/32', stored.ssh_allowed_cidr)
         self.assertEqual([(stored, fakes.PUBLIC_KEY)], self.creator.started)
         self.assertEqual(['auth-of-project-a'], self.auths)
 
@@ -108,11 +111,36 @@ class TestCreate(ApiTestCase):
             {'public_key': 'ssh-rsa ' + 'A' * 9000},
             {'image': ''},
             {'image': 'x' * 256},
+            {'ssh_allowed_cidr': None},
+            {'ssh_allowed_cidr': 'harness'},
+            {'ssh_allowed_cidr': '198.51.100.20/24'},
+            {'ssh_allowed_cidr': '0.0.0.0/0'},
+            {'ssh_allowed_cidr': '::/0'},
+            {'ssh_allowed_cidr': '2001:db8::1/128'},
+            {'ssh_allowed_cidr': '::ffff:198.51.100.20/128'},
+            {'ssh_allowed_cidr': 123},
+            {'ssh_allowed_cidr': ' 198.51.100.20/32'},
         ]
         for overrides in invalid:
             with self.subTest(overrides=overrides):
                 self.assertEqual(400, self.create(**overrides).status_code)
         self.assertEqual([], self.blazar.created)
+
+    def test_bare_address_admits_that_address_only(self):
+        orb = self.create(ssh_allowed_cidr='198.51.100.20').get_json()
+
+        self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
+
+    def test_network_must_lie_inside_the_operator_cap(self):
+        conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.0/24', 'orbs')
+
+        inside = self.create(ssh_allowed_cidr='198.51.100.16/28')
+        outside = [self.create(ssh_allowed_cidr=cidr)
+                   for cidr in ('198.51.0.0/16', '203.0.113.7/32')]
+
+        self.assertEqual(202, inside.status_code)
+        self.assertEqual([400] * 2, [r.status_code for r in outside])
+        self.assertEqual(1, len(self.blazar.created))
 
     def test_without_image_and_default_the_request_is_400(self):
         conf.CONF.set_override('default_image', None, 'orbs')

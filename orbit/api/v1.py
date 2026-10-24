@@ -1,5 +1,7 @@
 """The HTTP resources of /v1. The contract is in docs/design/api.md."""
 
+import ipaddress
+
 import flask
 from werkzeug import exceptions as http_exc
 
@@ -98,6 +100,7 @@ def _create_request(body):
         size=_size(body.get('size')),
         public_key=_public_key(body.get('public_key')),
         image=_image(body.get('image')),
+        ssh_allowed_cidr=_ssh_allowed_cidr(body.get('ssh_allowed_cidr')),
     )
 
 
@@ -126,6 +129,31 @@ def _public_key(key):
     return key
 
 
+def _ssh_allowed_cidr(cidr):
+    """The network the orb admits SSH from, normalized.
+
+    Only the harness knows where it will connect from (docs/adr/0008).
+    """
+    if not isinstance(cidr, str) or not cidr:
+        raise http_exc.BadRequest(
+            'ssh_allowed_cidr is required: the network the orb admits SSH '
+            'from.')
+    try:
+        network = ipaddress.IPv4Network(cidr)
+    except ValueError as e:
+        # The orb's network and floating IP are IPv4 only: an IPv6 rule
+        # would admit nobody.
+        raise http_exc.BadRequest(
+            f'ssh_allowed_cidr is not an IPv4 network: {e}') from e
+    if network.prefixlen == 0:
+        raise http_exc.BadRequest(
+            'ssh_allowed_cidr cannot admit the whole Internet.')
+    cap = CONF.orbs.ssh_allowed_cidr
+    if cap is not None and not network.subnet_of(ipaddress.IPv4Network(cap)):
+        raise http_exc.BadRequest(f'ssh_allowed_cidr must be inside {cap}.')
+    return str(network)
+
+
 def _image(image):
     image = image if image is not None else CONF.orbs.default_image
     if not isinstance(image, str) or not image:
@@ -151,6 +179,7 @@ def _view(observed):
                           if orb.ssh_host_keys is not None else None),
         'ssh_user': CONF.orbs.ssh_users.get(orb.image,
                                             CONF.orbs.default_ssh_user),
+        'ssh_allowed_cidr': orb.ssh_allowed_cidr,
         'fault': orb.fault,
         'created_at': orb.created_at.isoformat(),
     }

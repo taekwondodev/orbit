@@ -15,7 +15,6 @@ class TestAuthentication(unittest.TestCase):
                                'http://keystone.invalid/identity',
                                'keystone_authtoken')
         conf.CONF.set_override('connection', 'sqlite://', 'database')
-        conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.20/32', 'orbs')
 
     def test_request_without_token_is_rejected(self):
         client = werkzeug_test.Client(app.create_wsgi_app())
@@ -26,11 +25,10 @@ class TestAuthentication(unittest.TestCase):
         self.assertIn('keystone.invalid',
                       response.headers['WWW-Authenticate'])
 
-    def test_api_does_not_start_without_a_bounded_ssh_network(self):
-        for cidr in (None, '', 'harness', '198.51.100.20/24', '0.0.0.0/0',
-                     '::/0'):
-            with self.subTest(cidr=cidr):
-                conf.CONF.set_override('ssh_allowed_cidr', cidr, 'orbs')
+    def test_api_does_not_start_with_an_invalid_ssh_cap(self):
+        for cap in ('harness', '198.51.100.20/24', '2001:db8::/32'):
+            with self.subTest(cap=cap):
+                conf.CONF.set_override('ssh_allowed_cidr', cap, 'orbs')
 
                 with self.assertRaisesRegex(conf.InvalidOption,
                                             'ssh_allowed_cidr'):

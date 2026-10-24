@@ -6,7 +6,7 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 
 | Method and path | Body | Response |
 | --- | --- | --- |
-| `POST /v1/orbs` | `{size, public_key, image?}` | `202` with the orb in status `RESERVING` |
+| `POST /v1/orbs` | `{size, public_key, ssh_allowed_cidr, image?}` | `202` with the orb in status `RESERVING` |
 | `GET /v1/orbs` | `?status=` filters | `200` with the list of the project's orbs |
 | `GET /v1/orbs/{id}` | — | `200` with status, address and any error |
 | `DELETE /v1/orbs/{id}` | — | `202` with the orb in status `DELETING`, repeatable without error |
@@ -17,6 +17,7 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 {
   "size": { "vcpus": 2, "memory_mb": 4096, "disk_gb": 20 },
   "public_key": "ssh-ed25519 AAAA...",
+  "ssh_allowed_cidr": "198.51.100.20/32",
   "image": "ubuntu-24.04"
 }
 ```
@@ -24,6 +25,8 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 `size` goes unchanged into the Blazar reservation ([0004](../adr/0004-size-as-blazar-reservation.md)): it is the "every orb with different resources" requirement, expressed where it takes effect. Each value is capped by a configured maximum; beyond it the response is `400`.
 
 `public_key` is mandatory. The service does not generate key pairs and never sees a private key: a deliberate choice so that it has no user secrets to hand over or to guard.
+
+`ssh_allowed_cidr` is mandatory: the network the orb's firewall admits SSH from, as an IPv4 CIDR, since the orb is reachable over IPv4 only; a bare address admits that address only. It cannot be the whole Internet, and when the operator sets `[orbs] ssh_allowed_cidr` it must lie inside that network; otherwise the response is `400`. The client names it because only the client knows where it will connect from ([0008](../adr/0008-ssh-network-named-by-the-request.md)).
 
 The response arrives once the capacity is reserved, before the resources exist: progress is followed with `GET`. What happens after the response is in [architecture](../architecture.md#sequence-of-an-orb).
 
@@ -37,6 +40,7 @@ The response arrives once the capacity is reserved, before the resources exist: 
   "image": "ubuntu-24.04",
   "ssh_host": "172.24.4.17",
   "ssh_user": "ubuntu",
+  "ssh_allowed_cidr": "198.51.100.20/32",
   "ssh_host_keys": [
     "ecdsa-sha2-nistp256 AAAAE2VjZHNh...",
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."
@@ -77,7 +81,7 @@ An orb in `ERROR` does **not** delete itself. It is a choice in favor of diagnos
 
 | Code | When |
 | --- | --- |
-| `400` | size or public key missing, malformed or beyond the limits; no image given or configured; `?status=` filter with an unknown status |
+| `400` | size, public key or SSH network missing, malformed or beyond the limits; no image given or configured; `?status=` filter with an unknown status |
 | `401` | token missing, expired or invalid, also when Blazar, Heat or Nova reject it downstream |
 | `403` | token without project scope, because an orb always belongs to a project; or insufficient roles for Blazar, Heat or Nova |
 | `404` | orb that does not exist or belongs to another project (indistinguishable on purpose) |
