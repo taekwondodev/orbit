@@ -30,6 +30,19 @@ function configure_orbit {
     iniset $ORBIT_UWSGI_CONF uwsgi threads 4
 }
 
+# The Orbs panel: Horizon loads it from the enabled files in its local
+# directory. This phase precedes init_horizon (collectstatic, compress) and
+# start_horizon in stack.sh.
+ORBIT_DASHBOARD_ENABLED="_1950_project_orbit_panel_group.py _1951_project_orbs_panel.py"
+
+function configure_orbit_dashboard {
+    local file
+    for file in $ORBIT_DASHBOARD_ENABLED; do
+        cp $ORBIT_DIR/orbit/dashboard/enabled/$file \
+            $HORIZON_DIR/openstack_dashboard/local/enabled/
+    done
+}
+
 function init_orbit {
     recreate_database orbit
     orbit-dbsync --config-file $ORBIT_CONF
@@ -87,6 +100,10 @@ function stop_orbit {
 function cleanup_orbit {
     remove_uwsgi_config "$ORBIT_UWSGI_CONF" orbit-api
     sudo rm -rf $ORBIT_CONF_DIR
+    local file
+    for file in $ORBIT_DASHBOARD_ENABLED; do
+        rm -f $HORIZON_DIR/openstack_dashboard/local/enabled/$file
+    done
 }
 
 if is_service_enabled orbit-api; then
@@ -98,6 +115,9 @@ if is_service_enabled orbit-api; then
         configure_orbit
         init_orbit
         create_orbit_accounts
+        if is_service_enabled horizon; then
+            configure_orbit_dashboard
+        fi
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         echo_summary "Starting orbit"
         register_compute_hosts_in_blazar

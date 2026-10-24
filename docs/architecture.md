@@ -9,8 +9,9 @@ Who does what, where the ownership boundary runs and in which order things happe
 | `orbit-api` | receives HTTP requests, authenticates the token, validates, creates the lease, reads the real status on every request, deletes stack and lease | keep tokens, act without a request from the user |
 | creation task | inside `orbit-api`, after the response: waits for the reservation to be active and creates the stack with the request's token | survive a process restart |
 | `orbs` table | the link between orb, lease and stack, the size, the observed status | hold the truth about the resources |
+| Orbs panel | inside Horizon, under Project → Orbit: lists and shows the project's orbs through `orbit-api`, with the logged-in user's token | create or delete orbs, call anything but `orbit-api` |
 
-There is a single process. The work after the response lasts a few seconds, the time Blazar takes to activate the reservation, and uses the request's token: a separate process with a queue would only be needed if that work had to survive restarts, and it would then have to keep a delegation ([0002](adr/0002-resources-in-the-users-project.md)).
+There is a single service process; the panel runs in Horizon's. The work after the response lasts a few seconds, the time Blazar takes to activate the reservation, and uses the request's token: a separate process with a queue would only be needed if that work had to survive restarts, and it would then have to keep a delegation ([0002](adr/0002-resources-in-the-users-project.md)).
 
 ## Ownership boundary
 
@@ -49,7 +50,8 @@ Besides its own processes, the plugin must:
 - declare the dependency on the Heat and Blazar plugins, which must be enabled earlier in `local.conf`;
 - register the service and its endpoint in the Keystone catalog;
 - register the compute host in Blazar, without which no lease can be created;
-- leave Blazar's `max_lease_duration` at its default `-1`, which does not limit the duration of leases.
+- leave Blazar's `max_lease_duration` at its default `-1`, which does not limit the duration of leases;
+- when Horizon is enabled, copy the panel's enabled files into Horizon in the `post-config` phase, which `stack.sh` runs before Horizon compresses its static files and starts.
 
 Host registration happens in the `extra` phase, but DevStack maps hosts into the Nova cell only after that phase, and the Nova API does not show unmapped hypervisors. The plugin therefore runs `nova-manage cell_v2 discover_hosts`, which is repeatable, before looking them up.
 
