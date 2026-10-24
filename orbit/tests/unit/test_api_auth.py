@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 
 from werkzeug import test as werkzeug_test
@@ -33,6 +34,15 @@ class TestAuthentication(unittest.TestCase):
                 with self.assertRaisesRegex(conf.InvalidOption,
                                             'ssh_allowed_cidr'):
                     app.create_wsgi_app()
+
+    def test_api_does_not_start_with_a_minimum_prefix_out_of_range(self):
+        with tempfile.NamedTemporaryFile('w', suffix='.conf') as config:
+            config.write('[orbs]\nssh_min_prefix = 0\n')
+            config.flush()
+            conf.CONF([], project='orbit', default_config_files=[config.name])
+
+            with self.assertRaisesRegex(conf.InvalidOption, 'ssh_min_prefix'):
+                app.create_wsgi_app()
 
     def test_api_does_not_start_without_time_to_boot(self):
         for ready_timeout in (60, 120):

@@ -29,7 +29,7 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - **Reserves the capacity** before building: if there is no room it says so right away, instead of failing halfway.
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
 - Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
-- Admits SSH only from the **network the client names** in each request, within an optional cap set by the operator, never from the whole Internet.
+- Admits SSH only from the **network the client names** in each request: one address or a small network, within an optional cap set by the operator.
 - **Deletes everything** with a single request, repeatable without error: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 

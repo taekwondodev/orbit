@@ -26,7 +26,7 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 
 `public_key` is mandatory. The service does not generate key pairs and never sees a private key: a deliberate choice so that it has no user secrets to hand over or to guard.
 
-`ssh_allowed_cidr` is mandatory: the network the orb's firewall admits SSH from, as an IPv4 CIDR, since the orb is reachable over IPv4 only; a bare address admits that address only. It cannot be the whole Internet, and when the operator sets `[orbs] ssh_allowed_cidr` it must lie inside that network; otherwise the response is `400`. The client names it because only the client knows where it will connect from ([0008](../adr/0008-ssh-network-named-by-the-request.md)).
+`ssh_allowed_cidr` is mandatory: the network the orb's firewall admits SSH from, as an IPv4 CIDR, since the orb is reachable over IPv4 only; a bare address admits that address only. It cannot be wider than `[orbs] ssh_min_prefix` (`/24` by default), and when the operator sets `[orbs] ssh_allowed_cidr` it must lie inside that network; otherwise the response is `400`. The client names it because only the client knows where it will connect from ([0008](../adr/0008-ssh-network-named-by-the-request.md)).
 
 The response arrives once the capacity is reserved, before the resources exist: progress is followed with `GET`. What happens after the response is in [architecture](../architecture.md#sequence-of-an-orb).
 

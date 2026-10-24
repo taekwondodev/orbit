@@ -52,6 +52,11 @@ orbs_opts = [
     cfg.StrOpt('public_network', default='public',
                help='External network that the router of each orb '
                     'connects to and that provides the reachable address.'),
+    cfg.IntOpt('ssh_min_prefix', default=24, min=1, max=32,
+               help='Narrowest prefix length a request may use for its SSH '
+                    'network: a harness connects from one address or a '
+                    'small NAT pool, so wider networks are rejected. Lower '
+                    'it only for a client that needs a wider range.'),
     cfg.StrOpt('ssh_allowed_cidr',
                help='Cap on the networks SSH to the orbs may be admitted '
                     'from, as an IPv4 CIDR. Each creation request names its own '
@@ -79,6 +84,10 @@ def check_api_options():
 
     Only orbit-api needs them: orbit-dbsync reads the same file without them.
     """
+    try:
+        CONF.orbs.ssh_min_prefix
+    except cfg.ConfigFileValueError as e:
+        raise InvalidOption(f'[orbs] ssh_min_prefix: {e}') from e
     cap = CONF.orbs.ssh_allowed_cidr
     if cap is not None:
         try:

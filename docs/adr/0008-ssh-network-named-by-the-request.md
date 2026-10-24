@@ -1,6 +1,6 @@
 # Each creation request names the network the orb admits SSH from
 
-The orb's firewall admits SSH only from the IPv4 network named in the creation request (`ssh_allowed_cidr`, required); IPv4 because the orb's network and floating IP are IPv4 only. The service does not choose it: orbit serves several harnesses of different users, and only the harness knows where it will connect from. The operator may cap the admitted networks with `[orbs] ssh_allowed_cidr`; a request outside the cap, or one admitting the whole Internet, is rejected with `400`. The network is stored with the orb, like size and image, because it is part of the request the service owns.
+The orb's firewall admits SSH only from the IPv4 network named in the creation request (`ssh_allowed_cidr`, required); IPv4 because the orb's network and floating IP are IPv4 only. The service does not choose it: orbit serves several harnesses of different users, and only the harness knows where it will connect from. A request wider than `[orbs] ssh_min_prefix` (`/24` by default) is rejected with `400`: a harness connects from one address or a small NAT pool, and restricting SSH to specific addresses is the usual production rule. The operator may lower that limit for a client that needs it, and may also cap the admitted networks with `[orbs] ssh_allowed_cidr`; a request outside the cap is rejected too. The network is stored with the orb, like size and image, because it is part of the request the service owns.
 
 ## Rejected alternatives
 

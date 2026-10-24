@@ -145,9 +145,11 @@ def _ssh_allowed_cidr(cidr):
         # would admit nobody.
         raise http_exc.BadRequest(
             f'ssh_allowed_cidr is not an IPv4 network: {e}') from e
-    if network.prefixlen == 0:
+    if network.prefixlen < CONF.orbs.ssh_min_prefix:
         raise http_exc.BadRequest(
-            'ssh_allowed_cidr cannot admit the whole Internet.')
+            f'ssh_allowed_cidr is wider than /{CONF.orbs.ssh_min_prefix}: '
+            f'name the address or the small network the client connects '
+            f'from.')
     cap = CONF.orbs.ssh_allowed_cidr
     if cap is not None and not network.subnet_of(ipaddress.IPv4Network(cap)):
         raise http_exc.BadRequest(f'ssh_allowed_cidr must be inside {cap}.')

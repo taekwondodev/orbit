@@ -131,12 +131,22 @@ class TestCreate(ApiTestCase):
 
         self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
 
+    def test_network_wider_than_the_minimum_prefix_is_400(self):
+        widest = self.create(ssh_allowed_cidr='198.51.100.0/24')
+        wider = self.create(ssh_allowed_cidr='198.51.0.0/23')
+        conf.CONF.set_override('ssh_min_prefix', 16, 'orbs')
+        allowed = self.create(ssh_allowed_cidr='198.51.0.0/16')
+
+        self.assertEqual([202, 400, 202], [widest.status_code,
+                                            wider.status_code,
+                                            allowed.status_code])
+
     def test_network_must_lie_inside_the_operator_cap(self):
         conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.0/24', 'orbs')
 
         inside = self.create(ssh_allowed_cidr='198.51.100.16/28')
         outside = [self.create(ssh_allowed_cidr=cidr)
-                   for cidr in ('198.51.0.0/16', '203.0.113.7/32')]
+                   for cidr in ('198.51.101.0/24', '203.0.113.7/32')]
 
         self.assertEqual(202, inside.status_code)
         self.assertEqual([400] * 2, [r.status_code for r in outside])
