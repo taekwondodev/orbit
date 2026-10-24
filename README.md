@@ -7,7 +7,7 @@
 <p align="center">
   <img alt="OpenStack: new service" src="https://img.shields.io/badge/OpenStack-new%20service-ED1944?logo=openstack&logoColor=white">
   <img alt="DevStack: plugin" src="https://img.shields.io/badge/DevStack-plugin-ED1944">
-  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
   <br>
   <img alt="Integrates: Keystone, Blazar, Heat" src="https://img.shields.io/badge/integrates-Keystone%20%C2%B7%20Blazar%20%C2%B7%20Heat-334155">
   <img alt="Interfaces: REST API, openstack CLI, Horizon" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20openstack%20CLI%20%C2%B7%20Horizon-334155">
@@ -139,7 +139,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    ```console
    $ cd /opt/stack/orbit
    $ tox -e py3
-   $ tox -e dashboard   # the Horizon panel
+   $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
    ```
 
 10. Run the full path on the installation, including the rejection for exhausted capacity:
