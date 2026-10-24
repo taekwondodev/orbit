@@ -499,7 +499,7 @@
 # the reachable address. (string value)
 #public_network = public
 
-# Narrowest prefix length a request may use for its SSH network: a harness
+# Narrowest prefix length a request may use for its SSH network: a client
 # connects from one address or a small NAT pool, so wider networks are
 # rejected. Lower it only for a client that needs a wider range. (integer
 # value)

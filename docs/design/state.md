@@ -40,7 +40,7 @@ The table exists because the service owns three things nobody else keeps: the li
 
 - `status` is a copy of the last observation. Every read recomputes it from Blazar, Heat and Nova and writes it back; it is used to filter the list.
 - `fault` is a copy of the reason for someone else's failure, kept because the failed stack might be deleted before anyone reads the orb.
-- `ssh_host_keys` is a copy of what the machine printed on its console at boot, written once: the console loses it and can be forged from inside the orb later ([0007](../adr/0007-host-keys-read-once-from-the-console.md)).
+- `ssh_host_keys` is a copy of what the machine printed on its console at boot, written once because the console is not a reliable owner ([0007](../adr/0007-host-keys-read-once-from-the-console.md)).
 
 No secret is stored: the service keeps neither tokens nor delegations ([0002](../adr/0002-resources-in-the-users-project.md)).
 
@@ -72,7 +72,7 @@ An orb already in `ERROR` that stays in error keeps the first reason, which is t
 
 The machine must be read in addition to the stack because Heat does not notice a machine deleted or stopped from outside: the stack stays `CREATE_COMPLETE`. The lease must be read because, if someone deletes it by hand, Blazar destroys the machine.
 
-The console is read only while the orb has no stored host keys, its machine is `ACTIVE` and the orb was created less than `ready_timeout` ago, never during deletion: a block printed later may come from inside the orb. A console that cannot be read counts as keys not published yet: the read of the orb does not fail for it. The keys appear once the client's key is installed and sshd answers, so `ACTIVE` means the client can connect right away and verify whom it connects to.
+The console is read only while the orb has no stored host keys, is not being deleted, its machine is `ACTIVE` and it was created less than `ready_timeout` ago ([0007](../adr/0007-host-keys-read-once-from-the-console.md)). A console that cannot be read counts as keys not published yet: the read of the orb does not fail for it.
 
 The task that waits for the reservation and creates the stack lives only in memory, in the process that received the request: no other process can know whether it is still running. That is why the criterion is time: an orb without a stack beyond the configured wait limit is considered interrupted, and the task itself gives up when the same limit expires.
 

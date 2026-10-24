@@ -54,7 +54,7 @@ orbs_opts = [
                     'connects to and that provides the reachable address.'),
     cfg.IntOpt('ssh_min_prefix', default=24, min=1, max=32,
                help='Narrowest prefix length a request may use for its SSH '
-                    'network: a harness connects from one address or a '
+                    'network: a client connects from one address or a '
                     'small NAT pool, so wider networks are rejected. Lower '
                     'it only for a client that needs a wider range.'),
     cfg.StrOpt('ssh_allowed_cidr',
