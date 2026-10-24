@@ -3,6 +3,7 @@ import unittest
 from orbit.api import app
 from orbit import clients
 from orbit import conf
+from orbit import orb as orb_model
 from orbit import service
 from orbit.tests.unit import fakes
 
@@ -34,7 +35,8 @@ class ApiTestCase(unittest.TestCase):
 
     def create(self, **overrides):
         body = {'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
-                'public_key': fakes.PUBLIC_KEY}
+                'public_key': fakes.PUBLIC_KEY,
+                'ssh_allowed_cidr': '198.51.100.20/32'}
         body.update(overrides)
         return self.request('POST', '/v1/orbs', json=body)
 
@@ -52,6 +54,8 @@ class TestCreate(ApiTestCase):
         self.assertEqual('cirros', orb['image'])
         self.assertEqual('cirros', orb['ssh_user'])
         self.assertIsNone(orb['ssh_host'])
+        self.assertIsNone(orb['ssh_host_keys'])
+        self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
         name, size, end_date = self.blazar.created[0]
         self.assertEqual(f"orbit-{orb['id']}", name)
         self.assertEqual('2099-12-31 23:59', end_date)
@@ -59,6 +63,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('lease-1', stored.lease_id)
         self.assertEqual('reservation-1', stored.reservation_id)
         self.assertEqual(size, stored.size)
+        self.assertEqual('198.51.100.20/32', stored.ssh_allowed_cidr)
         self.assertEqual([(stored, fakes.PUBLIC_KEY)], self.creator.started)
         self.assertEqual(['auth-of-project-a'], self.auths)
 
@@ -106,11 +111,46 @@ class TestCreate(ApiTestCase):
             {'public_key': 'ssh-rsa ' + 'A' * 9000},
             {'image': ''},
             {'image': 'x' * 256},
+            {'ssh_allowed_cidr': None},
+            {'ssh_allowed_cidr': 'harness'},
+            {'ssh_allowed_cidr': '198.51.100.20/24'},
+            {'ssh_allowed_cidr': '0.0.0.0/0'},
+            {'ssh_allowed_cidr': '::/0'},
+            {'ssh_allowed_cidr': '2001:db8::1/128'},
+            {'ssh_allowed_cidr': '::ffff:198.51.100.20/128'},
+            {'ssh_allowed_cidr': 123},
+            {'ssh_allowed_cidr': ' 198.51.100.20/32'},
         ]
         for overrides in invalid:
             with self.subTest(overrides=overrides):
                 self.assertEqual(400, self.create(**overrides).status_code)
         self.assertEqual([], self.blazar.created)
+
+    def test_bare_address_admits_that_address_only(self):
+        orb = self.create(ssh_allowed_cidr='198.51.100.20').get_json()
+
+        self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
+
+    def test_network_wider_than_the_minimum_prefix_is_400(self):
+        widest = self.create(ssh_allowed_cidr='198.51.100.0/24')
+        wider = self.create(ssh_allowed_cidr='198.51.0.0/23')
+        conf.CONF.set_override('ssh_min_prefix', 16, 'orbs')
+        allowed = self.create(ssh_allowed_cidr='198.51.0.0/16')
+
+        self.assertEqual([202, 400, 202], [widest.status_code,
+                                            wider.status_code,
+                                            allowed.status_code])
+
+    def test_network_must_lie_inside_the_operator_cap(self):
+        conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.0/24', 'orbs')
+
+        inside = self.create(ssh_allowed_cidr='198.51.100.16/28')
+        outside = [self.create(ssh_allowed_cidr=cidr)
+                   for cidr in ('198.51.101.0/24', '203.0.113.7/32')]
+
+        self.assertEqual(202, inside.status_code)
+        self.assertEqual([400] * 2, [r.status_code for r in outside])
+        self.assertEqual(1, len(self.blazar.created))
 
     def test_without_image_and_default_the_request_is_400(self):
         conf.CONF.set_override('default_image', None, 'orbs')
@@ -142,6 +182,17 @@ class TestRead(ApiTestCase):
 
         self.assertEqual([orb_id], [orb['id'] for orb in mine])
         self.assertEqual([], theirs)
+
+    def test_stored_host_keys_are_a_list_of_openssh_keys(self):
+        orb_id = self.create().get_json()['id']
+        self.repository.update(
+            orb_id, orb_model.Status.RESERVING,
+            ssh_host_keys=(fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519))
+
+        orb = self.request('GET', f'/v1/orbs/{orb_id}').get_json()
+
+        self.assertEqual([fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
+                         orb['ssh_host_keys'])
 
     def test_unknown_status_filter_is_400(self):
         response = self.request('GET', '/v1/orbs?status=SLEEPING')

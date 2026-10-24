@@ -1,5 +1,7 @@
 """orbit's configuration options, read from /etc/orbit/orbit.conf."""
 
+import ipaddress
+
 from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log
@@ -32,6 +34,14 @@ orbs_opts = [
                     'the stack be created. Beyond that, the creation task '
                     'gives up and an orb without a stack counts as '
                     'interrupted.'),
+    cfg.IntOpt('ready_timeout', default=600, min=1,
+               help='Seconds, counted from the creation request like '
+                    'creation_timeout, within which the machine must boot '
+                    'and print its SSH host keys on the console. Beyond '
+                    'that, the orb goes to ERROR. It includes the wait for '
+                    'the reservation and the stack, so it must be greater '
+                    'than creation_timeout, well above it to leave time '
+                    'for the boot.'),
     cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
                  help='Seconds between two reads of the lease while waiting '
                       'for the reservation to be active.'),
@@ -42,8 +52,17 @@ orbs_opts = [
     cfg.StrOpt('public_network', default='public',
                help='External network that the router of each orb '
                     'connects to and that provides the reachable address.'),
-    cfg.StrOpt('ssh_allowed_cidr', default='0.0.0.0/0',
-               help='Where SSH access to the orbs is allowed from.'),
+    cfg.IntOpt('ssh_min_prefix', default=24, min=1, max=32,
+               help='Narrowest prefix length a request may use for its SSH '
+                    'network: a client connects from one address or a '
+                    'small NAT pool, so wider networks are rejected. Lower '
+                    'it only for a client that needs a wider range.'),
+    cfg.StrOpt('ssh_allowed_cidr',
+               help='Cap on the networks SSH to the orbs may be admitted '
+                    'from, as an IPv4 CIDR. Each creation request names its own '
+                    'network, which must lie inside this one. Without a '
+                    'value, any network but the whole Internet is '
+                    'accepted.'),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')
@@ -54,6 +73,33 @@ def parse_args(argv, default_config_files=None):
     log.register_options(CONF)
     CONF(argv, project='orbit', default_config_files=default_config_files)
     log.setup(CONF, 'orbit')
+
+
+class InvalidOption(ValueError):
+    """An option orbit-api cannot run with."""
+
+
+def check_api_options():
+    """Refuse to serve with the options orbit-api cannot run with.
+
+    Only orbit-api needs them: orbit-dbsync reads the same file without them.
+    """
+    try:
+        CONF.orbs.ssh_min_prefix
+    except cfg.ConfigFileValueError as e:
+        raise InvalidOption(f'[orbs] ssh_min_prefix: {e}') from e
+    cap = CONF.orbs.ssh_allowed_cidr
+    if cap is not None:
+        try:
+            ipaddress.IPv4Network(cap)
+        except ValueError as e:
+            raise InvalidOption(
+                f'[orbs] ssh_allowed_cidr is not an IPv4 network: {e}') from e
+    if CONF.orbs.ready_timeout <= CONF.orbs.creation_timeout:
+        raise InvalidOption(
+            '[orbs] ready_timeout must be greater than creation_timeout: '
+            'both count from the creation request, and the machine boots '
+            'only after the stack is created.')
 
 
 def list_opts():

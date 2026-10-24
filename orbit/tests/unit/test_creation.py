@@ -41,7 +41,8 @@ class TestCreator(unittest.TestCase):
         lease = self.blazar.create_lease('orbit-x', None, None)
         self.orb = fakes.orb(lease_id=lease.id,
                              reservation_id=lease.reservation_id,
-                             created_at=START)
+                             created_at=START,
+                             ssh_allowed_cidr='203.0.113.0/24')
         self.repository.add(self.orb)
 
     def stored(self):
@@ -72,7 +73,7 @@ class TestCreator(unittest.TestCase):
                           'image': 'cirros',
                           'public_key': fakes.PUBLIC_KEY,
                           'public_network': 'public',
-                          'ssh_allowed_cidr': '0.0.0.0/0'}, parameters)
+                          'ssh_allowed_cidr': '203.0.113.0/24'}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual(START + datetime.timedelta(seconds=4),

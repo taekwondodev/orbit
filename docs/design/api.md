@@ -6,7 +6,7 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 
 | Method and path | Body | Response |
 | --- | --- | --- |
-| `POST /v1/orbs` | `{size, public_key, image?}` | `202` with the orb in status `RESERVING` |
+| `POST /v1/orbs` | `{size, public_key, ssh_allowed_cidr, image?}` | `202` with the orb in status `RESERVING` |
 | `GET /v1/orbs` | `?status=` filters | `200` with the list of the project's orbs |
 | `GET /v1/orbs/{id}` | — | `200` with status, address and any error |
 | `DELETE /v1/orbs/{id}` | — | `202` with the orb in status `DELETING`, repeatable without error |
@@ -17,6 +17,7 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 {
   "size": { "vcpus": 2, "memory_mb": 4096, "disk_gb": 20 },
   "public_key": "ssh-ed25519 AAAA...",
+  "ssh_allowed_cidr": "198.51.100.20/32",
   "image": "ubuntu-24.04"
 }
 ```
@@ -24,6 +25,8 @@ Implemented in `orbit/api/v1.py`. Every request needs a Keystone token in the `X
 `size` goes unchanged into the Blazar reservation ([0004](../adr/0004-size-as-blazar-reservation.md)): it is the "every orb with different resources" requirement, expressed where it takes effect. Each value is capped by a configured maximum; beyond it the response is `400`.
 
 `public_key` is mandatory. The service does not generate key pairs and never sees a private key: a deliberate choice so that it has no user secrets to hand over or to guard.
+
+`ssh_allowed_cidr` is mandatory: the network the orb's firewall admits SSH from, as an IPv4 CIDR; a bare address admits that address only. It cannot be wider than `[orbs] ssh_min_prefix` (`/24` by default), and when the operator sets `[orbs] ssh_allowed_cidr` it must lie inside that network; otherwise the response is `400`. Why the client names it: [0008](../adr/0008-ssh-network-named-by-the-request.md).
 
 The response arrives once the capacity is reserved, before the resources exist: progress is followed with `GET`. What happens after the response is in [architecture](../architecture.md#sequence-of-an-orb).
 
@@ -37,12 +40,17 @@ The response arrives once the capacity is reserved, before the resources exist: 
   "image": "ubuntu-24.04",
   "ssh_host": "172.24.4.17",
   "ssh_user": "ubuntu",
+  "ssh_allowed_cidr": "198.51.100.20/32",
+  "ssh_host_keys": [
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNh...",
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."
+  ],
   "fault": null,
   "created_at": "2026-10-20T12:00:00"
 }
 ```
 
-The returned status is that of the real resources, derived on every read ([reconciliation](state.md#reconciliation)). `ssh_host` is set only in status `ACTIVE`. `ssh_user` depends on the image and comes from the service configuration (`[orbs] ssh_users`). `fault` carries the reason when the status is `ERROR`, taken from whoever produced it (the rejected reservation, the failed stack) and not rewritten. The lease's end date does not appear: it is not an expiry.
+The returned status is that of the real resources, derived on every read ([reconciliation](state.md#reconciliation)). `ssh_host` is set only in status `ACTIVE`. `ssh_user` depends on the image and comes from the service configuration (`[orbs] ssh_users`). `ssh_host_keys` are the machine's SSH host keys, `type base64` without comment, `null` until the machine has printed them on its console at boot ([0007](../adr/0007-host-keys-read-once-from-the-console.md)). The client writes them to `known_hosts` as `<ssh_host> <key>` and connects with strict host key checking. `fault` carries the reason when the status is `ERROR`, taken from whoever produced it (the rejected reservation, the failed stack) and not rewritten. The lease's end date does not appear: it is not an expiry.
 
 ### Deletion
 
@@ -55,8 +63,8 @@ Moves the orb to `DELETING` and starts destroying all of its resources; the orb 
 | Status | Meaning |
 | --- | --- |
 | `RESERVING` | lease created, waiting for the reservation to become active |
-| `BUILDING` | stack being built |
-| `ACTIVE` | machine reachable, address available |
+| `BUILDING` | stack being built, or machine booting until it publishes its host keys |
+| `ACTIVE` | machine reachable over SSH, address and host keys available |
 | `ERROR` | something failed or was changed from outside; the resources stay up for inspection |
 | `DELETING` | deletion requested, in progress |
 | `DELETED` | stack and lease removed, row kept |
@@ -73,7 +81,7 @@ An orb in `ERROR` does **not** delete itself. It is a choice in favor of diagnos
 
 | Code | When |
 | --- | --- |
-| `400` | size or public key missing, malformed or beyond the limits; no image given or configured; `?status=` filter with an unknown status |
+| `400` | size, public key or SSH network missing, malformed or beyond the limits; no image given or configured; `?status=` filter with an unknown status |
 | `401` | token missing, expired or invalid, also when Blazar, Heat or Nova reject it downstream |
 | `403` | token without project scope, because an orb always belongs to a project; or insufficient roles for Blazar, Heat or Nova |
 | `404` | orb that does not exist or belongs to another project (indistinguishable on purpose) |

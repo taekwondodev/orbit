@@ -12,8 +12,9 @@ class Client:
                                     region_name=region_name,
                                     interface=interface)
 
-    def create(self, size, public_key, image=None):
-        body = {'size': size, 'public_key': public_key}
+    def create(self, size, public_key, ssh_allowed_cidr, image=None):
+        body = {'size': size, 'public_key': public_key,
+                'ssh_allowed_cidr': ssh_allowed_cidr}
         if image:
             body['image'] = image
         return self._request('POST', '/v1/orbs', json=body)

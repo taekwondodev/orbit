@@ -20,6 +20,9 @@ orbs = sa.Table(
     sa.Column('stack_id', sa.String(36)),
     sa.Column('status', sa.String(16), nullable=False),
     sa.Column('fault', sa.Text),
+    sa.Column('ssh_allowed_cidr', sa.String(18)),
+    # One key per line: an OpenSSH key holds no line break.
+    sa.Column('ssh_host_keys', sa.Text),
     sa.Column('created_at', sa.DateTime, nullable=False),
     sa.Column('updated_at', sa.DateTime),
     sa.Column('deleted_at', sa.DateTime),
@@ -46,6 +49,7 @@ class OrbRepository:
                 stack_id=orb.stack_id,
                 status=orb.status.value,
                 fault=orb.fault,
+                ssh_allowed_cidr=orb.ssh_allowed_cidr,
                 created_at=orb.created_at,
             ))
 
@@ -70,10 +74,11 @@ class OrbRepository:
         """Apply the changes only if the status is still the expected one.
 
         The creation task and the reads write to the same row: whoever read
-        an outdated status does not overwrite the more recent one.
+        an outdated status does not overwrite the more recent one. Host keys
+        are written only if none are stored yet.
         Returns True if the row was updated.
         """
-        values = {key: value.value if key == 'status' else value
+        values = {key: _column_value(key, value)
                   for key, value in changes.items()}
         values['updated_at'] = orb_model.utcnow()
         if changes.get('status') == orb_model.Status.DELETED:
@@ -82,8 +87,20 @@ class OrbRepository:
                  .where(orbs.c.id == orb_id,
                         orbs.c.status == expected_status.value)
                  .values(**values))
+        if 'ssh_host_keys' in changes:
+            # Written once: a reader holding a stale row does not replace
+            # them with a later console (docs/adr/0007).
+            query = query.where(orbs.c.ssh_host_keys.is_(None))
         with self._engine.begin() as conn:
             return conn.execute(query).rowcount == 1
+
+
+def _column_value(field, value):
+    if field == 'status':
+        return value.value
+    if field == 'ssh_host_keys' and value is not None:
+        return '\n'.join(value)
+    return value
 
 
 def _to_orb(row):
@@ -98,6 +115,9 @@ def _to_orb(row):
         stack_id=row.stack_id,
         status=orb_model.Status(row.status),
         fault=row.fault,
+        ssh_allowed_cidr=row.ssh_allowed_cidr,
+        ssh_host_keys=(tuple(row.ssh_host_keys.split('\n'))
+                       if row.ssh_host_keys is not None else None),
         created_at=row.created_at,
         updated_at=row.updated_at,
         deleted_at=row.deleted_at,

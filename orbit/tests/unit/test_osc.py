@@ -17,6 +17,8 @@ ORBIT = 'http://orbit.test/orbit'
 ORB = {'id': 'orb-1', 'status': 'ACTIVE',
        'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
        'image': 'cirros', 'ssh_host': '172.24.4.17', 'ssh_user': 'cirros',
+       'ssh_host_keys': [fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
+       'ssh_allowed_cidr': '198.51.100.20/32',
        'fault': None, 'created_at': '2026-10-20T12:00:00'}
 
 
@@ -34,11 +36,12 @@ class TestClient(unittest.TestCase):
         self.http.post(f'{ORBIT}/v1/orbs', status_code=202, json=ORB)
 
         self.client.create({'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
-                           fakes.PUBLIC_KEY, 'cirros')
+                           fakes.PUBLIC_KEY, '198.51.100.20/32', 'cirros')
 
         self.assertEqual({'size': {'vcpus': 2, 'memory_mb': 4096,
                                    'disk_gb': 20},
                           'public_key': fakes.PUBLIC_KEY,
+                          'ssh_allowed_cidr': '198.51.100.20/32',
                           'image': 'cirros'},
                          self.http.last_request.json())
 
@@ -53,7 +56,7 @@ class TestClient(unittest.TestCase):
 
         with self.assertRaisesRegex(exceptions.CommandError,
                                     'Capacita esaurita'):
-            self.client.create({}, fakes.PUBLIC_KEY)
+            self.client.create({}, fakes.PUBLIC_KEY, '198.51.100.20/32')
 
 
 class CommandTestCase(unittest.TestCase):
@@ -79,18 +82,20 @@ class TestCommands(CommandTestCase):
 
             columns, row = self.run_command(v1.CreateOrb, [
                 '--vcpus', '2', '--memory', '4096', '--disk', '20',
-                '--public-key', key.name])
+                '--public-key', key.name,
+                '--ssh-allowed-cidr', '198.51.100.20/32'])
 
         self.orbit.create.assert_called_once_with(
             {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
-            fakes.PUBLIC_KEY + '\n', None)
+            fakes.PUBLIC_KEY + '\n', '198.51.100.20/32', None)
         self.assertEqual('172.24.4.17', dict(zip(columns, row))['ssh_host'])
 
     def test_create_with_a_missing_key_file_is_a_command_error(self):
         with self.assertRaises(exceptions.CommandError):
             self.run_command(v1.CreateOrb, [
                 '--vcpus', '2', '--memory', '4096', '--disk', '20',
-                '--public-key', '/nonexistent/key.pub'])
+                '--public-key', '/nonexistent/key.pub',
+                '--ssh-allowed-cidr', '198.51.100.20/32'])
         self.orbit.create.assert_not_called()
 
     def test_wait_polls_until_a_final_status(self):
@@ -115,7 +120,21 @@ class TestCommands(CommandTestCase):
                                         'orb-1 .*ERROR.*Quota exceeded'):
                 self.run_command(v1.CreateOrb, [
                     '--vcpus', '2', '--memory', '4096', '--disk', '20',
-                    '--public-key', key.name, '--wait'])
+                    '--public-key', key.name,
+                    '--ssh-allowed-cidr', '198.51.100.20/32', '--wait'])
+
+    def test_show_prints_the_ssh_access(self):
+        self.orbit.get.return_value = ORB
+
+        columns, row = self.run_command(v1.ShowOrb, ['orb-1'])
+
+        shown = dict(zip(columns, row))
+        self.assertEqual('198.51.100.20/32', shown['ssh_allowed_cidr'])
+        keys = shown['ssh_host_keys']
+        self.assertEqual([fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
+                         keys.machine_readable())
+        self.assertEqual(f'{fakes.HOST_KEY_ECDSA}, {fakes.HOST_KEY_ED25519}',
+                         keys.human_readable())
 
     def test_list_flattens_the_size(self):
         self.orbit.list.return_value = [ORB]

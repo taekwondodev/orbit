@@ -6,6 +6,7 @@ from oslo_db.sqlalchemy import enginefacade
 
 from orbit.api import v1
 from orbit import clients
+from orbit import conf
 from orbit.conf import CONF
 from orbit import creation
 from orbit.db import api as db_api
@@ -22,6 +23,7 @@ def create_app(orbs):
 
 def create_wsgi_app():
     """The served application: every request goes through Keystone."""
+    conf.check_api_options()
     repository = db_api.OrbRepository(enginefacade.writer.get_engine())
     creator = creation.Creator(repository, creation.load_template())
     orbs = service.Orbs(repository, clients.for_auth, creator)

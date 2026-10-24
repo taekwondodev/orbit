@@ -1,7 +1,6 @@
 """The HTTP resources of /v1. The contract is in docs/design/api.md."""
 
-import base64
-import binascii
+import ipaddress
 
 import flask
 from werkzeug import exceptions as http_exc
@@ -10,18 +9,12 @@ from orbit import clients
 from orbit.conf import CONF
 from orbit import orb as orb_model
 from orbit import service
+from orbit import ssh
 
 blueprint = flask.Blueprint('v1', __name__)
 
-# A 16384-bit RSA key takes about 2800 characters; the image column is 255
-# long.
-_MAX_KEY_LENGTH = 8192
+# The image column is 255 long.
 _MAX_IMAGE_LENGTH = 255
-
-_KEY_TYPES = ('ssh-ed25519', 'ssh-rsa', 'ecdsa-sha2-nistp256',
-              'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
-              'sk-ssh-ed25519@openssh.com',
-              'sk-ecdsa-sha2-nistp256@openssh.com')
 
 
 def _orbs():
@@ -107,6 +100,7 @@ def _create_request(body):
         size=_size(body.get('size')),
         public_key=_public_key(body.get('public_key')),
         image=_image(body.get('image')),
+        ssh_allowed_cidr=_ssh_allowed_cidr(body.get('ssh_allowed_cidr')),
     )
 
 
@@ -128,18 +122,38 @@ def _size(size):
 def _public_key(key):
     if not isinstance(key, str):
         raise http_exc.BadRequest('public_key is required.')
-    key = key.strip()
-    parts = key.split()
-    if (len(key) > _MAX_KEY_LENGTH or '\n' in key or '\r' in key
-            or len(parts) < 2 or parts[0] not in _KEY_TYPES):
-        raise http_exc.BadRequest(
-            'public_key must be an OpenSSH public key.')
-    try:
-        base64.b64decode(parts[1], validate=True)
-    except binascii.Error:
+    key = ssh.public_key(key)
+    if key is None:
         raise http_exc.BadRequest(
             'public_key must be an OpenSSH public key.')
     return key
+
+
+def _ssh_allowed_cidr(cidr):
+    """The network the orb admits SSH from, normalized.
+
+    Only the harness knows where it will connect from (docs/adr/0008).
+    """
+    if not isinstance(cidr, str) or not cidr:
+        raise http_exc.BadRequest(
+            'ssh_allowed_cidr is required: the network the orb admits SSH '
+            'from.')
+    try:
+        network = ipaddress.IPv4Network(cidr)
+    except ValueError as e:
+        # The orb's network and floating IP are IPv4 only: an IPv6 rule
+        # would admit nobody.
+        raise http_exc.BadRequest(
+            f'ssh_allowed_cidr is not an IPv4 network: {e}') from e
+    if network.prefixlen < CONF.orbs.ssh_min_prefix:
+        raise http_exc.BadRequest(
+            f'ssh_allowed_cidr is wider than /{CONF.orbs.ssh_min_prefix}: '
+            f'name the address or the small network the client connects '
+            f'from.')
+    cap = CONF.orbs.ssh_allowed_cidr
+    if cap is not None and not network.subnet_of(ipaddress.IPv4Network(cap)):
+        raise http_exc.BadRequest(f'ssh_allowed_cidr must be inside {cap}.')
+    return str(network)
 
 
 def _image(image):
@@ -163,8 +177,11 @@ def _view(observed):
                  'disk_gb': orb.size.disk_gb},
         'image': orb.image,
         'ssh_host': observed.ssh_host,
+        'ssh_host_keys': (list(orb.ssh_host_keys)
+                          if orb.ssh_host_keys is not None else None),
         'ssh_user': CONF.orbs.ssh_users.get(orb.image,
                                             CONF.orbs.default_ssh_user),
+        'ssh_allowed_cidr': orb.ssh_allowed_cidr,
         'fault': orb.fault,
         'created_at': orb.created_at.isoformat(),
     }

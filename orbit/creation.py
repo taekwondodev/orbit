@@ -108,5 +108,5 @@ class Creator:
             'image': orb.image,
             'public_key': public_key,
             'public_network': CONF.orbs.public_network,
-            'ssh_allowed_cidr': CONF.orbs.ssh_allowed_cidr,
+            'ssh_allowed_cidr': orb.ssh_allowed_cidr,
         }

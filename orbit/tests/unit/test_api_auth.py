@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 
 from werkzeug import test as werkzeug_test
@@ -24,3 +25,31 @@ class TestAuthentication(unittest.TestCase):
         self.assertEqual(401, response.status_code)
         self.assertIn('keystone.invalid',
                       response.headers['WWW-Authenticate'])
+
+    def test_api_does_not_start_with_an_invalid_ssh_cap(self):
+        for cap in ('harness', '198.51.100.20/24', '2001:db8::/32'):
+            with self.subTest(cap=cap):
+                conf.CONF.set_override('ssh_allowed_cidr', cap, 'orbs')
+
+                with self.assertRaisesRegex(conf.InvalidOption,
+                                            'ssh_allowed_cidr'):
+                    app.create_wsgi_app()
+
+    def test_api_does_not_start_with_a_minimum_prefix_out_of_range(self):
+        with tempfile.NamedTemporaryFile('w', suffix='.conf') as config:
+            config.write('[orbs]\nssh_min_prefix = 0\n')
+            config.flush()
+            conf.CONF([], project='orbit', default_config_files=[config.name])
+
+            with self.assertRaisesRegex(conf.InvalidOption, 'ssh_min_prefix'):
+                app.create_wsgi_app()
+
+    def test_api_does_not_start_without_time_to_boot(self):
+        for ready_timeout in (60, 120):
+            with self.subTest(ready_timeout=ready_timeout):
+                conf.CONF.set_override('ready_timeout', ready_timeout,
+                                       'orbs')
+
+                with self.assertRaisesRegex(conf.InvalidOption,
+                                            'ready_timeout'):
+                    app.create_wsgi_app()

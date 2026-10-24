@@ -10,7 +10,8 @@ from orbit.tests.unit import fakes
 
 Status = orb_model.Status
 CREATED = datetime.datetime(2026, 10, 20, 12, 0, 0)
-TIMEOUT = 120
+TIMEOUTS = lifecycle.Timeouts(creation=120, ready=600)
+KEYS = (fakes.HOST_KEY_ED25519,)
 
 PENDING = clients.Lease('lease-1', 'PENDING', 'reservation-1', 'pending')
 ACTIVE_LEASE = clients.Lease('lease-1', 'ACTIVE', 'reservation-1', 'active')
@@ -26,15 +27,15 @@ COMPLETE = stack('CREATE_COMPLETE', ssh_host='172.24.4.17',
                  server_id='server-1')
 
 
-def observe(lease=ACTIVE_LEASE, stack=None, server=None, after=10,
-            **orb_fields):
+def observe(lease=ACTIVE_LEASE, stack=None, server=None, keys=KEYS,
+            after=10, **orb_fields):
     orb = fakes.orb(created_at=CREATED, **orb_fields)
     now = CREATED + datetime.timedelta(seconds=after)
-    return lifecycle.observe(orb, now, TIMEOUT, lease, stack, server)
+    return lifecycle.observe(orb, now, TIMEOUTS, lease, stack, server, keys)
 
 
-def result(status, fault=None, ssh_host=None):
-    return lifecycle.Observation(status, fault, ssh_host)
+def result(status, fault=None, ssh_host=None, ssh_host_keys=None):
+    return lifecycle.Observation(status, fault, ssh_host, ssh_host_keys)
 
 
 class TestObserve(unittest.TestCase):
@@ -62,10 +63,24 @@ class TestObserve(unittest.TestCase):
             stack_id='stack-1', status=Status.BUILDING,
             stack=stack('CREATE_IN_PROGRESS')))
 
-    def test_complete_stack_with_running_server_is_active_with_address(self):
-        self.assertEqual(result(Status.ACTIVE, ssh_host='172.24.4.17'),
+    def test_running_server_with_host_keys_is_active_with_address(self):
+        self.assertEqual(result(Status.ACTIVE, ssh_host='172.24.4.17',
+                                ssh_host_keys=KEYS),
                          observe(stack_id='stack-1', status=Status.BUILDING,
                                  stack=COMPLETE, server=RUNNING))
+
+    def test_running_server_without_host_keys_within_the_limit_is_building(
+            self):
+        self.assertEqual(result(Status.BUILDING),
+                         observe(stack_id='stack-1', status=Status.BUILDING,
+                                 stack=COMPLETE, server=RUNNING, keys=None,
+                                 after=599))
+
+    def test_running_server_without_host_keys_past_the_limit_is_error(self):
+        self.assertEqual(result(Status.ERROR, lifecycle.HOST_KEYS_MISSING),
+                         observe(stack_id='stack-1', status=Status.BUILDING,
+                                 stack=COMPLETE, server=RUNNING, keys=None,
+                                 after=600))
 
     def test_failed_stack_is_error_with_heat_reason(self):
         self.assertEqual(
@@ -130,7 +145,8 @@ class TestObserveError(unittest.TestCase):
                                  after=1))
 
     def test_error_ends_when_reality_recovers(self):
-        self.assertEqual(result(Status.ACTIVE, ssh_host='172.24.4.17'),
+        self.assertEqual(result(Status.ACTIVE, ssh_host='172.24.4.17',
+                                ssh_host_keys=KEYS),
                          observe(stack_id='stack-1', status=Status.ERROR,
                                  fault=lifecycle.SERVER_GONE,
                                  stack=COMPLETE, server=RUNNING))

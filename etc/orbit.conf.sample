@@ -477,6 +477,14 @@
 # Minimum value: 1
 #creation_timeout = 120
 
+# Seconds, counted from the creation request like creation_timeout, within
+# which the machine must boot and print its SSH host keys on the console.
+# Beyond that, the orb goes to ERROR. It includes the wait for the reservation
+# and the stack, so it must be greater than creation_timeout, well above it to
+# leave time for the boot. (integer value)
+# Minimum value: 1
+#ready_timeout = 600
+
 # Seconds between two reads of the lease while waiting for the reservation to
 # be active. (floating point value)
 # Minimum value: 0.1
@@ -491,5 +499,16 @@
 # the reachable address. (string value)
 #public_network = public
 
-# Where SSH access to the orbs is allowed from. (string value)
-#ssh_allowed_cidr = 0.0.0.0/0
+# Narrowest prefix length a request may use for its SSH network: a client
+# connects from one address or a small NAT pool, so wider networks are
+# rejected. Lower it only for a client that needs a wider range. (integer
+# value)
+# Minimum value: 1
+# Maximum value: 32
+#ssh_min_prefix = 24
+
+# Cap on the networks SSH to the orbs may be admitted from, as an IPv4 CIDR.
+# Each creation request names its own network, which must lie inside this one.
+# Without a value, any network but the whole Internet is accepted. (string
+# value)
+#ssh_allowed_cidr = <None>

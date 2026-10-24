@@ -243,3 +243,19 @@ class TestNova(unittest.TestCase):
         self.http.get(f'{NOVA}/servers/server-1', status_code=404)
 
         self.assertIsNone(self.nova.get_server('server-1'))
+
+    def test_console_is_read_through_the_server_action(self):
+        self.http.post(f'{NOVA}/servers/server-1/action',
+                       json={'output': 'login:\n'})
+
+        self.assertEqual('login:\n', self.nova.get_console_output('server-1'))
+        self.assertEqual({'os-getConsoleOutput': {}},
+                         self.http.last_request.json())
+
+    def test_console_of_a_missing_server_is_a_refusal(self):
+        self.http.post(f'{NOVA}/servers/server-1/action', status_code=404,
+                       json={'itemNotFound': {'message': 'Instance not found',
+                                              'code': 404}})
+
+        with self.assertRaisesRegex(clients.Rejected, 'Instance not found'):
+            self.nova.get_console_output('server-1')

@@ -30,6 +30,7 @@ def orb(**overrides):
         reservation_id='reservation-1',
         status=orb_model.Status.RESERVING,
         created_at=orb_model.utcnow(),
+        ssh_allowed_cidr='198.51.100.20/32',
     )
     values.update(overrides)
     return orb_model.Orb(**values)
@@ -115,13 +116,39 @@ class FakeCreator:
         self.started.append((orb, public_key))
 
 
+HOST_KEY_ED25519 = ('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMAjisZdvWGFparxBlql'
+                    'B/fzA2Q+G0SQNgba9SaQRxJT')
+HOST_KEY_ECDSA = ('ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI'
+                  'bmlzdHAyNTYAAABBBJ8l4ljo43v0fplqGt9j7zEwq4HpAi8GwTzO6U4m'
+                  'vM2TcZ9FCbJ44kddcn0w9m48yfEIWRTyFfeoKTd9nnHzEpM=')
+
+# The tail of an Ubuntu console as cloud-init leaves it, line endings
+# included.
+CONSOLE = (
+    '[   10.112233] cloud-init[812]: Cloud-init v. 24.1 finished\r\n'
+    '-----BEGIN SSH HOST KEY KEYS-----\r\n'
+    f'{HOST_KEY_ECDSA} root@orb\r\n'
+    f'{HOST_KEY_ED25519} root@orb\r\n'
+    '-----END SSH HOST KEY KEYS-----\r\n'
+    'Ubuntu 24.04 LTS orb ttyS0\r\n')
+
+
 class FakeNova:
 
     def __init__(self):
         self.servers = {}
+        self.consoles = {}
+        self.console_reads = 0
+        self.console_refused_with = None
 
     def get_server(self, server_id):
         return self.servers.get(server_id)
+
+    def get_console_output(self, server_id):
+        self.console_reads += 1
+        if self.console_refused_with:
+            raise self.console_refused_with
+        return self.consoles.get(server_id, '')
 
 
 def fake_clients():

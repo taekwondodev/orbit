@@ -78,6 +78,19 @@ class TestOrbRepository(unittest.TestCase):
         self.assertFalse(updated)
         self.assertEqual(orb, self.repo.get('project-a', orb.id))
 
+    def test_stored_host_keys_are_not_replaced(self):
+        orb = fakes.orb(status=Status.ACTIVE)
+        self.repo.add(orb)
+        self.repo.update(orb.id, Status.ACTIVE,
+                         ssh_host_keys=(fakes.HOST_KEY_ED25519,))
+
+        updated = self.repo.update(orb.id, Status.ACTIVE,
+                                   ssh_host_keys=(fakes.HOST_KEY_ECDSA,))
+
+        self.assertFalse(updated)
+        self.assertEqual((fakes.HOST_KEY_ED25519,),
+                         self.repo.get('project-a', orb.id).ssh_host_keys)
+
     def test_reaching_deleted_records_the_deletion_time(self):
         orb = fakes.orb(status=Status.DELETING)
         self.repo.add(orb)
