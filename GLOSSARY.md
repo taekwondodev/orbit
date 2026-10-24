@@ -30,6 +30,7 @@ An orb has no expiry: its life ends with a deletion request. See [docs/adr/0003]
 | **Neutron** | networks, routers, ports, firewalls, reachable addresses | resources declared in the template |
 | **Heat** | orchestration: reads a template and creates the listed resources in order, undoing them if something fails | creates and destroys the orb's resources except the lease |
 | **Stack** | the set of resources Heat creates from a template | an orb's resources, lease excluded, are a stack |
+| **Horizon** | the OpenStack web dashboard, extensible with panels | hosts the Orbs panel |
 | **DevStack** | an installation of OpenStack from source for development, extensible with plugins | the environment where the service is installed and tried out |
 
 ## Terminology conflicts not to create

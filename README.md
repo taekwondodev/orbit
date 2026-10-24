@@ -10,7 +10,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
   <br>
   <img alt="Integrates: Keystone, Blazar, Heat" src="https://img.shields.io/badge/integrates-Keystone%20%C2%B7%20Blazar%20%C2%B7%20Heat-334155">
-  <img alt="Interfaces: REST API, openstack CLI" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20openstack%20CLI-334155">
+  <img alt="Interfaces: REST API, openstack CLI, Horizon" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20openstack%20CLI%20%C2%B7%20Horizon-334155">
 </p>
 
 **Ephemeral sandboxes as an OpenStack service.** A client asks for "a machine with these resources"; the service hands it over isolated and reachable over SSH, and when the client is done it makes it disappear entirely. Each sandbox is an **orb**.
@@ -71,7 +71,7 @@ sequenceDiagram
 
 ## Interface
 
-The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). From the command line: `openstack orb create | list | show | delete`.
+The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). From the command line: `openstack orb create | list | show | delete`. In Horizon: the read-only **Project → Orbit → Orbs** panel.
 
 ---
 
@@ -120,31 +120,34 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
          --public-key ~/.ssh/id_ed25519.pub --wait
    ```
 
-6. Connect with the `ssh_user` and `ssh_host` printed by the previous command:
+6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
+
+7. Connect with the `ssh_user` and `ssh_host` printed in step 5:
 
    ```console
    $ ssh <ssh_user>@<ssh_host>
    ```
 
-7. Delete the orb and everything it holds:
+8. Delete the orb and everything it holds:
 
    ```console
    $ openstack orb delete <id>
    ```
 
-8. Run the unit tests, which need no OpenStack:
+9. Run the unit tests, which need no OpenStack:
 
    ```console
    $ cd /opt/stack/orbit
    $ tox -e py3
+   $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
    ```
 
-9. Run the full path on the installation, including the rejection for exhausted capacity:
+10. Run the full path on the installation, including the rejection for exhausted capacity:
 
-   ```console
-   $ cd /opt/stack/tempest
-   $ tempest run --regex orbit
-   ```
+    ```console
+    $ cd /opt/stack/tempest
+    $ tempest run --regex orbit
+    ```
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 
