@@ -11,7 +11,7 @@ Who does what, where the ownership boundary runs and in which order things happe
 | `orbs` table | the link between orb, lease and stack, the size, the observed status | hold the truth about the resources |
 | Orbs panel | inside Horizon, under Project → Orbit: lists and shows the project's orbs through `orbit-api`, with the logged-in user's token | create or delete orbs, call anything but `orbit-api` |
 
-There is a single service process; the panel runs in Horizon's. The work after the response lasts a few seconds, the time Blazar takes to activate the reservation, and uses the request's token: a separate process with a queue would only be needed if that work had to survive restarts, and it would then have to keep a delegation ([0002](adr/0002-resources-in-the-users-project.md)).
+There is a single service process. The work after the response lasts a few seconds, the time Blazar takes to activate the reservation, and uses the request's token: a separate process with a queue would only be needed if that work had to survive restarts, and it would then have to keep a delegation ([0002](adr/0002-resources-in-the-users-project.md)).
 
 ## Ownership boundary
 

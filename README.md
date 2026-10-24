@@ -7,7 +7,7 @@
 <p align="center">
   <img alt="OpenStack: new service" src="https://img.shields.io/badge/OpenStack-new%20service-ED1944?logo=openstack&logoColor=white">
   <img alt="DevStack: plugin" src="https://img.shields.io/badge/DevStack-plugin-ED1944">
-  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white">
   <br>
   <img alt="Integrates: Keystone, Blazar, Heat" src="https://img.shields.io/badge/integrates-Keystone%20%C2%B7%20Blazar%20%C2%B7%20Heat-334155">
   <img alt="Interfaces: REST API, openstack CLI, Horizon" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20openstack%20CLI%20%C2%B7%20Horizon-334155">
@@ -71,7 +71,7 @@ sequenceDiagram
 
 ## Interface
 
-The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). From the command line: `openstack orb create | list | show | delete`. In Horizon, the read-only **Project → Orbit → Orbs** panel lists the project's orbs and shows each one's status, size, fault and SSH access; creation and deletion stay in the command line and the API.
+The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). From the command line: `openstack orb create | list | show | delete`. In Horizon: the read-only **Project → Orbit → Orbs** panel.
 
 ---
 
@@ -120,7 +120,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
          --public-key ~/.ssh/id_ed25519.pub --wait
    ```
 
-6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack also makes the `demo` user a member of `invisible_to_admin` and gives it no default project, so Horizon may open that one, where the list is empty. DevStack installs the panel whenever Horizon is enabled, as it is by default.
+6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
 
 7. Connect with the `ssh_user` and `ssh_host` printed in step 5:
 
@@ -139,7 +139,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    ```console
    $ cd /opt/stack/orbit
    $ tox -e py3
-   $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
+   $ tox -e dashboard   # the Horizon panel
    ```
 
 10. Run the full path on the installation, including the rejection for exhausted capacity:
