@@ -2,16 +2,21 @@
 
 import time
 
+from osc_lib.cli import format_columns
 from osc_lib.command import command
 from osc_lib import exceptions
 
 _FIELDS = ('id', 'status', 'vcpus', 'memory_mb', 'disk_gb', 'image',
-           'ssh_host', 'ssh_user', 'fault', 'created_at')
+           'ssh_host', 'ssh_user', 'ssh_host_keys', 'fault', 'created_at')
 _FINAL_STATUSES = ('ACTIVE', 'ERROR', 'DELETED')
 
 
 def _row(orb, fields=_FIELDS):
     flat = dict(orb, **orb['size'])
+    if flat.get('ssh_host_keys') is not None:
+        # A list in -f json, one string in the table.
+        flat['ssh_host_keys'] = format_columns.ListColumn(
+            flat['ssh_host_keys'])
     return tuple(flat.get(field) for field in fields)
 
 

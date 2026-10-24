@@ -477,6 +477,14 @@
 # Minimum value: 1
 #creation_timeout = 120
 
+# Seconds, counted from the creation request like creation_timeout, within
+# which the machine must boot and print its SSH host keys on the console.
+# Beyond that, the orb goes to ERROR. It includes the wait for the reservation
+# and the stack, so it must be greater than creation_timeout, well above it to
+# leave time for the boot. (integer value)
+# Minimum value: 1
+#ready_timeout = 600
+
 # Seconds between two reads of the lease while waiting for the reservation to
 # be active. (floating point value)
 # Minimum value: 0.1
@@ -491,5 +499,7 @@
 # the reachable address. (string value)
 #public_network = public
 
-# Where SSH access to the orbs is allowed from. (string value)
-#ssh_allowed_cidr = 0.0.0.0/0
+# Network SSH access to the orbs is allowed from, as a CIDR: the one the
+# harness connects from. Required, and it cannot be the whole Internet: orbit-
+# api does not start without it. (string value)
+#ssh_allowed_cidr = <None>

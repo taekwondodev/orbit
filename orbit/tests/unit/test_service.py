@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from unittest import mock
 
@@ -12,6 +13,7 @@ CONTEXT = service.Context('project-a', 'user-a', auth='auth')
 REQUEST = service.CreateRequest(
     size=orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
     public_key=fakes.PUBLIC_KEY, image='cirros')
+HOST_KEYS = (fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519)
 
 
 class TestCreate(unittest.TestCase):
@@ -59,6 +61,7 @@ class ServiceTestCase(unittest.TestCase):
         self.heat.set_status(self.orb.resource_name, 'CREATE_COMPLETE',
                              ssh_host='172.24.4.17', server_id='server-1')
         self.nova.servers['server-1'] = clients.Server('server-1', 'ACTIVE')
+        self.nova.consoles['server-1'] = fakes.CONSOLE
 
     def stored(self):
         return self.repository.get('project-a', self.orb.id)
@@ -73,7 +76,47 @@ class TestRead(ServiceTestCase):
 
         self.assertEqual(Status.ACTIVE, observed.orb.status)
         self.assertEqual('172.24.4.17', observed.ssh_host)
+        self.assertEqual(HOST_KEYS, observed.orb.ssh_host_keys)
         self.assertEqual(Status.ACTIVE, self.stored().status)
+        self.assertEqual(HOST_KEYS, self.stored().ssh_host_keys)
+
+    def test_host_keys_are_read_from_the_console_only_once(self):
+        self.build()
+        self.orbs.get(CONTEXT, self.orb.id)
+        self.nova.consoles['server-1'] = 'the boot block scrolled out\n'
+
+        observed = self.orbs.get(CONTEXT, self.orb.id)
+
+        self.assertEqual(1, self.nova.console_reads)
+        self.assertEqual(Status.ACTIVE, observed.orb.status)
+        self.assertEqual(HOST_KEYS, observed.orb.ssh_host_keys)
+
+    def test_console_is_not_read_past_the_ready_limit(self):
+        self.build()
+        self.nova.consoles['server-1'] = 'still booting\n'
+        late = self.orb.created_at + datetime.timedelta(seconds=600)
+        with mock.patch.object(orb_model, 'utcnow', return_value=late):
+            self.orbs.get(CONTEXT, self.orb.id)
+            # A block printed now may come from inside the orb.
+            self.nova.consoles['server-1'] = fakes.CONSOLE
+
+            observed = self.orbs.get(CONTEXT, self.orb.id)
+
+        self.assertEqual(0, self.nova.console_reads)
+        self.assertEqual(Status.ERROR, observed.orb.status)
+        self.assertEqual('SSH host keys not published on the console',
+                         observed.orb.fault)
+        self.assertIsNone(observed.orb.ssh_host_keys)
+
+    def test_unreadable_console_leaves_the_orb_building(self):
+        self.build()
+        self.nova.console_refused_with = clients.Unavailable('compute',
+                                                             'down')
+
+        observed = self.orbs.get(CONTEXT, self.orb.id)
+
+        self.assertEqual(Status.BUILDING, observed.orb.status)
+        self.assertIsNone(observed.orb.ssh_host_keys)
 
     def test_server_removed_from_outside_turns_the_orb_to_error(self):
         self.build()

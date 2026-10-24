@@ -37,12 +37,16 @@ The response arrives once the capacity is reserved, before the resources exist: 
   "image": "ubuntu-24.04",
   "ssh_host": "172.24.4.17",
   "ssh_user": "ubuntu",
+  "ssh_host_keys": [
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNh...",
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."
+  ],
   "fault": null,
   "created_at": "2026-10-20T12:00:00"
 }
 ```
 
-The returned status is that of the real resources, derived on every read ([reconciliation](state.md#reconciliation)). `ssh_host` is set only in status `ACTIVE`. `ssh_user` depends on the image and comes from the service configuration (`[orbs] ssh_users`). `fault` carries the reason when the status is `ERROR`, taken from whoever produced it (the rejected reservation, the failed stack) and not rewritten. The lease's end date does not appear: it is not an expiry.
+The returned status is that of the real resources, derived on every read ([reconciliation](state.md#reconciliation)). `ssh_host` is set only in status `ACTIVE`. `ssh_user` depends on the image and comes from the service configuration (`[orbs] ssh_users`). `ssh_host_keys` are the machine's SSH host keys, `type base64` without comment, `null` until the machine has printed them on its console at boot ([0007](../adr/0007-host-keys-read-once-from-the-console.md)). The client writes them to `known_hosts` as `<ssh_host> <key>` and connects with strict host key checking. `fault` carries the reason when the status is `ERROR`, taken from whoever produced it (the rejected reservation, the failed stack) and not rewritten. The lease's end date does not appear: it is not an expiry.
 
 ### Deletion
 
@@ -55,8 +59,8 @@ Moves the orb to `DELETING` and starts destroying all of its resources; the orb 
 | Status | Meaning |
 | --- | --- |
 | `RESERVING` | lease created, waiting for the reservation to become active |
-| `BUILDING` | stack being built |
-| `ACTIVE` | machine reachable, address available |
+| `BUILDING` | stack being built, or machine booting until it publishes its host keys |
+| `ACTIVE` | machine reachable over SSH, address and host keys available |
 | `ERROR` | something failed or was changed from outside; the resources stay up for inspection |
 | `DELETING` | deletion requested, in progress |
 | `DELETED` | stack and lease removed, row kept |

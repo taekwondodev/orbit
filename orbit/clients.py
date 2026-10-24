@@ -260,3 +260,13 @@ class Nova(_Client):
         if body is None:
             return None
         return Server(id=body['server']['id'], status=body['server']['status'])
+
+    def get_console_output(self, server_id):
+        """The text of the machine's console.
+
+        Nova keeps only its last part (100 KiB with libvirt): what the
+        machine printed at boot scrolls out on a chatty orb.
+        """
+        response = self._call('POST', f'/servers/{server_id}/action',
+                              json={'os-getConsoleOutput': {}})
+        return response.json()['output']

@@ -3,6 +3,7 @@ import unittest
 from orbit.api import app
 from orbit import clients
 from orbit import conf
+from orbit import orb as orb_model
 from orbit import service
 from orbit.tests.unit import fakes
 
@@ -52,6 +53,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual('cirros', orb['image'])
         self.assertEqual('cirros', orb['ssh_user'])
         self.assertIsNone(orb['ssh_host'])
+        self.assertIsNone(orb['ssh_host_keys'])
         name, size, end_date = self.blazar.created[0]
         self.assertEqual(f"orbit-{orb['id']}", name)
         self.assertEqual('2099-12-31 23:59', end_date)
@@ -142,6 +144,17 @@ class TestRead(ApiTestCase):
 
         self.assertEqual([orb_id], [orb['id'] for orb in mine])
         self.assertEqual([], theirs)
+
+    def test_stored_host_keys_are_a_list_of_openssh_keys(self):
+        orb_id = self.create().get_json()['id']
+        self.repository.update(
+            orb_id, orb_model.Status.RESERVING,
+            ssh_host_keys=(fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519))
+
+        orb = self.request('GET', f'/v1/orbs/{orb_id}').get_json()
+
+        self.assertEqual([fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
+                         orb['ssh_host_keys'])
 
     def test_unknown_status_filter_is_400(self):
         response = self.request('GET', '/v1/orbs?status=SLEEPING')

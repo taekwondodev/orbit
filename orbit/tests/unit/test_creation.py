@@ -31,6 +31,7 @@ class TestCreator(unittest.TestCase):
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
+        conf.CONF.set_override('ssh_allowed_cidr', '198.51.100.20/32', 'orbs')
         self.clients = fakes.fake_clients()
         self.blazar, self.heat = self.clients.blazar, self.clients.heat
         self.repository = fakes.repository()
@@ -72,7 +73,7 @@ class TestCreator(unittest.TestCase):
                           'image': 'cirros',
                           'public_key': fakes.PUBLIC_KEY,
                           'public_network': 'public',
-                          'ssh_allowed_cidr': '0.0.0.0/0'}, parameters)
+                          'ssh_allowed_cidr': '198.51.100.20/32'}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual(START + datetime.timedelta(seconds=4),

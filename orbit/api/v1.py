@@ -1,8 +1,5 @@
 """The HTTP resources of /v1. The contract is in docs/design/api.md."""
 
-import base64
-import binascii
-
 import flask
 from werkzeug import exceptions as http_exc
 
@@ -10,18 +7,12 @@ from orbit import clients
 from orbit.conf import CONF
 from orbit import orb as orb_model
 from orbit import service
+from orbit import ssh
 
 blueprint = flask.Blueprint('v1', __name__)
 
-# A 16384-bit RSA key takes about 2800 characters; the image column is 255
-# long.
-_MAX_KEY_LENGTH = 8192
+# The image column is 255 long.
 _MAX_IMAGE_LENGTH = 255
-
-_KEY_TYPES = ('ssh-ed25519', 'ssh-rsa', 'ecdsa-sha2-nistp256',
-              'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
-              'sk-ssh-ed25519@openssh.com',
-              'sk-ecdsa-sha2-nistp256@openssh.com')
 
 
 def _orbs():
@@ -128,15 +119,8 @@ def _size(size):
 def _public_key(key):
     if not isinstance(key, str):
         raise http_exc.BadRequest('public_key is required.')
-    key = key.strip()
-    parts = key.split()
-    if (len(key) > _MAX_KEY_LENGTH or '\n' in key or '\r' in key
-            or len(parts) < 2 or parts[0] not in _KEY_TYPES):
-        raise http_exc.BadRequest(
-            'public_key must be an OpenSSH public key.')
-    try:
-        base64.b64decode(parts[1], validate=True)
-    except binascii.Error:
+    key = ssh.public_key(key)
+    if key is None:
         raise http_exc.BadRequest(
             'public_key must be an OpenSSH public key.')
     return key
@@ -163,6 +147,8 @@ def _view(observed):
                  'disk_gb': orb.size.disk_gb},
         'image': orb.image,
         'ssh_host': observed.ssh_host,
+        'ssh_host_keys': (list(orb.ssh_host_keys)
+                          if orb.ssh_host_keys is not None else None),
         'ssh_user': CONF.orbs.ssh_users.get(orb.image,
                                             CONF.orbs.default_ssh_user),
         'fault': orb.fault,

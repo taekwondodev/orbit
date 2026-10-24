@@ -15,3 +15,8 @@ ORBIT_UWSGI_CONF=$ORBIT_CONF_DIR/orbit-api-uwsgi.ini
 # Service type in the Keystone catalog. It is not registered with the
 # OpenStack service types authority: it is a local choice of the project.
 ORBIT_SERVICE_TYPE=${ORBIT_SERVICE_TYPE:-orbit}
+
+# Network the harness connects to the orbs from, as a CIDR. Required in
+# local.conf: there is no default, so that no orb is open to the whole
+# Internet by omission.
+ORBIT_SSH_ALLOWED_CIDR=${ORBIT_SSH_ALLOWED_CIDR:-}

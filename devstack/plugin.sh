@@ -8,6 +8,9 @@ function install_orbit {
 }
 
 function configure_orbit {
+    if [[ -z "$ORBIT_SSH_ALLOWED_CIDR" ]]; then
+        die $LINENO "orbit requires ORBIT_SSH_ALLOWED_CIDR in local.conf: the network the harness connects to the orbs from"
+    fi
     sudo install -d -o $STACK_USER $ORBIT_CONF_DIR
     rm -f $ORBIT_CONF
 
@@ -18,6 +21,7 @@ function configure_orbit {
 
     iniset $ORBIT_CONF orbs default_image "$DEFAULT_IMAGE_NAME"
     iniset $ORBIT_CONF orbs public_network "$PUBLIC_NETWORK_NAME"
+    iniset $ORBIT_CONF orbs ssh_allowed_cidr "$ORBIT_SSH_ALLOWED_CIDR"
     if [[ "$DEFAULT_IMAGE_NAME" == cirros* ]]; then
         iniset $ORBIT_CONF orbs ssh_users "$DEFAULT_IMAGE_NAME:cirros"
     fi

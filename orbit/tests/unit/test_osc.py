@@ -17,6 +17,7 @@ ORBIT = 'http://orbit.test/orbit'
 ORB = {'id': 'orb-1', 'status': 'ACTIVE',
        'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
        'image': 'cirros', 'ssh_host': '172.24.4.17', 'ssh_user': 'cirros',
+       'ssh_host_keys': [fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
        'fault': None, 'created_at': '2026-10-20T12:00:00'}
 
 
@@ -116,6 +117,17 @@ class TestCommands(CommandTestCase):
                 self.run_command(v1.CreateOrb, [
                     '--vcpus', '2', '--memory', '4096', '--disk', '20',
                     '--public-key', key.name, '--wait'])
+
+    def test_show_prints_the_host_keys(self):
+        self.orbit.get.return_value = ORB
+
+        columns, row = self.run_command(v1.ShowOrb, ['orb-1'])
+
+        keys = dict(zip(columns, row))['ssh_host_keys']
+        self.assertEqual([fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519],
+                         keys.machine_readable())
+        self.assertEqual(f'{fakes.HOST_KEY_ECDSA}, {fakes.HOST_KEY_ED25519}',
+                         keys.human_readable())
 
     def test_list_flattens_the_size(self):
         self.orbit.list.return_value = [ORB]

@@ -28,7 +28,8 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - Accepts the requested **size** (processors, memory, disk) orb by orb, without catalogs of fixed sizes.
 - **Reserves the capacity** before building: if there is no room it says so right away, instead of failing halfway.
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
-- Installs the **public key supplied by the client** and returns address and user for SSH access.
+- Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
+- Admits SSH only from the **network the operator names**: never from the whole Internet by default.
 - **Deletes everything** with a single request, repeatable without error: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
@@ -58,7 +59,7 @@ sequenceDiagram
 
     C->>A: GET /v1/orbs/{id}
     A->>H: stack status and address
-    A-->>C: ACTIVE, SSH address and user
+    A-->>C: ACTIVE, SSH address, user and host keys
 
     C->>A: DELETE /v1/orbs/{id}
     A->>H: delete the stack
@@ -96,8 +97,8 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
-   # only for the tempest tests
-   TEMPEST_PLUGINS=/opt/stack/orbit
+   # required: the address the orbs see your client connect from
+   ORBIT_SSH_ALLOWED_CIDR=<client-address>/32
    EOF
    ```
 
@@ -122,10 +123,13 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
 
 6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
 
-7. Connect with the `ssh_user` and `ssh_host` printed in step 5:
+7. Connect with the `ssh_user` and `ssh_host` printed in step 5, verifying the host against the `ssh_host_keys` printed with them:
 
    ```console
-   $ ssh <ssh_user>@<ssh_host>
+   $ openstack orb show <id> -f json -c ssh_host -c ssh_host_keys \
+         | jq -r '.ssh_host as $h | .ssh_host_keys[] | "\($h) \(.)"' > orb_known_hosts
+   $ ssh -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChecking=yes \
+         <ssh_user>@<ssh_host>
    ```
 
 8. Delete the orb and everything it holds:
@@ -141,13 +145,6 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    $ tox -e py3
    $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
    ```
-
-10. Run the full path on the installation, including the rejection for exhausted capacity:
-
-    ```console
-    $ cd /opt/stack/tempest
-    $ tempest run --regex orbit
-    ```
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 
