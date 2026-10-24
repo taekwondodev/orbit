@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112" viewBox="-80 -56 160 112" role="img" aria-labelledby="title">
+<title id="title">orbit</title>
+<defs>
+  <radialGradient id="orb" cx="0.35" cy="0.35"><stop offset="0" stop-color="#e2c5ff"/><stop offset="0.55" stop-color="#bc8cff" stop-opacity="0.75"/><stop offset="1" stop-color="#1f6feb" stop-opacity="0.35"/></radialGradient>
+  <path id="orbit" d="M-62 0 a62 18 0 1 0 124 0 a62 18 0 1 0 -124 0"/>
+</defs>
+<circle r="40" fill="url(#orb)" opacity="0"><animate attributeName="opacity" begin="0.7s" dur="0.4s" values="0;1" fill="freeze"/></circle>
+<path d="M-40 0 a40 40 0 1 0 80 0 a40 40 0 1 0 -80 0" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" fill="none" stroke="#bc8cff" stroke-width="3" stroke-linecap="butt"><animate attributeName="stroke-dashoffset" dur="0.7s" values="1;0" fill="freeze"/></path>
+<g transform="rotate(-18)" opacity="0"><animate attributeName="opacity" begin="1s" dur="0.12s" values="0;1" fill="freeze"/>
+  <use href="#orbit" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.5"/>
+  <circle r="4.5" fill="#58a6ff"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#orbit"/></animateMotion></circle>
+</g>
+</svg>

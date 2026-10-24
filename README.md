@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/img/logo.svg" alt="orbit logo: an orb circled by a satellite" width="160">
+</p>
+
 <h1 align="center">orbit</h1>
 
 <p align="center">
