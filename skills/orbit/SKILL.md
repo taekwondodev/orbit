@@ -65,11 +65,11 @@ $ curl -sS "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | tee orb.json | jq .
 
 ## 4. Work inside the orb
 
-Connect as `ssh_user` to `ssh_host`, trusting only the host keys orbit read from the machine:
+Connect as `ssh_user` to `ssh_host`, with the private half of the `public_key` you gave in step 2 and trusting only the host keys orbit read from the machine. The orb accepts no other key, so always pass it with `-i`:
 
 ```console
 $ jq -r '.ssh_host as $h | .ssh_host_keys[] | "\($h) \(.)"' orb.json > orb_known_hosts
-$ ssh -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChecking=yes \
+$ ssh -i <private-key> -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChecking=yes \
       "$(jq -r .ssh_user orb.json)@$(jq -r .ssh_host orb.json)" '<command>'
 ```
 
@@ -83,6 +83,6 @@ $ curl -sS -X DELETE "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | jq .statu
 
 Deletion is repeatable: on an orb already deleting or gone it answers the same way. Read the orb until it is `DELETED`; if it turns `ERROR` instead, the removal failed and another `DELETE` retries it.
 
-Delete only orbs you created: `GET /v1/orbs` lists the whole project's orbs, other consumers' included.
+Delete only orbs you created: `GET /v1/orbs` lists the whole project's orbs, other consumers' included, and keeps the `DELETED` ones as history. A `DELETED` orb holds no capacity.
 
 Done when the orb you created reads `DELETED`.
