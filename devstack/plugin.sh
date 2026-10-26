@@ -44,8 +44,8 @@ function configure_orbit_dashboard {
 }
 
 function init_orbit {
+    # orbit-api creates its table when it starts.
     recreate_database orbit
-    orbit-dbsync --config-file $ORBIT_CONF
 }
 
 function create_orbit_accounts {

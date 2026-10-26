@@ -6,4 +6,3 @@ oslo.config>=9.0.0
 oslo.log>=5.0.0
 oslo.db>=14.0.0
 SQLAlchemy>=2.0.0
-alembic>=1.10.0

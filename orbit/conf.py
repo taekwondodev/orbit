@@ -80,10 +80,7 @@ class InvalidOption(ValueError):
 
 
 def check_api_options():
-    """Refuse to serve with the options orbit-api cannot run with.
-
-    Only orbit-api needs them: orbit-dbsync reads the same file without them.
-    """
+    """Refuse to serve with the options orbit-api cannot run with."""
     try:
         CONF.orbs.ssh_min_prefix
     except cfg.ConfigFileValueError as e:

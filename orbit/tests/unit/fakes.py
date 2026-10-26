@@ -6,16 +6,15 @@ import sqlalchemy as sa
 
 from orbit import clients
 from orbit.db import api as db_api
-from orbit.db import migration
 from orbit import orb as orb_model
 
 
 def database():
-    """An in-memory SQLite database with the migrations' schema."""
+    """An in-memory SQLite database with orbit's schema."""
     engine = sa.create_engine('sqlite://',
                               poolclass=sa.pool.StaticPool,
                               connect_args={'check_same_thread': False})
-    migration.upgrade(engine)
+    db_api.metadata.create_all(engine)
     return engine
 
 

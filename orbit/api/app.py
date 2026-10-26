@@ -24,7 +24,11 @@ def create_app(orbs):
 def create_wsgi_app():
     """The served application: every request goes through Keystone."""
     conf.check_api_options()
-    repository = db_api.OrbRepository(enginefacade.writer.get_engine())
+    engine = enginefacade.writer.get_engine()
+    # The only schema. create_all creates the table where missing and never
+    # alters an existing one: a change to the table needs a new database.
+    db_api.metadata.create_all(engine)
+    repository = db_api.OrbRepository(engine)
     creator = creation.Creator(repository, creation.load_template())
     orbs = service.Orbs(repository, clients.for_auth, creator)
     return auth_token.AuthProtocol(create_app(orbs).wsgi_app,

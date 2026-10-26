@@ -1,6 +1,8 @@
 import tempfile
 import unittest
 
+from oslo_db.sqlalchemy import enginefacade
+import sqlalchemy as sa
 from werkzeug import test as werkzeug_test
 
 from orbit.api import app
@@ -25,6 +27,13 @@ class TestAuthentication(unittest.TestCase):
         self.assertEqual(401, response.status_code)
         self.assertIn('keystone.invalid',
                       response.headers['WWW-Authenticate'])
+
+    def test_api_creates_its_table_and_starts_again_with_it(self):
+        app.create_wsgi_app()
+        app.create_wsgi_app()
+
+        engine = enginefacade.writer.get_engine()
+        self.assertIn('orbs', sa.inspect(engine).get_table_names())
 
     def test_api_does_not_start_with_an_invalid_ssh_cap(self):
         for cap in ('harness', '198.51.100.20/24', '2001:db8::/32'):

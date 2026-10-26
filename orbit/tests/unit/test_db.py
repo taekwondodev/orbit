@@ -1,27 +1,9 @@
 import unittest
 
-from alembic import autogenerate
-from alembic import migration as alembic_migration
-
-from orbit.db import api as db_api
-from orbit.db import migration
 from orbit import orb as orb_model
 from orbit.tests.unit import fakes
 
 Status = orb_model.Status
-
-
-class TestMigration(unittest.TestCase):
-
-    def test_upgrade_is_repeatable_and_matches_the_code_schema(self):
-        engine = fakes.database()
-
-        migration.upgrade(engine)
-
-        with engine.connect() as conn:
-            context = alembic_migration.MigrationContext.configure(conn)
-            diff = autogenerate.compare_metadata(context, db_api.metadata)
-        self.assertEqual([], diff)
 
 
 class TestOrbRepository(unittest.TestCase):
