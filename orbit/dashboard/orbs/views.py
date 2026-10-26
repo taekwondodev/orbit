@@ -21,7 +21,7 @@ class IndexView(tables.DataTableView):
             exceptions.handle(self.request, _('Unable to retrieve orbs.'))
             return []
         # Deleted orbs hold no resources; their history stays in
-        # `openstack orb list --status DELETED`.
+        # `GET /v1/orbs?status=DELETED`.
         return [orb for orb in orbs if orb.status != 'DELETED']
 
 

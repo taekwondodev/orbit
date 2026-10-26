@@ -9,7 +9,7 @@
 # host can reach: this machine sends that network to the host, and the host
 # forwards it to the orbs. No NAT on the way in, so an orb sees this
 # machine's address on the network it shares with the host: that is the
-# address to pass as --ssh-allowed-cidr.
+# address to pass as ssh_allowed_cidr.
 #
 # Neither side survives a reboot: run it again after either machine restarts.
 # Repeatable: what is already in place is left as it is.

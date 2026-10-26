@@ -64,11 +64,7 @@ class IndexTests(OrbsTestCase):
 
         res = self.client.get(INDEX_URL)
 
-        self.assertContains(
-            res, '<code>openstack orb create --vcpus 1 --memory 512 '
-                 '--disk 1 --public-key ~/.ssh/id_ed25519.pub '
-                 '--ssh-allowed-cidr &lt;your-address&gt;/32</code>',
-            html=True)
+        self.assertContains(res, '<code>POST /v1/orbs</code>', html=True)
 
     def test_unavailable_orbit_shows_its_message_not_an_empty_project(self):
         self.orbit.get(f'{ORBIT}/v1/orbs', status_code=503,
@@ -78,7 +74,7 @@ class IndexTests(OrbsTestCase):
 
         self.assertEqual(200, res.status_code)
         self.assertEqual([], res.context['table'].data)
-        self.assertNotContains(res, 'openstack orb create')
+        self.assertNotContains(res, 'POST /v1/orbs')
         self.assertMessageCount(res, error=1)
         self.assertIn('Heat is unavailable',
                       str(list(res.context['messages'])[0]))

@@ -7,9 +7,7 @@ from horizon.utils import filters
 
 from orbit.dashboard import client
 
-CREATE_COMMAND = ('openstack orb create --vcpus 1 --memory 512 --disk 1 '
-                  '--public-key ~/.ssh/id_ed25519.pub '
-                  '--ssh-allowed-cidr <your-address>/32')
+CREATE_REQUEST = 'POST /v1/orbs'
 
 STATUS_DISPLAY_CHOICES = (
     ('RESERVING', pgettext_lazy('Current status of an orb', 'Reserving')),
@@ -70,9 +68,9 @@ class OrbsTable(tables.DataTable):
             return super().get_empty_message()
         # The panel is read-only: without this, an empty list is a dead end.
         return format_html('{} <code>{}</code>',
-                           _('No orbs in this project. Create one from the '
-                             'command line:'),
-                           CREATE_COMMAND)
+                           _('No orbs in this project. Create one through '
+                             'the orbit API:'),
+                           CREATE_REQUEST)
 
     class Meta:
         name = 'orbs'

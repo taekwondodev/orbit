@@ -10,7 +10,7 @@
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
   <br>
   <img alt="Integrates: Keystone, Blazar, Heat" src="https://img.shields.io/badge/integrates-Keystone%20%C2%B7%20Blazar%20%C2%B7%20Heat-334155">
-  <img alt="Interfaces: REST API, openstack CLI, Horizon" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20openstack%20CLI%20%C2%B7%20Horizon-334155">
+  <img alt="Interfaces: REST API, Horizon" src="https://img.shields.io/badge/interfaces-REST%20API%20%C2%B7%20Horizon-334155">
 </p>
 
 **Ephemeral sandboxes as an OpenStack service.** A client asks for "a machine with these resources"; the service hands it over isolated and reachable over SSH, and when the client is done it makes it disappear entirely. Each sandbox is an **orb**.
@@ -72,7 +72,7 @@ sequenceDiagram
 
 ## Interface
 
-The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). From the command line: `openstack orb create | list | show | delete`. In Horizon: the read-only **Project → Orbit → Orbs** panel.
+The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). In Horizon: the read-only **Project → Orbit → Orbs** panel.
 
 ---
 
@@ -106,27 +106,32 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    $ ./stack.sh
    ```
 
-4. Act as the `demo` project:
+4. Act as the `demo` project, with orbit's endpoint and a token that lasts about an hour:
 
    ```console
    $ source openrc demo demo
+   $ ORBIT=$(openstack catalog show orbit -f json \
+         | jq -r '.endpoints[] | select(.interface == "public") | .url')
+   $ TOKEN=$(openstack token issue -f value -c id)
    ```
 
-5. Create an orb and wait until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only. On the DevStack host it is `172.24.4.1`. From another machine, first run `tools/reach-orbs.sh <host>` there: its header says which address to use and when to run it again.
+5. Create an orb, then read it until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only. On the DevStack host it is `172.24.4.1`. From another machine, first run `tools/reach-orbs.sh <host>` there: its header says which address to use and when to run it again.
 
    ```console
-   $ openstack orb create --vcpus 1 --memory 512 --disk 1 \
-         --public-key ~/.ssh/id_ed25519.pub \
-         --ssh-allowed-cidr <your-address>/32 --wait
+   $ jq -n --arg key "$(cat ~/.ssh/id_ed25519.pub)" --arg cidr <your-address>/32 \
+         '{size: {vcpus: 1, memory_mb: 512, disk_gb: 1},
+           public_key: $key, ssh_allowed_cidr: $cidr}' \
+         | curl -s -X POST "$ORBIT/v1/orbs" -H "X-Auth-Token: $TOKEN" \
+               -H 'Content-Type: application/json' -d @- | jq
+   $ curl -s "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | tee orb.json | jq
    ```
 
 6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
 
-7. Connect with the `ssh_user` and `ssh_host` printed in step 5, verifying the host against the `ssh_host_keys` printed with them:
+7. Connect with the `ssh_user` and `ssh_host` of the `ACTIVE` orb read in step 5, verifying the host against its `ssh_host_keys`:
 
    ```console
-   $ openstack orb show <id> -f json -c ssh_host -c ssh_host_keys \
-         | jq -r '.ssh_host as $h | .ssh_host_keys[] | "\($h) \(.)"' > orb_known_hosts
+   $ jq -r '.ssh_host as $h | .ssh_host_keys[] | "\($h) \(.)"' orb.json > orb_known_hosts
    $ ssh -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChecking=yes \
          <ssh_user>@<ssh_host>
    ```
@@ -134,7 +139,7 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
 8. Delete the orb and everything it holds:
 
    ```console
-   $ openstack orb delete <id>
+   $ curl -s -X DELETE "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | jq
    ```
 
 9. Run the unit tests, which need no OpenStack:
