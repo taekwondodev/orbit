@@ -72,11 +72,11 @@ sequenceDiagram
 
 ## Interface
 
-The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.md). In Horizon: the read-only **Project → Orbit → Orbs** panel.
+orbit's client is an agent harness. The agent drives the REST API, `/v1/orbs`, by following the [orbit skill](skills/orbit/SKILL.md); the API itself is described in [docs/design/api.md](docs/design/api.md). People watch the orbs in Horizon, in the read-only **Project → Orbit → Orbs** panel.
 
 ---
 
-## Quick start
+## Installation
 
 1. Clone DevStack:
 
@@ -106,51 +106,22 @@ The REST API, `/v1/orbs`, is described in [docs/design/api.md](docs/design/api.m
    $ ./stack.sh
    ```
 
-4. Act as the `demo` project, with orbit's endpoint and a token that lasts about an hour:
+4. If the agent runs on another machine, make the orbs reachable from there by running `tools/reach-orbs.sh <host>` on it: its header says when to run it again.
 
-   ```console
-   $ source openrc demo demo
-   $ ORBIT=$(openstack catalog show orbit -f json \
-         | jq -r '.endpoints[] | select(.interface == "public") | .url')
-   $ TOKEN=$(openstack token issue -f value -c id)
-   ```
+5. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project, for example those `source openrc demo demo` sets for `demo`.
 
-5. Create an orb, then read it until it is `ACTIVE`. `<your-address>` is the address the orb sees you connect from: the firewall admits SSH from it only. On the DevStack host it is `172.24.4.1`. From another machine, first run `tools/reach-orbs.sh <host>` there: its header says which address to use and when to run it again.
-
-   ```console
-   $ jq -n --arg key "$(cat ~/.ssh/id_ed25519.pub)" --arg cidr <your-address>/32 \
-         '{size: {vcpus: 1, memory_mb: 512, disk_gb: 1},
-           public_key: $key, ssh_allowed_cidr: $cidr}' \
-         | curl -s -X POST "$ORBIT/v1/orbs" -H "X-Auth-Token: $TOKEN" \
-               -H 'Content-Type: application/json' -d @- | jq
-   $ curl -s "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | tee orb.json | jq
-   ```
-
-6. See it in Horizon too: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
-
-7. Connect with the `ssh_user` and `ssh_host` of the `ACTIVE` orb read in step 5, verifying the host against its `ssh_host_keys`:
-
-   ```console
-   $ jq -r '.ssh_host as $h | .ssh_host_keys[] | "\($h) \(.)"' orb.json > orb_known_hosts
-   $ ssh -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChecking=yes \
-         <ssh_user>@<ssh_host>
-   ```
-
-8. Delete the orb and everything it holds:
-
-   ```console
-   $ curl -s -X DELETE "$ORBIT/v1/orbs/<id>" -H "X-Auth-Token: $TOKEN" | jq
-   ```
-
-9. Run the unit tests, which need no OpenStack:
-
-   ```console
-   $ cd /opt/stack/orbit
-   $ tox -e py3
-   $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
-   ```
+6. Watch the agent's orbs in Horizon: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
+
+## Tests
+
+The unit tests need no OpenStack:
+
+```console
+$ tox -e py3
+$ tox -e dashboard   # the Horizon panel; Python 3.11 or later
+```
 
 ---
 
@@ -161,6 +132,7 @@ What each plugin does and what the installation requires: [docs/architecture.md]
 | [GLOSSARY](GLOSSARY.md) | glossary of the domain and of the OpenStack terms used |
 | [Architecture](docs/architecture.md) | ownership boundaries, composition of an orb, full sequence, installation requirements |
 | [API contract](docs/design/api.md) | HTTP resources, statuses, errors |
+| [orbit skill](skills/orbit/SKILL.md) | how an agent creates, uses and deletes an orb |
 | [Stored state](docs/design/state.md) | the service's table and reconciliation |
 | [Orb template](orbit/templates/orb.yaml) | Heat description of an orb's resources |
 | [Decisions](docs/adr/) | the shape choices, with rejected alternatives and sources |
