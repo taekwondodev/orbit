@@ -56,3 +56,10 @@ Besides its own processes, the plugin must:
 Host registration happens in the `extra` phase, but DevStack maps hosts into the Nova cell only after that phase, and the Nova API does not show unmapped hypervisors. The plugin therefore runs `nova-manage cell_v2 discover_hosts`, which is repeatable, before looking them up.
 
 Once the host is registered, Nova's `BlazarFilter` reserves it for reservations: a request without a reservation does not pass on a host that belongs to a Blazar aggregate, `freepool` included. On a single-host DevStack, machines created outside orbit find no room. Source: `host_passes` in <https://opendev.org/openstack/blazar-nova/src/branch/master/blazarnova/scheduler/filters/blazar_filter.py>
+
+### Images other than CirrOS
+
+The plugin configures only DevStack's default image. An operator who uploads another image to Glance, such as an Ubuntu cloud image, also takes care of two things:
+
+- **The SSH user.** orbit returns the user of `[orbs] ssh_users` for the image, or `default_ssh_user` (`ubuntu`) when the image has no entry. An image whose user is neither needs an entry by hand. `stack.sh` rewrites `orbit.conf`, but it also deletes every Glance image, so the entry is added again with the image.
+- **cloud-init on aarch64 without KVM.** On a host where Nova emulates the guest (`virt_type = qemu`), the guest gets no OpenStack SMBIOS, so cloud-init finds no datasource and disables itself. The machine then never prints its host keys, and the orb ends in `ERROR` with `SSH host keys not published on the console`. The Glance property `img_config_drive=mandatory` makes cloud-init read the config drive instead. CirrOS does not use cloud-init and is not affected.
