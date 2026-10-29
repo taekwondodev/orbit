@@ -74,8 +74,6 @@ sequenceDiagram
 
 orbit's client is an agent harness. The agent drives the REST API, `/v1/orbs`, by following the [orbit skill](skills/orbit/SKILL.md); the API itself is described in [docs/design/api.md](docs/design/api.md). People watch the orbs in Horizon, in the read-only **Project → Orbit → Orbs** panel.
 
-The list and orb details update automatically while the tab is visible, including new orbs, deletions and changes to already-active orbs. Returning to the tab refreshes the data immediately. If an update fails, the panel keeps the last data, marks it as potentially out of date and retries; an expired session prompts you to sign in again.
-
 ---
 
 ## Installation
@@ -116,10 +114,6 @@ The list and orb details update automatically while the tab is visible, includin
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 
-When upgrading an existing Horizon installation, update Orbit and copy its enabled files into Horizon's `openstack_dashboard/local/enabled/`, then run `python manage.py collectstatic --noinput` and `python manage.py compress --force` in Horizon's environment before restarting Horizon. DevStack's fresh-install flow already performs these steps. Already-open tabs must load the updated page once to pick up the new script; subsequent data updates do not reload the page.
-
-Automatic updates follow Horizon's session policy: when `SESSION_REFRESH` is enabled, polling counts as activity, but cannot extend the Keystone token's lifetime.
-
 ## Tests
 
 The unit tests need no OpenStack:
@@ -128,8 +122,6 @@ The unit tests need no OpenStack:
 $ tox -e py3
 $ tox -e dashboard   # the Horizon panel; Python 3.11 or later
 ```
-
-The dashboard suite covers server-rendered snapshots and error responses. Client-side polling, filtering, sorting and tab visibility also need a browser smoke check; they are not exercised by the Python suite.
 
 ---
 
