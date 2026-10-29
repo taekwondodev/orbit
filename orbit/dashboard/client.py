@@ -11,7 +11,7 @@ from orbit.dashboard.exceptions import OrbitError
 from orbit.dashboard.exceptions import OrbitUnauthorized
 from orbit.dashboard.exceptions import OrbNotFound
 
-# Seconds to wait for orbit-api. Every list, detail and row refresh holds a
+# Seconds to wait for orbit-api. Every list, detail and live refresh holds a
 # Horizon worker while it waits; orbit-api bounds its own calls downstream.
 TIMEOUT = 30
 
