@@ -1,11 +1,8 @@
-from django import http
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 from horizon import tables
 from horizon.utils import filters
-
-from orbit.dashboard import client
 
 CREATE_REQUEST = 'POST /v1/orbs'
 
@@ -25,19 +22,7 @@ def get_size(orb):
     return _('%(vcpus)s vCPU · %(memory_mb)s MiB · %(disk_gb)s GiB') % orb.size
 
 
-class UpdateRow(tables.Row):
-    ajax = True
-
-    def get_data(self, request, orb_id):
-        orb = client.orb_get(request, orb_id)
-        if orb.status == 'DELETED':
-            # A 404 to the row update removes the row from the table.
-            raise http.Http404
-        return orb
-
-
 class OrbsTable(tables.DataTable):
-    # None keeps a row refreshing until the orb settles.
     STATUS_CHOICES = (
         ('RESERVING', None),
         ('BUILDING', None),
@@ -76,5 +61,4 @@ class OrbsTable(tables.DataTable):
         name = 'orbs'
         verbose_name = _('Orbs')
         status_columns = ['status']
-        row_class = UpdateRow
         table_actions = (tables.FilterAction,)

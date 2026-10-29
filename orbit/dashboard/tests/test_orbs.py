@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.staticfiles import finders
 from django.test import override_settings
 from django.urls import reverse
 import requests_mock
@@ -51,7 +53,7 @@ class IndexTests(OrbsTestCase):
         self.assertEqual('Active', active['status'].data)
         self.assertEqual('172.24.4.17', active['ssh_host'].data)
         self.assertEqual('2 vCPU · 4096 MiB · 20 GiB', active['size'].data)
-        self.assertIn('ajax-update', rows['orb-building'].classes)
+        self.assertNotIn('ajax-update', rows['orb-building'].classes)
         self.assertIn('warning', rows['orb-building'].classes)
         self.assertNotIn('warning', rows['orb-active'].classes)
         self.assertNotIn('warning', rows['orb-error'].classes)
@@ -79,15 +81,60 @@ class IndexTests(OrbsTestCase):
         self.assertIn('Heat is unavailable',
                       str(list(res.context['messages'])[0]))
 
-    def test_row_of_an_orb_that_became_deleted_is_removed(self):
-        self.orbit.get(f'{ORBIT}/v1/orbs/orb-1', json=_orb('orb-1', 'DELETED'))
+    def test_live_list_discovers_orbs_and_updates_stable_rows(self):
+        self.orbit.get(f'{ORBIT}/v1/orbs', [
+            {'json': {'orbs': []}},
+            {'json': {'orbs': [_orb('orb-1', 'ACTIVE'),
+                               _orb('orb-2', 'BUILDING')]}},
+            {'json': {'orbs': [_orb('orb-1', 'ERROR'),
+                               _orb('orb-2', 'DELETED')]}},
+        ])
 
-        res = self.client.get(
-            INDEX_URL, {'action': 'row_update', 'table': 'orbs',
-                        'obj_id': 'orb-1'},
-            HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        page = self.client.get(INDEX_URL)
+        self.assertContains(page, 'data-orbit-live')
+        added = self.client.get(INDEX_URL, {'live': '1'},
+                                HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(200, added.status_code)
+        self.assertIn('no-store', added['Cache-Control'])
+        self.assertIn('orb-1', added.json()['html'])
+        self.assertIn('orb-2', added.json()['html'])
+        self.assertIn('Active', added.json()['html'])
+        changed = self.client.get(INDEX_URL, {'live': '1'},
+                                  HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertIn('orb-1', changed.json()['html'])
+        self.assertIn('Error', changed.json()['html'])
+        self.assertNotIn('orb-2', changed.json()['html'])
 
-        self.assertEqual(404, res.status_code)
+    def test_live_failures_are_not_successful_empty_snapshots(self):
+        detail_url = reverse('horizon:project:orbs:detail', args=['orb-1'])
+        for url, resource in ((INDEX_URL, '/v1/orbs'),
+                              (detail_url, '/v1/orbs/orb-1')):
+            for status in (503, 401):
+                with self.subTest(url=url, status=status):
+                    self.orbit.get(
+                        ORBIT + resource, status_code=status,
+                        json={'error': {'message': 'Unavailable'}})
+                    res = self.client.get(
+                        url, {'live': '1'},
+                        HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+                    self.assertEqual(status, res.status_code)
+                    self.assertNotIn('html', res.json())
+
+    def test_expired_horizon_session_returns_401_without_a_snapshot(self):
+        self.setActiveUser()
+        detail_url = reverse('horizon:project:orbs:detail', args=['orb-1'])
+        for url in (INDEX_URL, detail_url):
+            with self.subTest(url=url):
+                res = self.client.get(
+                    url, {'live': '1'},
+                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+                self.assertEqual(401, res.status_code)
+                self.assertEqual(b'', res.content)
+        self.assertFalse(self.orbit.called)
+
+    def test_live_script_is_registered_and_discoverable(self):
+        self.assertIn('orbit/orbs-live.js', settings.HORIZON_CONFIG['js_files'])
+        self.assertIsNotNone(finders.find('orbit/orbs-live.js'))
 
 
 class DetailTests(OrbsTestCase):
@@ -112,6 +159,31 @@ class DetailTests(OrbsTestCase):
 
         self.assertContains(res, fault)
         self.assertNotContains(res, 'SSH command')
+
+    def test_live_detail_updates_ssh_fault_and_deleted_status(self):
+        url = reverse('horizon:project:orbs:detail', args=['orb-1'])
+        self.orbit.get(f'{ORBIT}/v1/orbs/orb-1', [
+            {'json': _orb('orb-1', 'BUILDING')},
+            {'json': _orb('orb-1', 'ACTIVE', ssh_host='172.24.4.17')},
+            {'json': _orb('orb-1', 'ERROR', fault='<failed>')},
+            {'json': _orb('orb-1', 'DELETED')},
+        ])
+        self.assertContains(self.client.get(url), 'data-orbit-live')
+        for expected in ('ssh ubuntu@172.24.4.17', '&lt;failed&gt;', 'Deleted'):
+            res = self.client.get(url, {'live': '1'},
+                                  HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+            self.assertEqual(200, res.status_code)
+            self.assertIn(expected, res.json()['html'])
+            self.assertNotIn('<failed>', res.json()['html'])
+
+    def test_live_unknown_orb_returns_not_found_without_redirecting(self):
+        self.orbit.get(f'{ORBIT}/v1/orbs/orb-x', status_code=404,
+                       json={'error': {'message': 'Orb not found'}})
+        res = self.client.get(
+            reverse('horizon:project:orbs:detail', args=['orb-x']),
+            {'live': '1'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(404, res.status_code)
+        self.assertNotIn('html', res.json())
 
     def test_unknown_orb_redirects_to_the_list(self):
         self.orbit.get(f'{ORBIT}/v1/orbs/orb-x', status_code=404,

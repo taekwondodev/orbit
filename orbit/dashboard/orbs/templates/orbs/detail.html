@@ -1,39 +1,9 @@
-{% extends 'base.html' %}
-{% load i18n %}
-
-{% block title %}{{ page_title }}{% endblock %}
+{% extends 'project/orbs/live.html' %}
 
 {% block page_header %}
   {% include "horizon/common/_detail_header.html" %}
 {% endblock %}
 
-{% block main %}
-<div class="detail">
-  <dl class="dl-horizontal">
-    <dt>{% trans "ID" %}</dt>
-    <dd>{{ orb.id }}</dd>
-    <dt>{% trans "Status" %}</dt>
-    <dd>{{ status_label }}</dd>
-    <dt>{% trans "vCPUs" %}</dt>
-    <dd>{{ orb.size.vcpus }}</dd>
-    <dt>{% trans "Memory (MiB)" %}</dt>
-    <dd>{{ orb.size.memory_mb }}</dd>
-    <dt>{% trans "Disk (GiB)" %}</dt>
-    <dd>{{ orb.size.disk_gb }}</dd>
-    <dt>{% trans "Image" %}</dt>
-    <dd>{{ orb.image|default:_("-") }}</dd>
-    <dt>{% trans "SSH host" %}</dt>
-    <dd>{{ orb.ssh_host|default:_("-") }}</dd>
-    <dt>{% trans "SSH user" %}</dt>
-    <dd>{{ orb.ssh_user|default:_("-") }}</dd>
-    {% if orb.ssh_host %}
-      <dt>{% trans "SSH command" %}</dt>
-      <dd><code>ssh {{ orb.ssh_user }}@{{ orb.ssh_host }}</code></dd>
-    {% endif %}
-    <dt>{% trans "Fault" %}</dt>
-    <dd class="word-wrap">{{ orb.fault|default:_("-") }}</dd>
-    <dt>{% trans "Created" %}</dt>
-    <dd>{{ orb.created_at|parse_isotime }}</dd>
-  </dl>
-</div>
+{% block live_content %}
+  {% include "project/orbs/_detail.html" %}
 {% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block main %}
+<div data-orbit-live data-url="{{ request.path }}">
+  <p class="orbit-live-status text-muted" role="status" aria-live="polite">
+    <span class="orbit-live-message">{% trans "Updates automatically every 5 seconds." %}</span>
+    <a class="orbit-live-login" href="{% url 'login' %}?next={{ request.path|urlencode }}" hidden>{% trans "Sign in again" %}</a>
+  </p>
+  <div class="orbit-live-content">
+    {% block live_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}
