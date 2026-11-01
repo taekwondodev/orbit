@@ -1,9 +1,11 @@
-"""The creation task: waits for the active reservation and creates the stack.
+"""The creation task: waits for the active reservation, creates the stack and
+follows the orb until it is ACTIVE.
 
 Runs in a thread of the process that received the request, with that
 request's token, and does not survive a restart: an orb left without a stack
-beyond creation_timeout counts as interrupted on the next read
-(docs/design/state.md, Reconciliation).
+beyond creation_timeout counts as interrupted on the next read, and one left
+without host keys reaches ACTIVE only if a read finds them within
+ready_timeout (docs/design/state.md, Reconciliation).
 """
 
 import datetime
@@ -16,6 +18,7 @@ from oslo_log import log
 from orbit import clients as orbit_clients
 from orbit.conf import CONF
 from orbit import orb as orb_model
+from orbit import reconciliation
 
 LOG = log.getLogger(__name__)
 Status = orb_model.Status
@@ -82,6 +85,39 @@ class Creator:
             # deleted, or declared interrupted. The stack no longer belongs
             # to it.
             clients.heat.delete_stack(orb.resource_name)
+            return
+        self._follow(orb, clients)
+
+    def _follow(self, orb, clients):
+        """Reconcile the orb as a read would until it leaves BUILDING, so it
+        becomes ACTIVE even if nobody reads it during the boot.
+
+        The last reconciliation happens at ready_timeout, where a machine
+        without host keys goes to ERROR as on a read.
+        """
+        deadline = orb.created_at + datetime.timedelta(
+            seconds=CONF.orbs.ready_timeout)
+        while True:
+            current = self._repository.get(orb.project_id, orb.id)
+            if current is None or current.status is not Status.BUILDING:
+                return
+            try:
+                observed = reconciliation.reconcile(
+                    self._repository, current, clients, self._clock())
+            except orbit_clients.Rejected as e:
+                LOG.warning('Stopped following %s, refused: %s',
+                            orb.resource_name, e)
+                return
+            except orbit_clients.Unavailable as e:
+                LOG.warning('Following %s, retrying: %s',
+                            orb.resource_name, e)
+            else:
+                if observed.orb.status is not Status.BUILDING:
+                    return
+            left = (deadline - self._clock()).total_seconds()
+            if left <= 0:
+                return
+            self._sleep(min(CONF.orbs.ready_poll_interval, left))
 
     def _wait_for_reservation(self, orb, blazar):
         deadline = orb.created_at + datetime.timedelta(

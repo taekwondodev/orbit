@@ -1,6 +1,6 @@
 # Stored state
 
-Implemented in `orbit/db/api.py` and `orbit/lifecycle.py`. The principle that governs it: **we store only what we own**. Everything else is asked of whoever owns it.
+Implemented in `orbit/db/api.py`, `orbit/lifecycle.py` and `orbit/reconciliation.py`. The principle that governs it: **we store only what we own**. Everything else is asked of whoever owns it.
 
 ## What belongs to others
 
@@ -75,6 +75,8 @@ The machine must be read in addition to the stack because Heat does not notice a
 The console is read only while the orb has no stored host keys, is not being deleted, its machine is `ACTIVE` and it was created less than `ready_timeout` ago ([0007](../adr/0007-host-keys-read-once-from-the-console.md)). A console that cannot be read counts as keys not published yet: the read of the orb does not fail for it.
 
 The task that waits for the reservation and creates the stack lives only in memory, in the process that received the request: no other process can know whether it is still running. That is why the criterion is time: an orb without a stack beyond the configured wait limit is considered interrupted, and the task itself gives up when the same limit expires.
+
+Once the stack exists, the same task follows the orb: every `ready_poll_interval` it runs this reconciliation, as a read would, until the orb leaves `BUILDING`, with a last one at `ready_timeout`. An orb nobody reads during its boot thus still gets its host keys and becomes `ACTIVE`. A refusal from the services ends the following, which leaves the orb to reads; an unreachable service is retried at the next interval.
 
 Every action is repeatable without harm: deleting a stack or a lease already deleted and re-reading resources that are gone must lead to the same result.
 

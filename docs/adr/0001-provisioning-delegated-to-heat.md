@@ -11,7 +11,7 @@ The only resource outside the template is the Blazar lease: the reason is in [00
 ## Accepted consequences
 
 - Provisioning disappears from the project: what remains is a template of a few dozen lines.
-- Heat creates the stack asynchronously and exposes its status: the service does not wait for the build, it discovers it by reading the stack when someone asks about the orb.
+- Heat creates the stack asynchronously and exposes its status: the service discovers the build by reading the stack, when someone asks about the orb and while the creation task follows the new orb until it is `ACTIVE`, within `ready_timeout`.
 - Heat must be enabled in the installation: it is not part of the default set and is added as a plugin, starting the `h-eng`, `h-api` and `h-api-cfn` processes.
 
 ## Sources

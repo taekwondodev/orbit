@@ -490,6 +490,12 @@
 # Minimum value: 0.1
 #reservation_poll_interval = 2.0
 
+# Seconds between two reads of the stack, the machine and its console while the
+# creation task follows a new orb until its host keys are stored, within
+# ready_timeout. (floating point value)
+# Minimum value: 0.1
+#ready_poll_interval = 5.0
+
 # Maximum seconds to wait for a response from Blazar, Heat or Nova. Deleting an
 # active lease responds only after the machine is destroyed. (integer value)
 # Minimum value: 1

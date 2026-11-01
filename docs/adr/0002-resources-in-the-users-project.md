@@ -8,9 +8,9 @@ The service creates the resources on behalf of the consumer, forwarding the toke
 
 ## Accepted consequence
 
-The user's token lasts about an hour, and that is enough: since an orb does not expire ([0003](0003-no-expiry.md)), every operation on the user's resources happens during one of their requests or in the seconds right after it. The only work that follows the response is waiting for the reservation and creating the stack ([0005](0005-lease-beside-the-stack.md)), and it uses the request's token kept in memory. The service keeps neither tokens nor delegations, and has no privileges of its own over users' resources.
+The user's token lasts about an hour, and that is enough: since an orb does not expire ([0003](0003-no-expiry.md)), every operation on the user's resources happens during one of their requests or in the seconds right after it. The only work that follows the response is waiting for the reservation, creating the stack ([0005](0005-lease-beside-the-stack.md)) and following the orb until its host keys are stored, within `ready_timeout` of the request ([0007](0007-host-keys-read-once-from-the-console.md)), and it uses the request's token kept in memory. The service keeps neither tokens nor delegations, and has no privileges of its own over users' resources.
 
-The price is that interrupted work, for example by a service restart during the wait, is not resumed by itself: the orb ends up in `ERROR` on the next read, and the user deletes it and requests another.
+The price is that interrupted work, for example by a service restart during the wait, is not resumed by itself: the orb ends up in `ERROR` on the next read, and the user deletes it and requests another. An orb whose following was interrupted becomes `ACTIVE` only if a read finds its host keys within `ready_timeout`.
 
 ## Sources
 

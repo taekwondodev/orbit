@@ -45,6 +45,11 @@ orbs_opts = [
     cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
                  help='Seconds between two reads of the lease while waiting '
                       'for the reservation to be active.'),
+    cfg.FloatOpt('ready_poll_interval', default=5.0, min=0.1,
+                 help='Seconds between two reads of the stack, the machine '
+                      'and its console while the creation task follows a new '
+                      'orb until its host keys are stored, within '
+                      'ready_timeout.'),
     cfg.IntOpt('api_timeout', default=60, min=1,
                help='Maximum seconds to wait for a response from Blazar, '
                     'Heat or Nova. Deleting an active lease responds only '

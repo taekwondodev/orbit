@@ -6,6 +6,7 @@ import yaml
 from orbit import clients
 from orbit import conf
 from orbit import creation
+from orbit import lifecycle
 from orbit import orb as orb_model
 from orbit.tests.unit import fakes
 
@@ -14,16 +15,26 @@ START = datetime.datetime(2026, 10, 20, 12, 0, 0)
 
 
 class FakeClock:
-    """Time advances only when the task waits."""
+    """Time advances only when the task waits; what is scheduled at a time
+    happens as soon as the wait reaches it."""
 
     def __init__(self):
         self.now = START
+        self.events = []
 
     def __call__(self):
         return self.now
 
+    def at(self, seconds, action):
+        self.events.append((START + datetime.timedelta(seconds=seconds),
+                            action))
+
     def sleep(self, seconds):
         self.now += datetime.timedelta(seconds=seconds)
+        due = [event for event in self.events if event[0] <= self.now]
+        for event in sorted(due, key=lambda event: event[0]):
+            self.events.remove(event)
+            event[1]()
 
 
 class TestCreator(unittest.TestCase):
@@ -61,6 +72,13 @@ class TestCreator(unittest.TestCase):
 
     def test_stack_is_created_once_the_reservation_is_active(self):
         self.activate_after(polls=3)
+        create_stack = self.heat.create_stack
+        created_at = []
+
+        def timed(*args):
+            created_at.append(self.clock.now)
+            return create_stack(*args)
+        self.heat.create_stack = timed
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
@@ -76,8 +94,7 @@ class TestCreator(unittest.TestCase):
                           'ssh_allowed_cidr': '203.0.113.0/24'}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
-        self.assertEqual(START + datetime.timedelta(seconds=4),
-                         self.clock.now)
+        self.assertEqual([START + datetime.timedelta(seconds=4)], created_at)
 
     def test_gives_up_without_a_stack_at_the_timeout(self):
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -166,6 +183,119 @@ class TestCreator(unittest.TestCase):
 
         self.assertEqual(Status.ERROR, self.stored().status)
         self.assertIn('requires authentication', self.stored().fault)
+
+
+class TestFollow(unittest.TestCase):
+    """After creating the stack the task follows the orb, without reads."""
+
+    def setUp(self):
+        conf.CONF([], project='orbit', default_config_files=[])
+        self.addCleanup(conf.CONF.reset)
+        self.clients = fakes.fake_clients()
+        self.blazar, self.heat = self.clients.blazar, self.clients.heat
+        self.nova = self.clients.nova
+        self.repository = fakes.repository()
+        self.clock = FakeClock()
+        self.creator = creation.Creator(self.repository, 'template-text',
+                                        sleep=self.clock.sleep,
+                                        clock=self.clock)
+        lease = self.blazar.create_lease('orbit-x', None, None)
+        self.blazar.activate(lease.id)
+        self.orb = fakes.orb(lease_id=lease.id,
+                             reservation_id=lease.reservation_id,
+                             created_at=START)
+        self.repository.add(self.orb)
+
+    def stored(self):
+        return self.repository.get(self.orb.project_id, self.orb.id)
+
+    def elapsed(self):
+        return (self.clock.now - START).total_seconds()
+
+    def machine_up_at(self, seconds):
+        def up():
+            self.heat.set_status(self.orb.resource_name, 'CREATE_COMPLETE',
+                                 ssh_host='172.24.4.17',
+                                 server_id='server-1')
+            self.nova.servers['server-1'] = clients.Server('server-1',
+                                                           'ACTIVE')
+        self.clock.at(seconds, up)
+
+    def keys_on_console_at(self, seconds):
+        def printed():
+            self.nova.consoles['server-1'] = fakes.CONSOLE
+        self.clock.at(seconds, printed)
+
+    def run_creation(self):
+        self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
+
+    def test_orb_becomes_active_with_its_keys_without_any_read(self):
+        self.machine_up_at(30)
+        self.keys_on_console_at(200)
+
+        self.run_creation()
+
+        self.assertEqual(Status.ACTIVE, self.stored().status)
+        self.assertEqual((fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519),
+                         self.stored().ssh_host_keys)
+        self.assertEqual(200, self.elapsed())
+
+    def test_machine_without_keys_goes_to_error_at_ready_timeout(self):
+        self.machine_up_at(30)
+
+        self.run_creation()
+
+        self.assertEqual(Status.ERROR, self.stored().status)
+        self.assertEqual(lifecycle.HOST_KEYS_MISSING, self.stored().fault)
+        self.assertEqual(600, self.elapsed())
+
+    def test_orb_deleted_while_followed_stays_deleting(self):
+        self.machine_up_at(30)
+        self.clock.at(40, lambda: self.repository.update(
+            self.orb.id, Status.BUILDING, status=Status.DELETING))
+
+        self.run_creation()
+
+        self.assertEqual(Status.DELETING, self.stored().status)
+        self.assertEqual(40, self.elapsed())
+
+    def test_failed_stack_ends_the_orb_in_error_with_heat_reason(self):
+        self.clock.at(10, lambda: self.heat.set_status(
+            self.orb.resource_name, 'CREATE_FAILED',
+            'Resource CREATE failed: port quota'))
+
+        self.run_creation()
+
+        self.assertEqual(Status.ERROR, self.stored().status)
+        self.assertEqual('Resource CREATE failed: port quota',
+                         self.stored().fault)
+        self.assertEqual(10, self.elapsed())
+
+    def test_refused_token_stops_following_and_leaves_the_status(self):
+        def expired(lease_id):
+            raise clients.Rejected('The request you have made requires '
+                                   'authentication.', 401)
+        self.clock.at(10, lambda: setattr(self.blazar, 'get_lease', expired))
+
+        self.run_creation()
+
+        self.assertEqual(Status.BUILDING, self.stored().status)
+        self.assertEqual(10, self.elapsed())
+
+    def test_unreachable_heat_is_retried_until_the_orb_is_active(self):
+        get_stack = self.heat.get_stack
+
+        def down(name):
+            raise clients.Unavailable('orchestration', 'down')
+        self.clock.at(10, lambda: setattr(self.heat, 'get_stack', down))
+        self.clock.at(20, lambda: setattr(self.heat, 'get_stack', get_stack))
+        self.machine_up_at(30)
+        self.keys_on_console_at(30)
+
+        self.run_creation()
+
+        self.assertEqual(Status.ACTIVE, self.stored().status)
+        self.assertEqual(30, self.elapsed())
 
 
 class TestTemplate(unittest.TestCase):
