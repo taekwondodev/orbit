@@ -5,6 +5,7 @@ from unittest import mock
 from orbit import clients
 from orbit import conf
 from orbit import orb as orb_model
+from orbit import reconciliation
 from orbit import service
 from orbit.tests.unit import fakes
 
@@ -90,6 +91,23 @@ class TestRead(ServiceTestCase):
 
         self.assertEqual(1, self.nova.console_reads)
         self.assertEqual(Status.ACTIVE, observed.orb.status)
+        self.assertEqual(HOST_KEYS, observed.orb.ssh_host_keys)
+
+    def test_read_overtaken_by_the_creation_task_reports_the_address(self):
+        self.build()
+        stale = self.stored()
+        # The creation task records ACTIVE while this read is under way.
+        reconciliation.reconcile(self.repository, stale, self.clients,
+                                 orb_model.utcnow())
+        latest = self.repository.get
+        reads = [stale]
+        self.repository.get = lambda *args: (
+            reads.pop() if reads else latest(*args))
+
+        observed = self.orbs.get(CONTEXT, self.orb.id)
+
+        self.assertEqual(Status.ACTIVE, observed.orb.status)
+        self.assertEqual('172.24.4.17', observed.ssh_host)
         self.assertEqual(HOST_KEYS, observed.orb.ssh_host_keys)
 
     def test_console_is_not_read_past_the_ready_limit(self):

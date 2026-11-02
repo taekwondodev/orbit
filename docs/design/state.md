@@ -76,7 +76,7 @@ The console is read only while the orb has no stored host keys, is not being del
 
 The task that waits for the reservation and creates the stack lives only in memory, in the process that received the request: no other process can know whether it is still running. That is why the criterion is time: an orb without a stack beyond the configured wait limit is considered interrupted, and the task itself gives up when the same limit expires.
 
-Once the stack exists, the same task follows the orb: every `ready_poll_interval` it runs this reconciliation, as a read would, until the orb leaves `BUILDING`, with a last one at `ready_timeout`. An orb nobody reads during its boot thus still gets its host keys and becomes `ACTIVE`. A refusal from the services ends the following, which leaves the orb to reads; an unreachable service is retried at the next interval.
+Once the stack exists, the same task follows the orb: every `ready_poll_interval` it runs this reconciliation, as a read would, until the orb leaves `BUILDING`, with a last one at `ready_timeout`. An orb nobody reads during its boot thus still gets its host keys and becomes `ACTIVE`. A refusal from the services ends the following, which leaves the orb to reads; an unreachable service is retried at the next interval. A read and the task may reconcile the same orb at once: whichever finds the row already rewritten by the other reconciles again from that row, so a read never returns an orb `ACTIVE` without its address.
 
 Every action is repeatable without harm: deleting a stack or a lease already deleted and re-reading resources that are gone must lead to the same result.
 

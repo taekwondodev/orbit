@@ -58,8 +58,10 @@ def reconcile(repository, orb, clients, now):
         return Observed(orb, observation.ssh_host)
     if not repository.update(orb.id, orb.status, **changes):
         # Another request, or the creation task, wrote first: its
-        # version wins, and is checked again on the next read.
-        return Observed(repository.get(orb.project_id, orb.id))
+        # version wins, and is checked again now, so that an orb it
+        # made ACTIVE comes back with its address.
+        return reconcile(repository, repository.get(orb.project_id, orb.id),
+                         clients, now)
     return Observed(repository.get(orb.project_id, orb.id),
                     observation.ssh_host)
 
