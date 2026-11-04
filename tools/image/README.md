@@ -27,7 +27,7 @@ The build downloads nothing. It reads `$B/dl/`, which is not in the repository, 
 ```
 
 - `rootfs/alpine-minirootfs-3.24.3-aarch64.tar.gz` is Alpine's minimal root filesystem. `ROOTFS_SHA256` in `lib.sh` pins its hash.
-- `packages/tinycloud/` holds every package of the image, 96 APKs with all their transitive dependencies, and `SHA256SUMS`, one `<sha256>  <file>` line per APK. The build copies exactly those files into the root filesystem and installs them with `apk add --no-network`; apk still checks Alpine's signatures. No repository is resolved, so a newer package never changes the image.
+- `packages/tinycloud/` holds every package of the image, 95 APKs with all their transitive dependencies, and `SHA256SUMS`, one `<sha256>  <file>` line per APK. The build copies exactly those files into the root filesystem and installs them with `apk add --no-network`; apk still checks Alpine's signatures. No repository is resolved, so a newer package never changes the image.
 - All the APKs come from Alpine's `v3.24` `main` and `community` repositories, except the three tiny-cloud ones (`tiny-cloud`, `tiny-cloud-openrc`, `tiny-cloud-openstack`, version `3.5.0_rc6-r0`), which come from `edge/main`. Edge removes old versions, so keep `dl/` once you have it: it is the only copy of those three files that this directory can rebuild from.
 
 ## Build and upload
