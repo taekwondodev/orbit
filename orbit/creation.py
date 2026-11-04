@@ -17,6 +17,7 @@ from oslo_log import log
 
 from orbit import clients as orbit_clients
 from orbit.conf import CONF
+from orbit import egress
 from orbit import orb as orb_model
 from orbit import reconciliation
 
@@ -138,6 +139,10 @@ class Creator:
 
     @staticmethod
     def _parameters(orb, public_key):
+        destinations = [egress.parse_destination(value)
+                        for value in CONF.orbs.egress_destinations]
+        proxy = (egress.parse_proxy(CONF.orbs.egress_proxy)
+                 if CONF.orbs.egress_proxy else None)
         return {
             'orb_id': orb.id,
             'reservation_id': orb.reservation_id,
@@ -145,4 +150,6 @@ class Creator:
             'public_key': public_key,
             'public_network': CONF.orbs.public_network,
             'ssh_allowed_cidr': orb.ssh_allowed_cidr,
+            'egress_rules': egress.rules(destinations, proxy),
+            'user_data': egress.user_data(destinations, proxy),
         }

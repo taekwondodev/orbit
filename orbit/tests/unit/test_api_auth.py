@@ -44,6 +44,26 @@ class TestAuthentication(unittest.TestCase):
                                             'ssh_allowed_cidr'):
                     app.create_wsgi_app()
 
+    def test_api_does_not_start_with_an_invalid_egress_destination(self):
+        conf.CONF.set_override('egress_destinations',
+                               ['udp:10.0.0.2:53', 'tcp:10.0.0.0/8:443'],
+                               'orbs')
+
+        with self.assertRaisesRegex(conf.InvalidOption,
+                                    'egress_destinations'):
+            app.create_wsgi_app()
+
+    def test_api_does_not_start_with_an_invalid_egress_proxy(self):
+        conf.CONF.set_override('egress_proxy', 'proxy.example:3128', 'orbs')
+
+        with self.assertRaisesRegex(conf.InvalidOption, 'egress_proxy'):
+            app.create_wsgi_app()
+
+    def test_api_starts_with_an_empty_egress_proxy_as_without_one(self):
+        conf.CONF.set_override('egress_proxy', '', 'orbs')
+
+        app.create_wsgi_app()
+
     def test_api_does_not_start_with_a_minimum_prefix_out_of_range(self):
         with tempfile.NamedTemporaryFile('w', suffix='.conf') as config:
             config.write('[orbs]\nssh_min_prefix = 0\n')

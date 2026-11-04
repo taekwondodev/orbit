@@ -518,3 +518,16 @@
 # Without a value, any network but the whole Internet is accepted. (string
 # value)
 #ssh_allowed_cidr = <None>
+
+# Destinations every orb may open connections to, as protocol:address:port with
+# protocol tcp or udp and a single IPv4 address. Everything else is denied
+# (docs/adr/0009). Never list a control-plane service or the networks clients
+# connect from. (list value)
+#egress_destinations =
+
+# HTTP egress proxy every orb reaches external destinations through, as
+# address:port with a single IPv4 address. Each orb may connect to it over TCP
+# and gets it in the environment of its SSH sessions, kept by sudo, and in its
+# apt configuration. The proxy decides which hostnames are reachable; without a
+# value, orbs reach no external destination. (string value)
+#egress_proxy = <None>

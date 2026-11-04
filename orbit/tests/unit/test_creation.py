@@ -91,7 +91,9 @@ class TestCreator(unittest.TestCase):
                           'image': 'cirros',
                           'public_key': fakes.PUBLIC_KEY,
                           'public_network': 'public',
-                          'ssh_allowed_cidr': '203.0.113.0/24'}, parameters)
+                          'ssh_allowed_cidr': '203.0.113.0/24',
+                          'egress_rules': [],
+                          'user_data': ''}, parameters)
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual([START + datetime.timedelta(seconds=4)], created_at)
@@ -161,6 +163,21 @@ class TestCreator(unittest.TestCase):
 
         self.assertEqual(Status.ERROR, self.stored().status)
         self.assertEqual('Quota exceeded for ports', self.stored().fault)
+
+    def test_stack_receives_the_operators_destinations_and_proxy(self):
+        conf.CONF.set_override('egress_destinations', ['udp:10.0.0.2:53'],
+                               'orbs')
+        conf.CONF.set_override('egress_proxy', '172.24.4.1:4750', 'orbs')
+        self.activate_after(polls=1)
+
+        self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
+
+        parameters = self.heat.created[0][2]
+        self.assertEqual(['10.0.0.2/32', '172.24.4.1/32'],
+                         [rule['remote_ip_prefix']
+                          for rule in parameters['egress_rules']])
+        self.assertIn('https_proxy=http://172.24.4.1:4750',
+                      parameters['user_data'])
 
     def test_unexpected_failure_is_recorded_inside_the_thread(self):
         def broken(lease_id):
@@ -313,6 +330,23 @@ class TestTemplate(unittest.TestCase):
 
         self.assertLessEqual(required, sent)
         self.assertLessEqual(sent, set(parameters))
+
+    def test_outbound_traffic_is_denied_unless_listed(self):
+        resources = yaml.safe_load(creation.load_template())['resources']
+
+        rules = resources['security_group']['properties']['rules']
+        fixed, listed = rules['list_concat']
+        self.assertEqual({'get_param': 'egress_rules'}, listed)
+        # Heat keeps Neutron's allow-all egress rules unless the group
+        # declares one: the template always does, towards loopback only.
+        egress_rules = [rule for rule in fixed
+                        if rule.get('direction') == 'egress']
+        self.assertEqual(['127.0.0.1/32'],
+                         [rule['remote_ip_prefix'] for rule in egress_rules])
+        # Without egress the machine cannot reach the metadata service.
+        server = resources['server']['properties']
+        self.assertIs(True, server['config_drive'])
+        self.assertEqual({'get_param': 'user_data'}, server['user_data'])
 
     def test_machine_is_reachable_only_through_its_own_router(self):
         resources = yaml.safe_load(creation.load_template())['resources']

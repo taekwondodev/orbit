@@ -27,7 +27,7 @@ What the service does not do, such as entering the orb or deciding when it ends,
 
 ![Composition of an orb: a Blazar lease with reservation and flavor, outside the stack, and a Heat stack with network, subnet, router, security group, port, floating IP, key and machine](img/orb.svg)
 
-The resources are those of the [template](../orbit/templates/orb.yaml). Why the lease sits outside the stack: [0005](adr/0005-lease-beside-the-stack.md); why each orb has its own network: [0006](adr/0006-own-network-per-orb.md).
+The resources are those of the [template](../orbit/templates/orb.yaml). Why the lease sits outside the stack: [0005](adr/0005-lease-beside-the-stack.md); why each orb has its own network: [0006](adr/0006-own-network-per-orb.md); why its outbound traffic is denied except towards listed destinations: [0009](adr/0009-default-deny-egress.md).
 
 ## Sequence of an orb
 
@@ -51,7 +51,8 @@ Besides its own processes, the plugin must:
 - register the service and its endpoint in the Keystone catalog;
 - register the compute host in Blazar, without which no lease can be created;
 - leave Blazar's `max_lease_duration` at its default `-1`, which does not limit the duration of leases;
-- when Horizon is enabled, copy the panel's enabled files into Horizon in the `post-config` phase, which `stack.sh` runs before Horizon compresses its static files and starts.
+- when Horizon is enabled, copy the panel's enabled files into Horizon in the `post-config` phase, which `stack.sh` runs before Horizon compresses its static files and starts;
+- with `ORBIT_EGRESS_PROXY=True`, install Smokescreen at a pinned release, then, in `extra`, once DevStack has created the public subnet and given its gateway address to the host, configure it with `ORBIT_EGRESS_PROXY_DOMAINS` to listen on that address, set `[orbs] egress_proxy` before orbit-api starts, and start it ([0009](adr/0009-default-deny-egress.md)).
 
 Host registration happens in the `extra` phase, but DevStack maps hosts into the Nova cell only after that phase, and the Nova API does not show unmapped hypervisors. The plugin therefore runs `nova-manage cell_v2 discover_hosts`, which is repeatable, before looking them up.
 
@@ -62,4 +63,5 @@ Once the host is registered, Nova's `BlazarFilter` reserves it for reservations:
 The plugin configures only DevStack's default image. An operator who uploads another image to Glance, such as an Ubuntu cloud image, also takes care of two things:
 
 - **The SSH user.** orbit returns the user of `[orbs] ssh_users` for the image, or `default_ssh_user` (`ubuntu`) when the image has no entry. An image whose user is neither needs an entry by hand. `stack.sh` rewrites `orbit.conf`, but it also deletes every Glance image, so the entry is added again with the image.
-- **cloud-init on aarch64 without KVM.** On a host where Nova emulates the guest (`virt_type = qemu`), the guest gets no OpenStack SMBIOS, so cloud-init finds no datasource and disables itself. The machine then never prints its host keys, and the orb ends in `ERROR` with `SSH host keys not published on the console`. The Glance property `img_config_drive=mandatory` makes cloud-init read the config drive instead. CirrOS does not use cloud-init and is not affected.
+- **cloud-init on aarch64 without KVM.** On a host where Nova emulates the guest (`virt_type = qemu`), the guest gets no OpenStack SMBIOS, so cloud-init would find no datasource and disable itself. The template always asks for a config drive ([0009](adr/0009-default-deny-egress.md)), which cloud-init reads instead. CirrOS does not use cloud-init and is not affected.
+- **The egress proxy.** orbit passes the proxy as cloud-config user data that writes a `SetEnv` file in `/etc/ssh/sshd_config.d/` and a `sudoers.d` file. The image's initializer, cloud-init or tiny-cloud, must write them before sshd starts, its `sshd_config` must include `sshd_config.d` and its `sudoers` must include `sudoers.d`. Ubuntu cloud images do, and so do Alpine's `openssh-server` and `sudo` packages. Without them the orb gets no proxy setting, and external destinations stay unreachable.
