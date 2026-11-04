@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest import mock
 
 from oslo_db.sqlalchemy import enginefacade
 import sqlalchemy as sa
@@ -7,6 +8,8 @@ from werkzeug import test as werkzeug_test
 
 from orbit.api import app
 from orbit import conf
+from orbit.db import api as db_api
+from orbit.tests.unit import fakes
 
 
 class TestAuthentication(unittest.TestCase):
@@ -20,20 +23,30 @@ class TestAuthentication(unittest.TestCase):
         conf.CONF.set_override('connection', 'sqlite://', 'database')
 
     def test_request_without_token_is_rejected(self):
-        client = werkzeug_test.Client(app.create_wsgi_app())
+        for proxy in (None, ''):
+            with self.subTest(egress_proxy=proxy):
+                conf.CONF.set_override('egress_proxy', proxy, 'orbs')
+                client = werkzeug_test.Client(app.create_wsgi_app())
 
-        response = client.get('/v1/orbs')
+                response = client.get('/v1/orbs')
 
-        self.assertEqual(401, response.status_code)
-        self.assertIn('keystone.invalid',
-                      response.headers['WWW-Authenticate'])
+                self.assertEqual(401, response.status_code)
+                self.assertIn('keystone.invalid',
+                              response.headers['WWW-Authenticate'])
 
     def test_api_creates_its_table_and_starts_again_with_it(self):
-        app.create_wsgi_app()
-        app.create_wsgi_app()
+        engine = sa.create_engine('sqlite://')
+        self.addCleanup(engine.dispose)
+        repository = db_api.OrbRepository(engine)
+        orb = fakes.orb()
 
-        engine = enginefacade.writer.get_engine()
-        self.assertIn('orbs', sa.inspect(engine).get_table_names())
+        with mock.patch.object(enginefacade.writer, 'get_engine',
+                               return_value=engine):
+            app.create_wsgi_app()
+            repository.add(orb)
+            app.create_wsgi_app()
+
+        self.assertEqual(orb, repository.get(orb.project_id, orb.id))
 
     def test_api_does_not_start_with_an_invalid_ssh_cap(self):
         for cap in ('harness', '198.51.100.20/24', '2001:db8::/32'):
@@ -58,11 +71,6 @@ class TestAuthentication(unittest.TestCase):
 
         with self.assertRaisesRegex(conf.InvalidOption, 'egress_proxy'):
             app.create_wsgi_app()
-
-    def test_api_starts_with_an_empty_egress_proxy_as_without_one(self):
-        conf.CONF.set_override('egress_proxy', '', 'orbs')
-
-        app.create_wsgi_app()
 
     def test_api_does_not_start_with_a_minimum_prefix_out_of_range(self):
         with tempfile.NamedTemporaryFile('w', suffix='.conf') as config:

@@ -61,12 +61,10 @@ class OrbRepository:
             row = conn.execute(query).one_or_none()
         return _to_orb(row) if row else None
 
-    def list(self, project_id, status=None):
+    def list(self, project_id):
         query = (orbs.select()
                  .where(orbs.c.project_id == project_id)
                  .order_by(orbs.c.created_at))
-        if status is not None:
-            query = query.where(orbs.c.status == status.value)
         with self._engine.connect() as conn:
             return [_to_orb(row) for row in conn.execute(query)]
 

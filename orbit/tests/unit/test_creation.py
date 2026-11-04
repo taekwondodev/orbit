@@ -97,6 +97,11 @@ class TestCreator(unittest.TestCase):
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual([START + datetime.timedelta(seconds=4)], created_at)
+        declared = yaml.safe_load(creation.load_template())['parameters']
+        required = {name for name, spec in declared.items()
+                    if 'default' not in spec}
+        self.assertLessEqual(required, set(parameters))
+        self.assertLessEqual(set(parameters), set(declared))
 
     def test_gives_up_without_a_stack_at_the_timeout(self):
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -114,7 +119,7 @@ class TestCreator(unittest.TestCase):
 
         self.assertEqual([], self.heat.created)
 
-    def test_unreachable_blazar_is_retried_until_the_timeout(self):
+    def test_creation_recovers_when_blazar_is_temporarily_unreachable(self):
         get_lease = self.blazar.get_lease
         failures = []
 
@@ -321,17 +326,7 @@ class TestTemplate(unittest.TestCase):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
 
-    def test_creator_sends_exactly_the_parameters_the_template_needs(self):
-        parameters = yaml.safe_load(creation.load_template())['parameters']
-        required = {name for name, spec in parameters.items()
-                    if 'default' not in spec}
-
-        sent = set(creation.Creator._parameters(fakes.orb(), 'key'))
-
-        self.assertLessEqual(required, sent)
-        self.assertLessEqual(sent, set(parameters))
-
-    def test_outbound_traffic_is_denied_unless_listed(self):
+    def test_template_limits_egress_to_boot_and_listed_destinations(self):
         resources = yaml.safe_load(creation.load_template())['resources']
 
         rules = resources['security_group']['properties']['rules']
@@ -343,18 +338,24 @@ class TestTemplate(unittest.TestCase):
         # gets no address.
         egress_rules = [rule for rule in fixed
                         if rule.get('direction') == 'egress']
-        self.assertEqual(['127.0.0.1/32', '255.255.255.255/32',
-                          {'get_param': 'cidr'}],
-                         [rule['remote_ip_prefix'] for rule in egress_rules])
-        self.assertEqual([67, 67],
-                         [rule['port_range_min'] for rule in egress_rules
-                          if rule['protocol'] == 'udp'])
+        self.assertCountEqual(
+            [{'direction': 'egress', 'protocol': 'icmp',
+              'remote_ip_prefix': '127.0.0.1/32'},
+             {'direction': 'egress', 'protocol': 'udp',
+              'remote_ip_prefix': '255.255.255.255/32',
+              'port_range_min': 67, 'port_range_max': 67},
+             {'direction': 'egress', 'protocol': 'udp',
+              'remote_ip_prefix': {'get_param': 'cidr'},
+              'port_range_min': 67, 'port_range_max': 67}],
+            egress_rules)
+        self.assertEqual([{'get_resource': 'security_group'}],
+                         resources['port']['properties']['security_groups'])
         # Without egress the machine cannot reach the metadata service.
         server = resources['server']['properties']
         self.assertIs(True, server['config_drive'])
         self.assertEqual({'get_param': 'user_data'}, server['user_data'])
 
-    def test_machine_is_reachable_only_through_its_own_router(self):
+    def test_template_connects_machine_through_its_own_router(self):
         resources = yaml.safe_load(creation.load_template())['resources']
 
         port = resources['port']['properties']

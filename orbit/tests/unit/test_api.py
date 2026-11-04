@@ -77,13 +77,23 @@ class TestCreate(ApiTestCase):
         self.assertEqual([], self.creator.started)
 
     def test_unreachable_blazar_is_503_without_its_details(self):
-        self.blazar.refuse_with = clients.Unavailable(
+        orb_id = self.create().get_json()['id']
+        unavailable = clients.Unavailable(
             'reservation', 'Traceback ... 10.0.0.5')
+        self.blazar.refuse_with = unavailable
 
-        response = self.create()
+        def down(lease_id):
+            raise unavailable
+        self.blazar.get_lease = down
 
-        self.assertEqual(503, response.status_code)
-        self.assertNotIn('10.0.0.5', response.get_data(as_text=True))
+        for operation, response in (
+                ('create', self.create()),
+                ('read', self.request('GET', f'/v1/orbs/{orb_id}')),
+                ('list', self.request('GET', '/v1/orbs'))):
+            with self.subTest(operation=operation):
+                self.assertEqual(503, response.status_code)
+                self.assertEqual(503, response.get_json()['error']['code'])
+                self.assertNotIn('10.0.0.5', response.get_data(as_text=True))
 
     def test_refusals_downstream_are_json_errors(self):
         for code, expected in ((401, 401), (403, 403), (400, 502)):
@@ -97,11 +107,16 @@ class TestCreate(ApiTestCase):
                                  response.get_json()['error']['code'])
 
     def test_invalid_requests_are_400_and_reserve_nothing(self):
+        conf.CONF.set_override('max_vcpus', 4, 'orbs')
+        conf.CONF.set_override('max_memory_mb', 8192, 'orbs')
+        conf.CONF.set_override('max_disk_gb', 40, 'orbs')
         invalid = [
             {'size': None},
             {'size': {'vcpus': 2, 'memory_mb': 4096}},
             {'size': {'vcpus': 0, 'memory_mb': 4096, 'disk_gb': 20}},
-            {'size': {'vcpus': 9, 'memory_mb': 4096, 'disk_gb': 20}},
+            {'size': {'vcpus': 5, 'memory_mb': 4096, 'disk_gb': 20}},
+            {'size': {'vcpus': 2, 'memory_mb': 8193, 'disk_gb': 20}},
+            {'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 41}},
             {'size': {'vcpus': True, 'memory_mb': 4096, 'disk_gb': 20}},
             {'size': {'vcpus': '2', 'memory_mb': 4096, 'disk_gb': 20}},
             {'public_key': None},

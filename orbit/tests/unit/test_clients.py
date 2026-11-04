@@ -101,9 +101,12 @@ class TestBlazar(unittest.TestCase):
         self.addCleanup(conf.CONF.reset)
         conf.CONF.set_override('api_timeout', 7, 'orbs')
 
-        session = clients.for_auth(None).blazar._api.session
+        self.http.get(f'{BLAZAR}/leases/lease-1', json=_lease_body())
+        auth = token_endpoint.Token(BLAZAR, 'user-token')
 
-        self.assertEqual(7, session.timeout)
+        clients.for_auth(auth).blazar.get_lease('lease-1')
+
+        self.assertEqual(7, self.http.last_request.timeout)
 
     def test_unreachable_blazar_means_unavailable(self):
         self.http.get(f'{BLAZAR}/leases/lease-1',

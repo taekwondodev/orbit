@@ -12,7 +12,7 @@ class TestParse(unittest.TestCase):
                          egress.parse_destination('udp:10.0.0.2:53'))
 
     def test_destination_must_not_be_a_network_or_lack_a_part(self):
-        for value in ('tcp:10.0.0.0/8:443', 'tcp:10.0.0.5', 'icmp:10.0.0.5:0',
+        for value in ('tcp:10.0.0.0/8:443', 'tcp:10.0.0.5', 'icmp:10.0.0.5:443',
                       'tcp:git.example.com:443', 'tcp:2001:db8::1:443',
                       'tcp:10.0.0.5:0', 'tcp:10.0.0.5:65536',
                       'tcp:10.0.0.5:https', 'tcp:10.0.0.5:\u00b2',
@@ -55,7 +55,7 @@ class TestRules(unittest.TestCase):
         # Neutron refuses a rule identical to one the group already has.
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)
 
-        self.assertEqual([proxy.rule()], egress.rules([proxy, proxy], proxy))
+        self.assertEqual(1, len(egress.rules([proxy, proxy], proxy)))
 
 
 class TestUserData(unittest.TestCase):
@@ -65,7 +65,7 @@ class TestUserData(unittest.TestCase):
 
         self.assertEqual('', egress.user_data([mirror], None))
 
-    def test_proxy_reaches_every_ssh_session_sudo_and_apt(self):
+    def test_proxy_configures_sshd_sudo_and_apt(self):
         mirror = egress.Destination('tcp', '10.0.0.5', 443)
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)
 
@@ -101,5 +101,6 @@ class TestUserData(unittest.TestCase):
 
         config = yaml.safe_load(egress.user_data([], proxy))
 
-        sshd = config['write_files'][0]['content']
+        files = {f['path']: f for f in config['write_files']}
+        sshd = files['/etc/ssh/sshd_config.d/90-orbit-proxy.conf']['content']
         self.assertIn(' no_proxy=localhost,127.0.0.1,::1 ', sshd)

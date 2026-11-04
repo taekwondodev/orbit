@@ -155,14 +155,6 @@ class TestRead(ServiceTestCase):
             o.orb.id for o in self.orbs.list(CONTEXT, Status.ACTIVE)])
         self.assertEqual([], self.orbs.list(CONTEXT, Status.BUILDING))
 
-    def test_unreachable_service_surfaces_as_unavailable(self):
-        def down(lease_id):
-            raise clients.Unavailable('reservation', 'down')
-        self.blazar.get_lease = down
-
-        with self.assertRaises(clients.Unavailable):
-            self.orbs.get(CONTEXT, self.orb.id)
-
 
 class TestDelete(ServiceTestCase):
 
@@ -180,11 +172,11 @@ class TestDelete(ServiceTestCase):
 
     def test_delete_is_repeatable(self):
         self.build()
-        first = self.orbs.delete(CONTEXT, self.orb.id)
+        self.orbs.delete(CONTEXT, self.orb.id)
 
         second = self.orbs.delete(CONTEXT, self.orb.id)
 
-        self.assertEqual(first.orb.status, second.orb.status)
+        self.assertEqual(Status.DELETING, second.orb.status)
 
     def test_delete_of_a_deleted_orb_answers_the_same_and_calls_nobody(self):
         self.orbs.delete(CONTEXT, self.orb.id)

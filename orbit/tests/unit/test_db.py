@@ -25,7 +25,7 @@ class TestOrbRepository(unittest.TestCase):
         self.assertIsNone(self.repo.get('project-b', orb.id))
         self.assertEqual([], self.repo.list('project-b'))
 
-    def test_list_returns_only_the_project_orbs_filtered_by_status(self):
+    def test_list_returns_only_the_project_orbs(self):
         mine = fakes.orb(id='a')
         active = fakes.orb(id='b', status=Status.ACTIVE)
         other = fakes.orb(id='c', project_id='project-b')
@@ -34,8 +34,6 @@ class TestOrbRepository(unittest.TestCase):
 
         self.assertEqual(['a', 'b'],
                          [o.id for o in self.repo.list('project-a')])
-        self.assertEqual(['b'], [o.id for o in self.repo.list(
-            'project-a', status=Status.ACTIVE)])
 
     def test_update_applies_when_status_is_the_expected_one(self):
         orb = fakes.orb()
