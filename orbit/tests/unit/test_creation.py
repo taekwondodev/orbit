@@ -338,11 +338,17 @@ class TestTemplate(unittest.TestCase):
         fixed, listed = rules['list_concat']
         self.assertEqual({'get_param': 'egress_rules'}, listed)
         # Heat keeps Neutron's allow-all egress rules unless the group
-        # declares one: the template always does, towards loopback only.
+        # declares one: the template always does, towards loopback, and
+        # towards the network's own DHCP service, without which the machine
+        # gets no address.
         egress_rules = [rule for rule in fixed
                         if rule.get('direction') == 'egress']
-        self.assertEqual(['127.0.0.1/32'],
+        self.assertEqual(['127.0.0.1/32', '255.255.255.255/32',
+                          {'get_param': 'cidr'}],
                          [rule['remote_ip_prefix'] for rule in egress_rules])
+        self.assertEqual([67, 67],
+                         [rule['port_range_min'] for rule in egress_rules
+                          if rule['protocol'] == 'udp'])
         # Without egress the machine cannot reach the metadata service.
         server = resources['server']['properties']
         self.assertIs(True, server['config_drive'])

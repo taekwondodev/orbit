@@ -111,7 +111,11 @@ resources:
       # Heat removes Neutron's default allow-all egress rules, IPv4 and IPv6,
       # only when the group declares an egress rule. The loopback rule is
       # always declared so that an empty list still denies all outbound
-      # traffic; loopback traffic never leaves the machine.
+      # traffic; loopback traffic never leaves the machine. The DHCP rules
+      # are the exception: Neutron's OVN driver applies the group's egress
+      # rules to the machine's DHCP requests too, and without a lease the
+      # machine has no address. They reach only the network's own DHCP
+      # service, never an outside host.
       rules:
         list_concat:
           - - protocol: tcp
@@ -121,6 +125,16 @@ resources:
             - direction: egress
               protocol: icmp
               remote_ip_prefix: 127.0.0.1/32
+            - direction: egress
+              protocol: udp
+              port_range_min: 67
+              port_range_max: 67
+              remote_ip_prefix: 255.255.255.255/32
+            - direction: egress
+              protocol: udp
+              port_range_min: 67
+              port_range_max: 67
+              remote_ip_prefix: { get_param: cidr }
           - { get_param: egress_rules }
 
   port:

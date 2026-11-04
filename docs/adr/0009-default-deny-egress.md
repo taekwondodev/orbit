@@ -20,7 +20,7 @@ On DevStack the plugin runs [Smokescreen](https://github.com/stripe/smokescreen)
 
 ## Accepted consequences
 
-- Heat removes Neutron's default allow-all egress rules only when a security group declares an egress rule, so the template always declares one towards loopback, which never leaves the machine.
+- Heat removes Neutron's default allow-all egress rules only when a security group declares an egress rule, so the template always declares one towards loopback, which never leaves the machine. It also declares DHCP (UDP port 67) towards the broadcast address and the orb's own network: Neutron's OVN driver applies the group's egress rules to the machine's DHCP requests, and without a lease the machine has no address.
 - The machine cannot reach the metadata service, so the template asks for a config drive, from which cloud-init reads the key and the user data.
 - The environment comes from sshd's `SetEnv`, not from `/etc/environment` or a login shell: clients run commands over SSH without a login shell, and sshd may not use PAM, as on Alpine. An image gets the proxy only if its initializer, cloud-init or tiny-cloud, writes the files before sshd starts, its `sshd_config` includes `sshd_config.d` and its `sudoers` includes `sudoers.d`. CirrOS ignores the user data.
 - Tools that ignore `https_proxy` reach no external destination. SSH is one of them, so Git in an orb needs HTTPS remotes.
