@@ -6,6 +6,8 @@ from oslo_config import cfg
 from oslo_db import options as db_options
 from oslo_log import log
 
+from orbit import egress
+
 CONF = cfg.CONF
 
 orbs_opts = [
@@ -68,6 +70,20 @@ orbs_opts = [
                     'network, which must lie inside this one. Without a '
                     'value, any network but the whole Internet is '
                     'accepted.'),
+    cfg.ListOpt('egress_destinations', default=[],
+                help='Destinations every orb may open connections to, as '
+                     'protocol:address:port with protocol tcp or udp and a '
+                     'single IPv4 address. Everything else is denied '
+                     '(docs/adr/0009). Never list a control-plane service '
+                     'or the networks clients connect from.'),
+    cfg.StrOpt('egress_proxy',
+               help='HTTP egress proxy every orb reaches external '
+                    'destinations through, as address:port with a single '
+                    'IPv4 address. Each orb may connect to it over TCP and '
+                    'gets it in the environment of its SSH sessions, kept '
+                    'by sudo, and in its apt configuration. '
+                    'The proxy decides which hostnames are reachable; '
+                    'without a value, orbs reach no external destination.'),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')
@@ -97,6 +113,16 @@ def check_api_options():
         except ValueError as e:
             raise InvalidOption(
                 f'[orbs] ssh_allowed_cidr is not an IPv4 network: {e}') from e
+    for value in CONF.orbs.egress_destinations:
+        try:
+            egress.parse_destination(value)
+        except ValueError as e:
+            raise InvalidOption(f'[orbs] egress_destinations: {e}') from e
+    if CONF.orbs.egress_proxy:
+        try:
+            egress.parse_proxy(CONF.orbs.egress_proxy)
+        except ValueError as e:
+            raise InvalidOption(f'[orbs] egress_proxy: {e}') from e
     if CONF.orbs.ready_timeout <= CONF.orbs.creation_timeout:
         raise InvalidOption(
             '[orbs] ready_timeout must be greater than creation_timeout: '

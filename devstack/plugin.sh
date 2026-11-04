@@ -43,6 +43,84 @@ function configure_orbit_dashboard {
     done
 }
 
+# The lab's egress proxy (docs/adr/0009): Smokescreen, a CONNECT proxy that
+# admits only the listed hostnames and refuses private addresses and this
+# host's own. It listens only on the public network's gateway address, the
+# one the orbs' routers reach. DevStack creates that subnet and assigns the
+# address to the host after post-config, so the proxy is configured in extra.
+ORBIT_SMOKESCREEN_VERSION=v0.1.0
+ORBIT_SMOKESCREEN_CONF=$ORBIT_CONF_DIR/smokescreen.yaml
+ORBIT_SMOKESCREEN_ACL=$ORBIT_CONF_DIR/smokescreen-acl.yaml
+
+function install_orbit_egress_proxy {
+    local arch sum
+    case $(uname -m) in
+        aarch64)
+            arch=arm64
+            sum=f15ddd0dc2b2cbc6d7318f441928939eb9bedfab2a1881508af3096a1e24b7c9
+            ;;
+        x86_64)
+            arch=amd64
+            sum=4e1e447449e3cc653dae956208588722b5c8fe8ce894f633adc756a851d1ec46
+            ;;
+        *)
+            die $LINENO "no Smokescreen release for $(uname -m)"
+            ;;
+    esac
+    local name=smokescreen_${ORBIT_SMOKESCREEN_VERSION}_linux_$arch
+    local dir
+    dir=$(mktemp -d)
+    curl -fsSL -o $dir/$name.tar.gz \
+        https://github.com/stripe/smokescreen/releases/download/$ORBIT_SMOKESCREEN_VERSION/$name.tar.gz
+    echo "$sum  $dir/$name.tar.gz" | sha256sum -c - \
+        || die $LINENO "Smokescreen archive does not match its checksum"
+    tar -xzf $dir/$name.tar.gz -C $dir
+    sudo install -m 0755 $dir/$name/smokescreen /usr/local/bin/smokescreen
+    rm -rf $dir
+}
+
+function configure_orbit_egress_proxy {
+    if [[ ! "$ORBIT_EGRESS_PROXY_PORT" =~ ^[0-9]+$ ]]; then
+        die $LINENO "ORBIT_EGRESS_PROXY_PORT is not a port: $ORBIT_EGRESS_PROXY_PORT"
+    fi
+    local gateway
+    gateway=$(openstack --os-cloud devstack-admin subnet show \
+        "$PUBLIC_SUBNET_NAME" -f value -c gateway_ip)
+    if [[ -z "$gateway" || "$gateway" == "None" ]]; then
+        die $LINENO "the public subnet has no gateway for the egress proxy to listen on"
+    fi
+    cat > $ORBIT_SMOKESCREEN_CONF <<EOF
+ip: "$gateway"
+port: $ORBIT_EGRESS_PROXY_PORT
+acl_file: "$ORBIT_SMOKESCREEN_ACL"
+# Orbs present no client certificate: the ACL's default rule applies to them.
+allow_missing_role: true
+EOF
+    local domain domains
+    IFS=, read -ra domains <<< "$ORBIT_EGRESS_PROXY_DOMAINS"
+    {
+        echo "version: v1"
+        echo "services: []"
+        echo "default:"
+        echo "  project: orbit"
+        echo "  action: enforce"
+        if [[ ${#domains[@]} -eq 0 ]]; then
+            echo "  allowed_domains: []"
+        else
+            echo "  allowed_domains:"
+            for domain in "${domains[@]}"; do
+                echo "    - \"$domain\""
+            done
+        fi
+    } > $ORBIT_SMOKESCREEN_ACL
+    iniset $ORBIT_CONF orbs egress_proxy "$gateway:$ORBIT_EGRESS_PROXY_PORT"
+}
+
+function start_orbit_egress_proxy {
+    run_process orbit-egress-proxy \
+        "/usr/local/bin/smokescreen --config-file $ORBIT_SMOKESCREEN_CONF"
+}
+
 function init_orbit {
     # orbit-api creates its table when it starts.
     recreate_database orbit
@@ -100,6 +178,7 @@ function stop_orbit {
 function cleanup_orbit {
     remove_uwsgi_config "$ORBIT_UWSGI_CONF" orbit-api
     sudo rm -rf $ORBIT_CONF_DIR
+    sudo rm -f /usr/local/bin/smokescreen
     local file
     for file in $ORBIT_DASHBOARD_ENABLED; do
         rm -f $HORIZON_DIR/openstack_dashboard/local/enabled/$file
@@ -110,6 +189,9 @@ if is_service_enabled orbit-api; then
     if [[ "$1" == "stack" && "$2" == "install" ]]; then
         echo_summary "Installing orbit"
         install_orbit
+        if is_service_enabled orbit-egress-proxy; then
+            install_orbit_egress_proxy
+        fi
     elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         echo_summary "Configuring orbit"
         configure_orbit
@@ -121,11 +203,21 @@ if is_service_enabled orbit-api; then
     elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         echo_summary "Starting orbit"
         register_compute_hosts_in_blazar
+        # orbit-api reads egress_proxy when it starts.
+        if is_service_enabled orbit-egress-proxy; then
+            configure_orbit_egress_proxy
+        fi
         start_orbit
+        if is_service_enabled orbit-egress-proxy; then
+            start_orbit_egress_proxy
+        fi
     fi
 
     if [[ "$1" == "unstack" ]]; then
         stop_orbit
+        if is_service_enabled orbit-egress-proxy; then
+            stop_process orbit-egress-proxy
+        fi
     fi
 
     if [[ "$1" == "clean" ]]; then

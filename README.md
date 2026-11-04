@@ -30,6 +30,7 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
 - Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
 - Admits SSH only from the **network the client names** in each request: one address or a small network, within an optional cap set by the operator.
+- Lets the orb open **outbound connections only to the destinations the operator lists**, and reach external ones only through the operator's egress proxy.
 - **Deletes everything** with a single request, repeatable without error: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
@@ -97,6 +98,9 @@ orbit's client is an agent harness. The agent drives the REST API, `/v1/orbs`, b
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
+   # Optional: orbs reach the hostnames in ORBIT_EGRESS_PROXY_DOMAINS
+   # through a proxy on the host. Without it, orbs open no outbound connection.
+   ORBIT_EGRESS_PROXY=True
    EOF
    ```
 

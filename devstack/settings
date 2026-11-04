@@ -15,3 +15,14 @@ ORBIT_UWSGI_CONF=$ORBIT_CONF_DIR/orbit-api-uwsgi.ini
 # Service type in the Keystone catalog. It is not registered with the
 # OpenStack service types authority: it is a local choice of the project.
 ORBIT_SERVICE_TYPE=${ORBIT_SERVICE_TYPE:-orbit}
+
+# The lab's egress proxy (docs/adr/0009): Smokescreen on this host, which orbs
+# reach external destinations through. Off by default: without it, orbs open
+# no outbound connection.
+ORBIT_EGRESS_PROXY=$(trueorfalse False ORBIT_EGRESS_PROXY)
+ORBIT_EGRESS_PROXY_PORT=${ORBIT_EGRESS_PROXY_PORT:-4750}
+# Hostnames the proxy admits, comma-separated.
+ORBIT_EGRESS_PROXY_DOMAINS=${ORBIT_EGRESS_PROXY_DOMAINS:-github.com,codeload.github.com,objects.githubusercontent.com,registry.npmjs.org,pypi.org,files.pythonhosted.org,ports.ubuntu.com}
+if [[ "$ORBIT_EGRESS_PROXY" == "True" ]]; then
+    enable_service orbit-egress-proxy
+fi

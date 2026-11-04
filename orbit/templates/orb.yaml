@@ -5,7 +5,8 @@ description: >
   network, key, firewall, port, reachable address and machine, created inside
   an already active Blazar reservation. The lease is NOT part of this stack:
   the service creates it first and its reservation arrives here as a
-  parameter. See docs/adr/0005 and, for the network, docs/adr/0006.
+  parameter. See docs/adr/0005 and, for the network, docs/adr/0006 and
+  docs/adr/0009.
 
 parameters:
 
@@ -52,6 +53,21 @@ parameters:
       request (docs/adr/0008). No default, so that no orb is open to the whole
       Internet by omission.
 
+  egress_rules:
+    type: json
+    description: >
+      Egress rules of the destinations the operator lists and of the egress
+      proxy, one single host and port each (docs/adr/0009). Everything else
+      is denied.
+    default: []
+
+  user_data:
+    type: string
+    description: >
+      cloud-init user data that points the orb's tools at the egress proxy;
+      empty without one.
+    default: ''
+
 resources:
 
   network:
@@ -91,12 +107,35 @@ resources:
     type: OS::Neutron::SecurityGroup
     properties:
       name: { list_join: ['-', ['orbit', { get_param: orb_id }]] }
-      description: SSH access to an orbit orb.
+      description: SSH access to an orbit orb and its permitted destinations.
+      # Heat removes Neutron's default allow-all egress rules, IPv4 and IPv6,
+      # only when the group declares an egress rule. The loopback rule is
+      # always declared so that an empty list still denies all outbound
+      # traffic; loopback traffic never leaves the machine. The DHCP rules
+      # are the exception: Neutron's OVN driver applies the group's egress
+      # rules to the machine's DHCP requests too, and without a lease the
+      # machine has no address. They reach only the network's own DHCP
+      # service, never an outside host.
       rules:
-        - protocol: tcp
-          port_range_min: 22
-          port_range_max: 22
-          remote_ip_prefix: { get_param: ssh_allowed_cidr }
+        list_concat:
+          - - protocol: tcp
+              port_range_min: 22
+              port_range_max: 22
+              remote_ip_prefix: { get_param: ssh_allowed_cidr }
+            - direction: egress
+              protocol: icmp
+              remote_ip_prefix: 127.0.0.1/32
+            - direction: egress
+              protocol: udp
+              port_range_min: 67
+              port_range_max: 67
+              remote_ip_prefix: 255.255.255.255/32
+            - direction: egress
+              protocol: udp
+              port_range_min: 67
+              port_range_max: 67
+              remote_ip_prefix: { get_param: cidr }
+          - { get_param: egress_rules }
 
   port:
     type: OS::Neutron::Port
@@ -128,6 +167,12 @@ resources:
       image: { get_param: image }
       flavor: { get_param: reservation_id }
       key_name: { get_resource: keypair }
+      # With outbound traffic denied, the machine cannot reach the metadata
+      # service: cloud-init reads the key and the user data from the config
+      # drive.
+      config_drive: true
+      user_data_format: RAW
+      user_data: { get_param: user_data }
       networks:
         - port: { get_resource: port }
       metadata:

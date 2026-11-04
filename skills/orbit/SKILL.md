@@ -73,6 +73,8 @@ $ ssh -i <private-key> -o UserKnownHostsFile=orb_known_hosts -o StrictHostKeyChe
       "$(jq -r .ssh_user orb.json)@$(jq -r .ssh_host orb.json)" '<command>'
 ```
 
+The orb opens outbound connections only to the destinations the operator lists. External hosts are reachable only through the operator's egress proxy, already set in the environment of your SSH sessions, kept by `sudo`, and in apt's configuration, and only for the hostnames the proxy admits. Use HTTPS Git remotes: SSH ignores the proxy settings, so Git over SSH reaches no external host. A refused connection means the destination is not listed, or the image does not apply the proxy settings, not that it is down.
+
 ## 5. Delete the orb
 
 When the work ends, successful, failed or abandoned:
