@@ -1,6 +1,6 @@
 # Each creation request names the network the orb admits SSH from
 
-The orb's firewall admits SSH only from the IPv4 network named in the creation request (`ssh_allowed_cidr`, required); IPv4 because the orb's network and floating IP are IPv4 only. The service does not choose it: orbit serves several clients of different users, and only the client knows where it will connect from. A request wider than `[orbs] ssh_min_prefix` is rejected, because a client connects from one address or a small NAT pool. The operator may lower that limit for a client that needs a wider range, and may also cap the admitted networks with `[orbs] ssh_allowed_cidr`.
+Each creation request names the network admitted for SSH. The service cannot choose it because the API path need not match the client's SSH path, especially with routing, NAT or proxies. Restricting network breadth fits a single source address or small NAT pool while an operator-controlled cap can constrain the installation. The [API contract](../design/api.md#creation) owns the field and validation rules; [orbit/conf.py](../../orbit/conf.py) defines the configurable limits.
 
 ## Rejected alternatives
 

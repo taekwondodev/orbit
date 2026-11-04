@@ -30,13 +30,13 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
 - Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
 - Admits SSH only from the **network the client names** in each request: one address or a small network, within an optional cap set by the operator.
-- Lets the orb open **outbound connections only to the destinations the operator lists**, and reach external ones only through the operator's egress proxy.
-- **Deletes everything** with a single request, repeatable without error: capacity, flavor, machine and surrounding resources.
+- Restricts **outbound connections** to the operator's allowed destinations and egress proxy ([network policy](docs/adr/0009-default-deny-egress.md)).
+- **Deletes the orb's resources** through one repeatable operation: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
 ## What it does not do
 
-It does not enter the orb: it does not run commands, does not copy files, does not know what runs inside. It hands over an address and steps aside. It does not decide when an orb must end: whoever asked for it decides. It keeps no tokens or delegations. It does not prepare images, does not act as a proxy, does not manage more than one machine per orb.
+It does not enter the orb: it does not run commands, does not copy files, does not know what runs inside. It hands over an address and steps aside. It does not decide when an orb must end: whoever asked for it decides. It persists no tokens or delegations. It does not prepare images, does not act as a proxy, does not manage more than one machine per orb.
 
 ---
 
@@ -50,8 +50,8 @@ sequenceDiagram
     participant B as Blazar
     participant H as Heat
 
-    C->>A: POST /v1/orbs with size and public key
-    A->>B: reserve this capacity from now, with no end
+    C->>A: POST /v1/orbs with size, public key and SSH source network
+    A->>B: reserve this capacity in a long-lived lease
     B-->>A: reservation and private flavor
     A-->>C: 202 Accepted, orb in RESERVING
 
@@ -73,7 +73,7 @@ sequenceDiagram
 
 ## Interface
 
-orbit's client is an agent harness. The agent drives the REST API, `/v1/orbs`, by following the [orbit skill](skills/orbit/SKILL.md); the API itself is described in [docs/design/api.md](docs/design/api.md). People watch the orbs in Horizon, in the read-only **Project → Orbit → Orbs** panel.
+Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow the [orbit skill](skills/orbit/SKILL.md) for the create, work and cleanup procedure. People watch the orbs in Horizon, in the read-only **Project → Orbit → Orbs** panel.
 
 ---
 
@@ -98,8 +98,8 @@ orbit's client is an agent harness. The agent drives the REST API, `/v1/orbs`, b
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
-   # Optional: orbs reach the hostnames in ORBIT_EGRESS_PROXY_DOMAINS
-   # through a proxy on the host. Without it, orbs open no outbound connection.
+   # Optional: enable the host's egress proxy.
+   # Set ORBIT_EGRESS_PROXY_DOMAINS to the hostnames your work needs.
    ORBIT_EGRESS_PROXY=True
    EOF
    ```
@@ -120,12 +120,7 @@ What each plugin does and what the installation requires: [docs/architecture.md]
 
 ## Tests
 
-The unit tests need no OpenStack:
-
-```console
-$ tox -e py3
-$ tox -e dashboard   # the Horizon panel; Python 3.11 or later
-```
+The unit tests need no OpenStack. [tox.ini](tox.ini) defines the test environments and dependencies; the [delivery policy](docs/agents/delivery.md) selects the checks required for each kind of change.
 
 ---
 

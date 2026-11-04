@@ -1,6 +1,6 @@
 # Heat creates the orb's resources, not the service's code
 
-The service does not call Nova and Neutron to build an orb: it describes the resources in a Heat template and asks Heat to create a stack from it. The reason is not the amount of code saved, but the hard case: creating an orb is four operations in a row, and when the third fails the first two must be undone knowing that the undoing can fail too. It is the point where hand-written provisioning leaves running machines that nobody deletes anymore, and Heat has solved it for years.
+Describe the orb's resources in a Heat template rather than provisioning them through direct Nova and Neutron calls. The important trade-off is recovery: a later failure requires cleanup of earlier resources, and that cleanup can also fail. Heat owns dependency ordering and resource cleanup, so orbit does not need a second provisioning state machine.
 
 The only resource outside the template is the Blazar lease: the reason is in [0005](0005-lease-beside-the-stack.md).
 
@@ -10,9 +10,9 @@ The only resource outside the template is the Blazar lease: the reason is in [00
 
 ## Accepted consequences
 
-- Provisioning disappears from the project: what remains is a template of a few dozen lines.
-- Heat creates the stack asynchronously and exposes its status: the service discovers the build by reading the stack, when someone asks about the orb and while the creation task follows the new orb until it is `ACTIVE`, within `ready_timeout`.
-- Heat must be enabled in the installation: it is not part of the default set and is added as a plugin, starting the `h-eng`, `h-api` and `h-api-cfn` processes.
+- New orb resources belong in the template, so Heat remains responsible for their dependencies and cleanup.
+- Stack creation is asynchronous. orbit observes it through [reconciliation](../design/state.md#reconciliation), rather than treating acceptance of the stack request as readiness.
+- Deployments must provide Heat. DevStack plugin ordering and installation requirements belong to [architecture](../architecture.md#installation).
 
 ## Sources
 

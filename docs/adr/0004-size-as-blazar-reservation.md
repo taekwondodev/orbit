@@ -8,21 +8,21 @@ This way the tailored size requires no privileges from the service, and the flav
 
 **A private flavor created by the service** for each orb, the design of commit `eb7ee88`. Creating a flavor and granting access to it are operations reserved to the administrator in Nova's default policy, so the service would have needed an administrative credential, and a cleaner of its own to delete the flavor only after the machine, because Nova advises against deleting a flavor in use. Blazar does both with its own credentials and its own code.
 
-**A catalog of fixed flavors**, with the size rounded to the nearest one. No privileges and no extra component, but it betrays the "every orb with different resources" requirement.
+**A catalog of fixed flavors**, with the size rounded to the nearest one. No privileges and no extra component, but rounding changes the requested size and couples each client to the flavor catalog.
 
 **The flavor inside the template**, with `OS::Nova::Flavor`: Heat itself warns that the resource is usable only by administrators, and the stack is created with the consumer's token.
 
 ## Accepted consequences
 
-- **Fictitious end date.** Blazar requires an end; the service sets it to a configured value very far away. Blazar places no limit on the duration as long as `max_lease_duration` stays at its default `-1`: the installation must leave it that way.
-- **Wait before building.** The flavor exists from the lease's creation, but the project can access it only when the reservation becomes active, that is at the next round of Blazar's event loop, which runs every ten seconds. The stack is created afterwards: the orb has a `RESERVING` status distinct from `BUILDING`.
-- **Capacity checked right away.** If no host has room for the size, Blazar rejects the creation of the lease: the orb fails before anything is built.
-- **Heavier installation.** The `blazar`, `blazar-nova` and `python-blazarclient` packages are needed, and no lease can be created until the compute host has been registered in Blazar (`openstack reservation host create <host>`): the registration goes into the installation plugin.
+- **Lease lifetime.** Blazar's required end date implements [0003](0003-no-expiry.md), not a client-visible expiry. The installation must allow that lease duration; see [installation requirements](../architecture.md#installation).
+- **Activation before building.** Flavor access follows reservation activation, not lease creation. [0005](0005-lease-beside-the-stack.md) owns the required wait and the choice to keep the lease outside Heat.
+- **Capacity checked before acceptance.** The [API contract](../design/api.md#error-codes) defines how a refused reservation differs from a later build failure.
+- **Additional dependency.** The deployment needs Blazar and registered compute capacity, as described in [installation](../architecture.md#installation).
 
 ## Sources
 
 - Creation of the non-public flavor for the reservation, project access in `on_start`, deletion of the machines and then of the flavor in `on_end`: <https://opendev.org/openstack/blazar/src/branch/master/blazar/plugins/instances/instance_plugin.py>
-- `delete_lease` runs `on_end` on an active lease too; `start_date` accepts `now`; event loop every 10 seconds (`EVENT_INTERVAL`): <https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/service.py>
+- `delete_lease` runs `on_end` on an active lease too; `start_date` accepts `now`: <https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/service.py>
 - Blazar policies, `blazar:leases:post` and `:delete` are `rule:project_member_or_admin`: <https://docs.openstack.org/blazar/latest/configuration/blazar-policy.html>
 - `max_lease_duration`, default `-1`, that is no limit: <https://docs.openstack.org/blazar/latest/configuration/blazar-conf.html>
 - Instance reservation procedure and host registration: <https://docs.openstack.org/blazar/latest/cli/instance-reservation.html>

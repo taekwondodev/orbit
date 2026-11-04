@@ -1,17 +1,6 @@
-## Dev cycle
+## Project workflow
 
-### Issue tracker
-
-Issues and tickets live in GitHub Issues for `taekwondodev/orbit`. See `docs/agents/issue-tracker.md`.
-
-### Issue labels
-
-Category (`bug`/`enhancement`), readiness (`needs-grilling`/`ready-for-agent`) and activity (`parked`/`in-flight`). See `docs/agents/triage-labels.md`.
-
-### Delivery
-
-Direct push to `main` by default. Before implementation or delivery, read `docs/agents/delivery.md` for route and target defaults.
-
-### Domain docs
-
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- Before reading or updating issues and tickets, read [the issue tracker adapter](docs/agents/issue-tracker.md).
+- Before assigning or changing issue labels, read [the label policy](docs/agents/triage-labels.md).
+- Before implementation or delivery, read [the delivery policy](docs/agents/delivery.md) for route, target and verification requirements.
+- Before using domain terminology or changing architecture, read [the domain documentation guide](docs/agents/domain.md).

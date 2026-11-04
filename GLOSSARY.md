@@ -19,7 +19,7 @@ An orb has no expiry: its life ends with a deletion request. See [docs/adr/0003]
 | Term | Meaning | Where we use it |
 | --- | --- | --- |
 | **Keystone** | identity, projects, roles; issues tokens | authenticates requests |
-| **Token** | temporary proof of identity attached to every request; lasts about an hour | comes from the client, used to create, read and delete resources on their behalf; the service does not keep it |
+| **Token** | temporary proof of identity attached to every request; lifetime is set by Keystone | comes from the client, used to create, read and delete resources on their behalf; the service does not persist it |
 | **Project** | the space resources belong to, with its quota | orbs are born in the consumer's project |
 | **Blazar** | resource reservation: grants capacity to a project between a start and an end, and takes it back at the end or on deletion | turns the size into guaranteed capacity and a tailored flavor |
 | **Lease** | for Blazar, the agreement with a start and an end; contains one or more reservations | one lease per orb, starting "now" with an unlimited end |
@@ -39,4 +39,4 @@ Blazar calls its time-bound agreement a **lease**. For us a lease is neither an 
 
 Heat calls the set of resources a **stack**. In our domain the object is the **orb**, and the stack is one of its attributes. In the code, the fields that hold the identifiers are named `lease_id`, `reservation_id` and `stack_id`, because they identify other components' objects.
 
-**Orbit** is the name of the service, **orb** the name of the resource it manages. Do not use "session" or "sandbox" for an orb.
+**Orbit** is the name of the service; **orb** names its managed resource. Use **lease** and **stack** only for their Blazar and Heat components.

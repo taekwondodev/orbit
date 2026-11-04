@@ -16,5 +16,5 @@ The reason is the wait. Heat's resource considers the lease created as soon as B
 
 ## Sources
 
-- `heat/engine/resources/openstack/blazar/lease.py`: defines `handle_create` but no `check_create_complete` — <https://opendev.org/openstack/heat/src/branch/master/heat/engine/resources/openstack/blazar/lease.py>
+- `heat/engine/resources/openstack/blazar/lease.py`: defines `handle_create` but no `check_create_complete`: <https://opendev.org/openstack/heat/src/branch/master/heat/engine/resources/openstack/blazar/lease.py>
 - Project access to the flavor granted in `on_start`: <https://opendev.org/openstack/blazar/src/branch/master/blazar/plugins/instances/instance_plugin.py>
