@@ -1,0 +1,26 @@
+#!/bin/sh
+# Print the instance SSH host public keys to the serial console, but only once
+# the ubuntu authorized key is installed and sshd is running. Fails closed:
+# any unmet precondition prints nothing and exits non-zero.
+user=ubuntu
+fail() { echo "dev-host-key-console: $*" >&2; exit 1; }
+
+home=$(getent passwd "$user" | cut -d: -f6)
+[ -n "$home" ] || fail "no user $user"
+ak=$home/.ssh/authorized_keys
+[ -f "$ak" ] && [ ! -L "$ak" ] || fail "no authorized_keys for $user"
+grep -Eq '^(ssh-|ecdsa-|sk-)' "$ak" || fail "authorized_keys has no public key"
+
+pid=$(cat /run/sshd.pid 2>/dev/null) || fail "sshd pidfile missing"
+kill -0 "$pid" 2>/dev/null || fail "sshd not running"
+netstat -ltn 2>/dev/null | grep -q ':22 ' || fail "sshd not listening"
+
+set -- /etc/ssh/ssh_host_*_key.pub
+[ -f "$1" ] || fail "no host public keys"
+
+{
+	# OpenRC's ebegin leaves its status text on the current console line.
+	printf '\n%s\n' "-----BEGIN SSH HOST KEY KEYS-----"
+	cat "$@"
+	echo "-----END SSH HOST KEY KEYS-----"
+} > /dev/console

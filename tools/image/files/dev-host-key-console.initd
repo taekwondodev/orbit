@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+description="Print SSH host public keys to the serial console after key install"
+
+depend() {
+	need sshd tiny-cloud-main
+	after sshd tiny-cloud-main
+}
+
+start() {
+	ebegin "Printing SSH host keys to console"
+	/usr/local/sbin/dev-host-key-console
+	eend $?
+}
