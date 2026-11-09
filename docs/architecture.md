@@ -19,8 +19,6 @@ The creation task remains in the request-serving process with the request's toke
 
 Calls to Blazar, Heat and Nova use the requester's authorization ([0002](adr/0002-resources-in-the-users-project.md)). Blazar owns capacity and flavor; Heat owns the resources in the [template](../orbit/templates/orb.yaml). orbit reads Nova for machine status and console output, and does not write to Nova or Neutron directly ([0001](adr/0001-provisioning-delegated-to-heat.md)). Add new orb resources to the template rather than introducing direct provisioning.
 
-What the service does not do, such as entering the orb or deciding when it ends, is in the [README](../README.md#what-it-does-not-do).
-
 ## Composition of an orb
 
 ![Composition of an orb: a Blazar lease with reservation and flavor, outside the stack, and a Heat stack with network, subnet, router, security group, port, floating IP, key and machine](img/orb.svg)
@@ -50,7 +48,7 @@ Besides its own processes, the plugin must:
 - register the compute host in Blazar, without which no lease can be created;
 - leave Blazar's `max_lease_duration` at its default `-1`, which does not limit the duration of leases;
 - when Horizon is enabled, copy the panel's enabled files into Horizon in the `post-config` phase, which `stack.sh` runs before Horizon compresses its static files and starts;
-- when the egress proxy is enabled, configure it in `extra`, after DevStack assigns the public subnet's gateway address to the host and before orbit-api reads its proxy setting. The [plugin](../devstack/plugin.sh) owns the setup; [settings](../devstack/settings) defines the proxy options and defaults. The placement and security trade-offs are recorded in [0009](adr/0009-default-deny-egress.md).
+- when the egress proxy is enabled, configure it in `extra`, after DevStack assigns the public subnet's gateway address to the host and before orbit-api reads its proxy setting. The [plugin](../devstack/plugin.sh) owns the setup; [settings](../devstack/settings) defines the proxy options and defaults; [outbound access](egress.md) is the operator's procedure for changing them. The placement and security trade-offs are recorded in [0009](adr/0009-default-deny-egress.md).
 
 Host registration happens in the `extra` phase, but DevStack maps hosts into the Nova cell only after that phase, and the Nova API does not show unmapped hypervisors. The plugin therefore runs `nova-manage cell_v2 discover_hosts`, which is repeatable, before looking them up.
 

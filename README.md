@@ -17,26 +17,16 @@
 
 ---
 
-## The problem
+## Features
 
-Whoever runs untrusted or destructive work, such as builds, tests or an agent editing a repository, needs a whole machine, not a folder. That machine must be **isolated**, **sized to the work** and, when the work ends, it must disappear **without leaving anything behind**: not the machine, not the key, not the firewall, not the address.
-
-Done by hand, with a handful of `openstack` commands, each of these points breaks: the available sizes are those in the catalog, a machine may find no room after everything else has been created, a creation that fails halfway leaves scattered pieces, a forgotten deletion leaves an address taken. `orbit` treats the sandbox as a single object, the orb, which is born whole and dies whole.
-
-## What it does
-
-- Accepts the requested **size** (processors, memory, disk) orb by orb, without catalogs of fixed sizes.
-- **Reserves the capacity** before building: if there is no room it says so right away, instead of failing halfway.
-- Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
-- Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
-- Admits SSH only from the **network the client names** in each request: one address or a small network, within an optional cap set by the operator.
-- Restricts **outbound connections** to the operator's allowed destinations and egress proxy ([network policy](docs/adr/0009-default-deny-egress.md)).
-- **Deletes the orb's resources** through one repeatable operation: capacity, flavor, machine and surrounding resources.
-- **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
-
-## What it does not do
-
-It does not enter the orb: it does not run commands, does not copy files, does not know what runs inside. It hands over an address and steps aside. It does not decide when an orb must end: whoever asked for it decides. It persists no tokens or delegations. It does not prepare images, does not act as a proxy, does not manage more than one machine per orb.
+- **Custom size**: processors, memory and disk are chosen orb by orb, without catalogs of fixed sizes.
+- **Reserved capacity**: capacity is reserved before building, so a request without room fails right away instead of halfway.
+- **Requester's project**: the orb is created in the project of whoever asks for it, among their resources and within their quota.
+- **Verified SSH access**: the orb gets the client's public key, and the client gets address, user and the machine's host keys to verify whom it connects to.
+- **SSH source network**: SSH is admitted only from the network the client names in each request, one address or a small network, within an optional cap set by the operator.
+- **Default-deny egress**: outbound connections are denied by default. External hostnames are reachable only through the operator's egress proxy, which admits its allowed domains; without a proxy, an orb reaches only the addresses and ports the operator lists ([outbound access](docs/egress.md)).
+- **Complete deletion**: one repeatable operation deletes capacity, flavor, machine and surrounding resources.
+- **Truthful status**: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
 ---
 
@@ -98,8 +88,7 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
-   # Optional: enable the host's egress proxy.
-   # Set ORBIT_EGRESS_PROXY_DOMAINS to the hostnames your work needs.
+   # Optional: the egress proxy that admits external hostnames.
    ORBIT_EGRESS_PROXY=True
    EOF
    ```
@@ -110,17 +99,47 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    $ ./stack.sh
    ```
 
-4. If the agent runs on another machine, make the orbs reachable from there by running `tools/reach-orbs.sh <host>` on it: its header says when to run it again.
+4. Build and upload an image for the orbs. I recommend the repository's Alpine image, which applies the egress proxy settings; DevStack's default CirrOS image ignores them. On an aarch64 DevStack host, with the inputs listed in the [image guide](tools/image/README.md):
 
-5. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project, for example those `source openrc demo demo` sets for `demo`.
+   ```console
+   $ cd /opt/stack/orbit
+   $ sudo tools/image/build.sh
+   $ tools/image/upload.sh
+   ```
 
-6. Watch the agent's orbs in Horizon: at `http://<host>/dashboard`, log in as `demo` with the `ADMIN_PASSWORD`, pick the `demo` project in the project menu at the top, and open **Project → Orbit → Orbs**. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin` instead, where the list is empty.
+5. Check that the egress proxy enabled in `local.conf` is running. To change the hostnames it admits, follow [outbound access](docs/egress.md):
+
+   ```console
+   $ systemctl status devstack@orbit-egress-proxy
+   ```
+
+6. If the agent runs on another machine, make the orbs reachable from there by running this on it; its header says when to run it again:
+
+   ```console
+   $ tools/reach-orbs.sh <host>
+   ```
+
+7. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
+
+8. Watch the agent's orbs in Horizon. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin`, where the list is empty; pick `demo` in the project menu at the top:
+
+   ```text
+   URL:      http://<host>/dashboard
+   User:     demo
+   Password: the ADMIN_PASSWORD in local.conf
+   Project:  demo
+   Panel:    Project → Orbit → Orbs
+   ```
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 
 ## Tests
 
-The unit tests need no OpenStack. [tox.ini](tox.ini) defines the test environments and dependencies; the [delivery policy](docs/agents/delivery.md) selects the checks required for each kind of change.
+```console
+$ tox -e py3          # unit tests, no OpenStack needed
+$ tox -e genconfig    # regenerate etc/orbit.conf.sample
+$ tox -e dashboard    # Horizon panel tests
+```
 
 ---
 
@@ -130,6 +149,7 @@ The unit tests need no OpenStack. [tox.ini](tox.ini) defines the test environmen
 | --- | --- |
 | [GLOSSARY](GLOSSARY.md) | glossary of the domain and of the OpenStack terms used |
 | [Architecture](docs/architecture.md) | ownership boundaries, composition of an orb, full sequence, installation requirements |
+| [Outbound access](docs/egress.md) | what an orb can reach, the egress proxy's domains, listed destinations |
 | [API contract](docs/design/api.md) | HTTP resources, statuses, errors |
 | [orbit skill](skills/orbit/SKILL.md) | how an agent creates, uses and deletes an orb |
 | [Stored state](docs/design/state.md) | the service's table and reconciliation |
