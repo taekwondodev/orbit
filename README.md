@@ -99,7 +99,7 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    $ ./stack.sh
    ```
 
-4. Build and upload an image for the orbs. We recommend the repository's Alpine image, which applies the egress proxy settings; DevStack's default CirrOS image ignores them. On an aarch64 DevStack host, with the inputs listed in the [image guide](tools/image/README.md):
+4. Build and upload an image for the orbs. I recommend the repository's Alpine image, which applies the egress proxy settings; DevStack's default CirrOS image ignores them. On an aarch64 DevStack host, with the inputs listed in the [image guide](tools/image/README.md):
 
    ```console
    $ cd /opt/stack/orbit
