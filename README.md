@@ -30,7 +30,7 @@ Done by hand, with a handful of `openstack` commands, each of these points break
 - Creates the orb in the **project of whoever asks for it**: it appears among their resources and consumes their quota.
 - Installs the **public key supplied by the client** and returns address, user and the machine's **host keys** for SSH access, so the client verifies whom it connects to.
 - Admits SSH only from the **network the client names** in each request: one address or a small network, within an optional cap set by the operator.
-- Restricts **outbound connections** to the operator's allowed destinations and egress proxy ([network policy](docs/adr/0009-default-deny-egress.md)).
+- **Denies outbound connections** by default. External hostnames are reachable only through the operator's egress proxy, which admits its allowed domains; without a proxy, an orb reaches only the addresses and ports the operator lists ([outbound access](docs/egress.md)).
 - **Deletes the orb's resources** through one repeatable operation: capacity, flavor, machine and surrounding resources.
 - **Tells the truth** about the status: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
@@ -98,11 +98,12 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
    enable_plugin orbit  https://github.com/taekwondodev/orbit
-   # Optional: enable the host's egress proxy.
-   # Set ORBIT_EGRESS_PROXY_DOMAINS to the hostnames your work needs.
+   # Optional: the egress proxy that admits external hostnames.
    ORBIT_EGRESS_PROXY=True
    EOF
    ```
+
+   To choose the hostnames the proxy admits, or the addresses orbs reach directly, follow [outbound access](docs/egress.md).
 
 3. Install:
 
@@ -130,6 +131,7 @@ The unit tests need no OpenStack. [tox.ini](tox.ini) defines the test environmen
 | --- | --- |
 | [GLOSSARY](GLOSSARY.md) | glossary of the domain and of the OpenStack terms used |
 | [Architecture](docs/architecture.md) | ownership boundaries, composition of an orb, full sequence, installation requirements |
+| [Outbound access](docs/egress.md) | what an orb can reach, the egress proxy's domains, listed destinations |
 | [API contract](docs/design/api.md) | HTTP resources, statuses, errors |
 | [orbit skill](skills/orbit/SKILL.md) | how an agent creates, uses and deletes an orb |
 | [Stored state](docs/design/state.md) | the service's table and reconciliation |
