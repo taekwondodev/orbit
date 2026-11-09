@@ -19,8 +19,6 @@ The creation task remains in the request-serving process with the request's toke
 
 Calls to Blazar, Heat and Nova use the requester's authorization ([0002](adr/0002-resources-in-the-users-project.md)). Blazar owns capacity and flavor; Heat owns the resources in the [template](../orbit/templates/orb.yaml). orbit reads Nova for machine status and console output, and does not write to Nova or Neutron directly ([0001](adr/0001-provisioning-delegated-to-heat.md)). Add new orb resources to the template rather than introducing direct provisioning.
 
-What the service does not do, such as entering the orb or deciding when it ends, is in the [README](../README.md#what-it-does-not-do).
-
 ## Composition of an orb
 
 ![Composition of an orb: a Blazar lease with reservation and flavor, outside the stack, and a Heat stack with network, subnet, router, security group, port, floating IP, key and machine](img/orb.svg)
