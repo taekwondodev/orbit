@@ -87,7 +87,8 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    SERVICE_PASSWORD=$ADMIN_PASSWORD
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
-   enable_plugin orbit  https://github.com/taekwondodev/orbit
+   # Without a branch, DevStack fetches master, which orbit does not have.
+   enable_plugin orbit  https://github.com/taekwondodev/orbit main
    # Optional: the egress proxy that admits external hostnames.
    ORBIT_EGRESS_PROXY=True
    EOF
