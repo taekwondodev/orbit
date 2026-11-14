@@ -181,6 +181,7 @@ ls -l "$R/boot/Image-virt"
 log "package manifest"
 in_chroot apk info -vv | sort > "$EVID/packages.txt"
 in_chroot apk list -I | sort > "$EVID/packages-installed.txt"
+cp "$R/lib/apk/db/installed" "$EVID/apk-installed"
 
 log "sanitize"
 rm -f "$R"/etc/ssh/ssh_host_* "$R/etc/machine-id" "$R/var/lib/dbus/machine-id"

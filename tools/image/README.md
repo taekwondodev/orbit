@@ -34,10 +34,10 @@ The script replaces its previous work image and qcow2 output. Inspect the eviden
 ## Publish
 
 1. Run the [acceptance check](../../docs/architecture.md#the-orb-image) on a DevStack with the new image uploaded under the name in `[orbs] image`.
-2. Publish the qcow2 under a new release tag, with the package list from the evidence directory and the source notice below:
+2. Build the [source archive](#licenses-and-sources), then publish the qcow2 under a new release tag, with the package list from the evidence directory, the source archive and the source notice below:
 
    ```console
-   $ gh release create <tag> <qcow2> <evidence>/packages-installed.txt \
+   $ gh release create <tag> <qcow2> <evidence>/packages-installed.txt <sources.tar> \
          --repo taekwondodev/orbit --title "Orb image <tag>" --notes-file <notes>
    ```
 
@@ -47,4 +47,11 @@ Never replace the asset of an existing release: deployments pin its checksum.
 
 ## Licenses and sources
 
-The image redistributes Alpine Linux packages, some under the GPL. The release notes name the Alpine version and point to the sources: Alpine's package recipes in [aports](https://gitlab.alpinelinux.org/alpine/aports) at the release's branch, and the source archives they reference. tiny-cloud comes from Alpine `edge`.
+The image redistributes Alpine Linux packages, some under the GPL, so each release carries their source next to the qcow2. [sources.sh](sources.sh) builds that archive from the image's apk database (`apk-installed` in the evidence directory): for every package, the [aports](https://gitlab.alpinelinux.org/alpine/aports) directory at the commit the package was built from, and the archives its APKBUILD names, checked against its sha512sums. `packages.txt` in the archive lists each package's version, aports repository and commit. tiny-cloud comes from Alpine `edge`. Run it in an Alpine container of the image's release:
+
+```console
+$ docker run --rm -v "$PWD/tools/image:/tools:ro" -v "<evidence>:/in:ro" -v "$PWD/out:/out" alpine:3.24 \
+      sh -c 'apk add -q abuild git tar && /tools/sources.sh /in/apk-installed /out/orbit-alpine-<ver>-sources.tar'
+```
+
+The release notes name the Alpine version and the source archive. Adding the source archive to an existing release is safe: deployments pin only the qcow2.

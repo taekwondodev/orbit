@@ -1,4 +1,4 @@
-# Shared helpers for the dev #251 image builds. Sourced by build.sh; runs as root.
+# Shared helpers for the dev #251 image builds. Sourced by build.sh and sources.sh; run as root.
 # Everything is confined to $B (/var/tmp/dev-251-build).
 
 B=/var/tmp/dev-251-build
