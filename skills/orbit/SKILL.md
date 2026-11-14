@@ -30,7 +30,6 @@ Choose:
 - `size`: the processors, memory and disk the work needs. The operator caps each value; a `400` names the cap you exceeded.
 - `public_key`: the public half of a key pair you hold. orbit never sees the private key.
 - `ssh_allowed_cidr`: the source address the orb will see for your SSH connection, as `<address>/32`. Account for routing or NAT with the operator; the address used to reach orbit's API need not be the SSH source.
-- `image`: choose an operator-supported image, or omit it when a default is configured.
 
 ```console
 $ jq -n --arg key "$(cat ~/.ssh/id_ed25519.pub)" --arg cidr <address>/32 \

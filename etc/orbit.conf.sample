@@ -455,16 +455,9 @@
 # Minimum value: 1
 #max_disk_gb = 80
 
-# Image used when the request does not name one. Without a value, the request
-# must name it. (string value)
-#default_image = <None>
-
-# SSH user returned for images without an entry in ssh_users. (string value)
-#default_ssh_user = ubuntu
-
-# SSH user per image, as image:user. The user depends on the image and the
-# client must not have to guess it. (dict value)
-#ssh_users =
+# Glance image every orb boots: the image built by tools/image (docs/adr/0010).
+# (string value)
+#image = orbit-alpine-3.24.3-aarch64
 
 # End date of the leases, in the Blazar format "YYYY-MM-DD hh:mm". Not an
 # expiry: Blazar requires an end, the orb ends with DELETE (docs/adr/0003).

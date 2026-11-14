@@ -13,8 +13,6 @@ class ApiTestCase(unittest.TestCase):
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
-        conf.CONF.set_override('default_image', 'cirros', 'orbs')
-        conf.CONF.set_override('ssh_users', {'cirros': 'cirros'}, 'orbs')
         self.clients = fakes.fake_clients()
         self.auths = []
         self.blazar = self.clients.blazar
@@ -51,8 +49,8 @@ class TestCreate(ApiTestCase):
         self.assertEqual('RESERVING', orb['status'])
         self.assertEqual({'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
                          orb['size'])
-        self.assertEqual('cirros', orb['image'])
-        self.assertEqual('cirros', orb['ssh_user'])
+        self.assertNotIn('image', orb)
+        self.assertEqual('ubuntu', orb['ssh_user'])
         self.assertIsNone(orb['ssh_host'])
         self.assertIsNone(orb['ssh_host_keys'])
         self.assertEqual('198.51.100.20/32', orb['ssh_allowed_cidr'])
@@ -124,8 +122,6 @@ class TestCreate(ApiTestCase):
             {'public_key': 'ssh-ed25519 not-base64!'},
             {'public_key': fakes.PUBLIC_KEY + '\nssh-ed25519 AAAA other'},
             {'public_key': 'ssh-rsa ' + 'A' * 9000},
-            {'image': ''},
-            {'image': 'x' * 256},
             {'ssh_allowed_cidr': None},
             {'ssh_allowed_cidr': 'harness'},
             {'ssh_allowed_cidr': '198.51.100.20/24'},
@@ -167,10 +163,9 @@ class TestCreate(ApiTestCase):
         self.assertEqual([400] * 2, [r.status_code for r in outside])
         self.assertEqual(1, len(self.blazar.created))
 
-    def test_without_image_and_default_the_request_is_400(self):
-        conf.CONF.set_override('default_image', None, 'orbs')
-
-        self.assertEqual(400, self.create().status_code)
+    def test_an_image_in_the_request_is_ignored(self):
+        # Clients written before docs/adr/0010 still send one.
+        self.assertEqual(202, self.create(image='cirros').status_code)
 
     def test_non_json_body_is_400(self):
         response = self.request('POST', '/v1/orbs', data='size=2')

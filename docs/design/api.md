@@ -6,7 +6,7 @@ Implemented in [orbit/api/v1.py](../../orbit/api/v1.py). Every request needs a K
 
 | Method and path | Input | Response |
 | --- | --- | --- |
-| `POST /v1/orbs` | `{size, public_key, ssh_allowed_cidr, image?}` | `202` with the orb in status `RESERVING` |
+| `POST /v1/orbs` | `{size, public_key, ssh_allowed_cidr}` | `202` with the orb in status `RESERVING` |
 | `GET /v1/orbs` | `?status=` filters | `200` with the list of the project's orbs |
 | `GET /v1/orbs/{id}` | None | `200` with status, address and any error |
 | `DELETE /v1/orbs/{id}` | None | `202` with status `DELETING` or, if already gone, `DELETED`; repeatable |
@@ -19,8 +19,7 @@ The body must be a JSON object; other body shapes return `400`.
 {
   "size": { "vcpus": 2, "memory_mb": 4096, "disk_gb": 20 },
   "public_key": "ssh-ed25519 AAAA...",
-  "ssh_allowed_cidr": "198.51.100.20/32",
-  "image": "ubuntu-24.04"
+  "ssh_allowed_cidr": "198.51.100.20/32"
 }
 ```
 
@@ -30,7 +29,7 @@ The body must be a JSON object; other body shapes return `400`.
 
 `ssh_allowed_cidr` is mandatory: the network the orb's firewall admits SSH from, as an IPv4 CIDR; a bare address admits that address only. CIDRs must use their network address: `198.51.100.0/24` is valid syntax, while `198.51.100.20/24` returns `400` because host bits are set. It cannot be wider than `[orbs] ssh_min_prefix`, and when the operator sets `[orbs] ssh_allowed_cidr` it must lie inside that network; otherwise the response is `400`. Why the client names it: [0008](../adr/0008-ssh-network-named-by-the-request.md).
 
-`image` must be a non-empty string of at most 255 characters. Omitting it or passing `null` uses `default_image`; if no default is configured, the response is `400`.
+Every orb boots the same image, so the request names none ([0010](../adr/0010-one-orb-image.md)). Fields other than these are ignored.
 
 The response accepts creation once capacity is reserved, without waiting for resource readiness. The background task can start before the HTTP response is sent. Follow progress with `GET`; see [architecture](../architecture.md#sequence-of-an-orb) for the sequence.
 
@@ -41,7 +40,6 @@ The response accepts creation once capacity is reserved, without waiting for res
   "id": "0d0b...",
   "status": "ACTIVE",
   "size": { "vcpus": 2, "memory_mb": 4096, "disk_gb": 20 },
-  "image": "ubuntu-24.04",
   "ssh_host": "172.24.4.17",
   "ssh_user": "ubuntu",
   "ssh_allowed_cidr": "198.51.100.20/32",
@@ -54,7 +52,7 @@ The response accepts creation once capacity is reserved, without waiting for res
 }
 ```
 
-The returned status follows [reconciliation](state.md#reconciliation). `ssh_host` is set only in status `ACTIVE`. `ssh_user` follows the operator's image mapping or fallback user. `ssh_host_keys` are the machine's SSH host keys, `type base64` without comment, `null` until collected within the boot trust window in [0007](../adr/0007-host-keys-read-once-from-the-console.md). Collected keys remain stored even if the orb later leaves `ACTIVE`. The [orbit skill](../../skills/orbit/SKILL.md#4-work-inside-the-orb) owns the SSH connection procedure. `fault` carries an upstream reason when available or a service-generated explanation, such as an interrupted creation. The lease's end date is omitted because it is not a client-visible expiry ([0003](../adr/0003-no-expiry.md)).
+The returned status follows [reconciliation](state.md#reconciliation). `ssh_host` is set only in status `ACTIVE`. `ssh_user` is the user the orb image creates. `ssh_host_keys` are the machine's SSH host keys, `type base64` without comment, `null` until collected within the boot trust window in [0007](../adr/0007-host-keys-read-once-from-the-console.md). Collected keys remain stored even if the orb later leaves `ACTIVE`. The [orbit skill](../../skills/orbit/SKILL.md#4-work-inside-the-orb) owns the SSH connection procedure. `fault` carries an upstream reason when available or a service-generated explanation, such as an interrupted creation. The lease's end date is omitted because it is not a client-visible expiry ([0003](../adr/0003-no-expiry.md)).
 
 A list read returns `{"orbs": [...]}`. It includes deleted history and reconciles the project's orbs before applying the optional `?status=<status>` filter.
 

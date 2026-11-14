@@ -17,16 +17,9 @@ orbs_opts = [
                help='Maximum memory of an orb, in MiB.'),
     cfg.IntOpt('max_disk_gb', default=80, min=1,
                help='Maximum disk of an orb, in GiB.'),
-    cfg.StrOpt('default_image',
-               help='Image used when the request does not name one. '
-                    'Without a value, the request must name it.'),
-    cfg.StrOpt('default_ssh_user', default='ubuntu',
-               help='SSH user returned for images without an entry '
-                    'in ssh_users.'),
-    cfg.DictOpt('ssh_users', default={},
-                help='SSH user per image, as image:user. '
-                     'The user depends on the image and the client must not '
-                     'have to guess it.'),
+    cfg.StrOpt('image', default='orbit-alpine-3.24.3-aarch64',
+               help='Glance image every orb boots: the image built by '
+                    'tools/image (docs/adr/0010).'),
     cfg.StrOpt('lease_end_date', default='2099-12-31 23:59',
                help='End date of the leases, in the Blazar format '
                     '"YYYY-MM-DD hh:mm". Not an expiry: Blazar requires '

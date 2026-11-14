@@ -13,7 +13,7 @@ INDEX_URL = reverse('horizon:project:orbs:index')
 def _orb(orb_id, status, ssh_host=None, fault=None):
     return {'id': orb_id, 'status': status,
             'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
-            'image': 'ubuntu-24.04', 'ssh_host': ssh_host,
+            'ssh_host': ssh_host,
             'ssh_user': 'ubuntu', 'fault': fault,
             'created_at': '2026-10-20T12:00:00'}
 

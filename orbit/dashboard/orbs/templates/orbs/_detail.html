@@ -12,8 +12,6 @@
     <dd>{{ orb.size.memory_mb }}</dd>
     <dt>{% trans "Disk (GiB)" %}</dt>
     <dd>{{ orb.size.disk_gb }}</dd>
-    <dt>{% trans "Image" %}</dt>
-    <dd>{{ orb.image|default:_("-") }}</dd>
     <dt>{% trans "SSH host" %}</dt>
     <dd>{{ orb.ssh_host|default:_("-") }}</dd>
     <dt>{% trans "SSH user" %}</dt>

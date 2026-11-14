@@ -33,7 +33,6 @@ class OrbsTable(tables.DataTable):
 
     id = tables.Column('id', verbose_name=_('ID'),
                        link='horizon:project:orbs:detail')
-    image = tables.Column('image', verbose_name=_('Image'))
     ssh_host = tables.Column('ssh_host', verbose_name=_('SSH Host'))
     size = tables.Column(get_size, verbose_name=_('Size'))
     status = tables.Column('status', verbose_name=_('Status'), status=True,

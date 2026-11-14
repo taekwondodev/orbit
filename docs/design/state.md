@@ -18,7 +18,7 @@ Implemented in [the repository](../../orbit/db/api.py), [lifecycle observations]
 
 The schema and column types are defined in [orbit/db/api.py](../../orbit/db/api.py). Public fields and status meanings belong to the [API contract](api.md); this document owns storage rationale and reconciliation behavior.
 
-The table exists because the service owns three things nobody else keeps: the link between an orb, its lease and its stack; the requested size, image and SSH network, which outlive the lease; the history of deleted orbs. Three columns are declared copies:
+The table exists because the service owns three things nobody else keeps: the link between an orb, its lease and its stack; the requested size and SSH network, which outlive the lease; the history of deleted orbs. Three columns are declared copies:
 
 - `status` caches the last observation and guards concurrent updates. A changed observation is written back.
 - `fault` preserves an upstream or service-generated failure reason because the resource that explains it may disappear before the next read.

@@ -18,7 +18,7 @@ The operator owns the trust boundary: allowed destinations must exclude control-
 
 - Allowed destinations, admitted proxy domains and the SSH connection can carry data out. A domain allowlist does not restrict repositories: admitting `github.com` can permit pushes to other repositories.
 - On DevStack, orbs reach a proxy port on the host that runs the control plane. A proxy vulnerability could give them a foothold there; address checks and the self-connection guard are part of that boundary. Read this decision before moving the proxy or relaxing those checks.
-- Proxy settings come from sshd's `SetEnv`, rather than a login shell or PAM, because clients run non-login SSH commands and some images do not use PAM. Required image behavior and its acceptance check belong to [Images other than CirrOS](../architecture.md#images-other-than-cirros); client workflow belongs to the [orbit skill](../../skills/orbit/SKILL.md#4-work-inside-the-orb).
+- Proxy settings come from sshd's `SetEnv`, rather than a login shell or PAM, because clients run non-login SSH commands and some images do not use PAM. Required image behavior and its acceptance check belong to [the orb image](../architecture.md#the-orb-image); client workflow belongs to the [orbit skill](../../skills/orbit/SKILL.md#4-work-inside-the-orb).
 - The [template](../../orbit/templates/orb.yaml) owns the DHCP exceptions, Heat's default-egress removal workaround and the config drive needed without metadata access. Preserve those boot requirements when changing the network policy.
 - Rules are fixed when a stack is created. Configuration changes affect new orbs, not existing ones.
 

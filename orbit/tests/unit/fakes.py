@@ -24,7 +24,6 @@ def orb(**overrides):
         project_id='project-a',
         user_id='user-a',
         size=orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
-        image='cirros',
         lease_id='lease-1',
         reservation_id='reservation-1',
         status=orb_model.Status.RESERVING,

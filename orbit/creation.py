@@ -146,7 +146,7 @@ class Creator:
         return {
             'orb_id': orb.id,
             'reservation_id': orb.reservation_id,
-            'image': orb.image,
+            'image': CONF.orbs.image,
             'public_key': public_key,
             'public_network': CONF.orbs.public_network,
             'ssh_allowed_cidr': orb.ssh_allowed_cidr,

@@ -1,6 +1,8 @@
-# Alpine image for orbit
+# The orb image
 
-Build an aarch64 UEFI image with tiny-cloud as its initializer. The image is intended to meet orbit's [image requirements](../../docs/architecture.md#images-other-than-cirros). The build applies cloud-config files but skips user-data scripts; preserve that distinction when changing the initializer.
+Build the image every orb boots ([0010](../../docs/adr/0010-one-orb-image.md)): Alpine Linux, aarch64, UEFI, with tiny-cloud as its initializer. It meets orbit's [image requirements](../../docs/architecture.md#the-orb-image). The build applies cloud-config files but skips user-data scripts; preserve that distinction when changing the initializer.
+
+Operators do not build it: the [DevStack plugin](../../devstack/plugin.sh) downloads the published release asset. Rebuild only to change the image.
 
 ## Build machine and inputs
 
@@ -19,7 +21,7 @@ The input archive is not supplied by this repository. Obtain the complete inputs
 
 The build verifies those checksums and installs the listed APKs without downloading or resolving packages; apk also checks package signatures. Retain the inputs and manifest together: upstream repositories may stop serving the exact versions. A checksum manifest alone is not a package archive.
 
-## Build and upload
+## Build
 
 From the repository root:
 
@@ -27,14 +29,22 @@ From the repository root:
 $ sudo tools/image/build.sh
 ```
 
-The script replaces its previous work image and qcow2 output. Before upload, inspect the evidence directory named by `EVID` in `build.sh`: the filesystem and qcow2 checks must succeed, and the private-key and machine-identity scan must contain no findings. Builds are not bit-for-bit reproducible because timestamps and filesystem UUIDs vary.
+The script replaces its previous work image and qcow2 output. Inspect the evidence directory named by `EVID` in `build.sh`: the filesystem and qcow2 checks must succeed, and the private-key and machine-identity scan must contain no findings. Builds are not bit-for-bit reproducible because timestamps and filesystem UUIDs vary.
 
-On the DevStack host, upload to Glance:
+## Publish
 
-```console
-$ tools/image/upload.sh
-```
+1. Run the [acceptance check](../../docs/architecture.md#the-orb-image) on a DevStack with the new image uploaded under the name in `[orbs] image`.
+2. Publish the qcow2 under a new release tag, with the package list from the evidence directory and the source notice below:
 
-[upload.sh](upload.sh) uses the local `stack` account and DevStack's `demo` project credentials. It defines the image name and Glance properties and refuses to replace an existing image with that name. Check for consumers before removing an old image. After upload, use the image's name or ID in an orb creation request and run the [image acceptance check](../../docs/architecture.md#images-other-than-cirros).
+   ```console
+   $ gh release create <tag> <qcow2> <evidence>/packages-installed.txt \
+         --repo taekwondodev/orbit --title "Orb image <tag>" --notes-file <notes>
+   ```
 
-Keep the upload's `hw_scsi_model` property when changing the image: without the virtio SCSI driver/controller match, the config drive may be unreadable and the orb can boot without its key.
+3. Update `ORBIT_IMAGE_URL` and `ORBIT_IMAGE_SHA256` in [plugin.sh](../../devstack/plugin.sh) in the same commit. When the image's contents change, also change its Glance name (`ORBIT_IMAGE_NAME` in [settings](../../devstack/settings) and the `[orbs] image` default in [orbit/conf.py](../../orbit/conf.py)), because the plugin does not replace an image that already has its name.
+
+Never replace the asset of an existing release: deployments pin its checksum.
+
+## Licenses and sources
+
+The image redistributes Alpine Linux packages, some under the GPL. The release notes name the Alpine version and point to the sources: Alpine's package recipes in [aports](https://gitlab.alpinelinux.org/alpine/aports) at the release's branch, and the source archives they reference. tiny-cloud comes from Alpine `edge`.

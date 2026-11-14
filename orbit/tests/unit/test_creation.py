@@ -71,6 +71,7 @@ class TestCreator(unittest.TestCase):
         self.blazar.get_lease = counting
 
     def test_stack_is_created_once_the_reservation_is_active(self):
+        conf.CONF.set_override('image', 'orb-image', 'orbs')
         self.activate_after(polls=3)
         create_stack = self.heat.create_stack
         created_at = []
@@ -88,7 +89,7 @@ class TestCreator(unittest.TestCase):
         self.assertEqual('orbit', tag)
         self.assertEqual({'orb_id': self.orb.id,
                           'reservation_id': self.orb.reservation_id,
-                          'image': 'cirros',
+                          'image': 'orb-image',
                           'public_key': fakes.PUBLIC_KEY,
                           'public_network': 'public',
                           'ssh_allowed_cidr': '203.0.113.0/24',

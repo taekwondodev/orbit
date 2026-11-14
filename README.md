@@ -69,6 +69,8 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
 
 ## Installation
 
+Use an aarch64 host: every orb boots the same aarch64 image, which `stack.sh` downloads and uploads to Glance ([0010](docs/adr/0010-one-orb-image.md)).
+
 1. Clone DevStack:
 
    ```console
@@ -100,29 +102,21 @@ Clients use the [REST API](docs/design/api.md), `/v1/orbs`. Agents can follow th
    $ ./stack.sh
    ```
 
-4. Build and upload an image for the orbs. I recommend the repository's Alpine image, which applies the egress proxy settings; DevStack's default CirrOS image ignores them. On an aarch64 DevStack host, with the inputs listed in the [image guide](tools/image/README.md):
-
-   ```console
-   $ cd /opt/stack/orbit
-   $ sudo tools/image/build.sh
-   $ tools/image/upload.sh
-   ```
-
-5. Check that the egress proxy enabled in `local.conf` is running. To change the hostnames it admits, follow [outbound access](docs/egress.md):
+4. Check that the egress proxy enabled in `local.conf` is running. To change the hostnames it admits, follow [outbound access](docs/egress.md):
 
    ```console
    $ systemctl status devstack@orbit-egress-proxy
    ```
 
-6. If the agent runs on another machine, make the orbs reachable from there by running this on it; its header says when to run it again:
+5. If the agent runs on another machine, make the orbs reachable from there by running this on it; its header says when to run it again:
 
    ```console
    $ tools/reach-orbs.sh <host>
    ```
 
-7. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
+6. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
 
-8. Watch the agent's orbs in Horizon. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin`, where the list is empty; pick `demo` in the project menu at the top:
+7. Watch the agent's orbs in Horizon. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin`, where the list is empty; pick `demo` in the project menu at the top:
 
    ```text
    URL:      http://<host>/dashboard

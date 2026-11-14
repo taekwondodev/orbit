@@ -27,7 +27,6 @@ class Orb:
     project_id: str
     user_id: str
     size: Size
-    image: str
     lease_id: str
     reservation_id: str
     status: Status

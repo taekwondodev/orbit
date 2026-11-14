@@ -1,10 +1,9 @@
 #!/bin/bash
-# Build the Alpine aarch64 UEFI image that dev --orb boots (initializer:
-# tiny-cloud, which applies orbit's cloud-config user data).
+# Build the orb image: Alpine aarch64 UEFI, initializer tiny-cloud, which
+# applies orbit's cloud-config user data. Every orb boots it (docs/adr/0010).
 #   sudo build.sh
-# Needs, in $B (lib.sh): dl/ with the frozen rootfs and APKs; run it from a copy
-# of this directory on the DevStack VM, then upload.sh.
-# Output: $B/out/alpine-<ver>-arm64-tinycloud-dev251.qcow2 (+ evidence under $B/out/evidence-tinycloud/)
+# Needs, in $B (lib.sh): dl/ with the frozen rootfs and APKs.
+# Output: $B/out/orbit-alpine-<ver>-aarch64.qcow2 (+ evidence under $B/out/evidence-tinycloud/)
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
@@ -14,7 +13,7 @@ V=tinycloud
 W=$B/work/$V
 R=$W/root
 IMG=$W/$V.raw
-OUT=$B/out/alpine-3.24-arm64-$V-dev251.qcow2
+OUT=$B/out/orbit-alpine-$ALPINE_VER-aarch64.qcow2
 EVID=$B/out/evidence-$V
 trap cleanup EXIT
 

@@ -13,8 +13,8 @@ from orbit import ssh
 
 blueprint = flask.Blueprint('v1', __name__)
 
-# The image column is 255 long.
-_MAX_IMAGE_LENGTH = 255
+# The user tools/image/build.sh creates in the orb image (docs/adr/0010).
+_SSH_USER = 'ubuntu'
 
 
 def _orbs():
@@ -99,7 +99,6 @@ def _create_request(body):
     return service.CreateRequest(
         size=_size(body.get('size')),
         public_key=_public_key(body.get('public_key')),
-        image=_image(body.get('image')),
         ssh_allowed_cidr=_ssh_allowed_cidr(body.get('ssh_allowed_cidr')),
     )
 
@@ -156,17 +155,6 @@ def _ssh_allowed_cidr(cidr):
     return str(network)
 
 
-def _image(image):
-    image = image if image is not None else CONF.orbs.default_image
-    if not isinstance(image, str) or not image:
-        raise http_exc.BadRequest('image is required: no default image '
-                                  'is configured.')
-    if len(image) > _MAX_IMAGE_LENGTH:
-        raise http_exc.BadRequest(
-            f'image exceeds {_MAX_IMAGE_LENGTH} characters.')
-    return image
-
-
 def _view(observed):
     orb = observed.orb
     return {
@@ -175,12 +163,10 @@ def _view(observed):
         'size': {'vcpus': orb.size.vcpus,
                  'memory_mb': orb.size.memory_mb,
                  'disk_gb': orb.size.disk_gb},
-        'image': orb.image,
         'ssh_host': observed.ssh_host,
         'ssh_host_keys': (list(orb.ssh_host_keys)
                           if orb.ssh_host_keys is not None else None),
-        'ssh_user': CONF.orbs.ssh_users.get(orb.image,
-                                            CONF.orbs.default_ssh_user),
+        'ssh_user': _SSH_USER,
         'ssh_allowed_cidr': orb.ssh_allowed_cidr,
         'fault': orb.fault,
         'created_at': orb.created_at.isoformat(),
