@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from horizon import exceptions
 from horizon import tables
@@ -11,7 +12,19 @@ from orbit.dashboard import client
 from orbit.dashboard.exceptions import OrbitError
 from orbit.dashboard.exceptions import OrbitUnauthorized
 from orbit.dashboard.exceptions import OrbNotFound
+from orbit.dashboard.orbs import overview
 from orbit.dashboard.orbs import tables as orbs_tables
+
+# Rows needing attention first: failures, then orbs on their way up.
+ROW_ORDER = {'ERROR': 0, 'RESERVING': 1, 'BUILDING': 1, 'ACTIVE': 2,
+             'DELETING': 3}
+
+# What each of the table's STEPS waits for, shown on the detail page.
+STEP_HELP = (
+    _('Blazar reserves the capacity'),
+    _('Heat builds the network and the machine'),
+    _('Host keys published, ready for SSH'),
+)
 
 
 class LiveViewMixin:
@@ -52,18 +65,31 @@ class IndexView(LiveViewMixin, tables.DataTableView):
     table_class = orbs_tables.OrbsTable
     page_title = _('Orbs')
 
+    # Every orb of the list read, DELETED ones included; None when the
+    # read failed, so the summary does not report an empty project.
+    orbs = None
+
     def get_data(self):
         try:
-            orbs = client.orb_list(self.request)
+            self.orbs = client.orb_list(self.request)
         except Exception:
             if self.live:
                 raise
             self.get_table().unavailable = True
             exceptions.handle(self.request, _('Unable to retrieve orbs.'))
             return []
-        # Deleted orbs hold no resources; their history stays in
-        # `GET /v1/orbs?status=DELETED`.
-        return [orb for orb in orbs if orb.status != 'DELETED']
+        # Deleted orbs hold no resources: they count only in the summary.
+        rows = [orb for orb in self.orbs if orb.status != 'DELETED']
+        rows.sort(key=lambda orb: orb.created_at, reverse=True)
+        rows.sort(key=lambda orb: ROW_ORDER.get(orb.status, len(ROW_ORDER)))
+        return rows
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.orbs is not None:
+            context['overview'] = overview.summarize(
+                self.orbs, timezone.localdate())
+        return context
 
 
 class DetailView(LiveViewMixin, views.HorizonTemplateView):
@@ -88,6 +114,12 @@ class DetailView(LiveViewMixin, views.HorizonTemplateView):
         context = super().get_context_data(**kwargs)
         orb = self._get_data()
         context['orb'] = orb
-        context['status_label'] = dict(
-            orbs_tables.STATUS_DISPLAY_CHOICES).get(orb.status, orb.status)
+        context['status_badge'] = orbs_tables.status_badge(orb.status)
+        states = orbs_tables.step_states(orb.status)
+        if states is not None:
+            context['steps'] = [
+                {'label': orbs_tables.status_label(status), 'help': text,
+                 'state': state}
+                for status, text, state in zip(
+                    orbs_tables.STEPS, STEP_HELP, states)]
         return context

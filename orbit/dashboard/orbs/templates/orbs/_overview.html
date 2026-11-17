@@ -1,0 +1,40 @@
+{% load i18n %}
+{% if overview %}
+<div class="orbit-overview">
+  {% for group in overview.groups %}
+    <div class="orbit-tile orbit-{{ group.key }}{% if not group.count %} orbit-zero{% endif %}">
+      <div class="orbit-tile-label"><span class="orbit-dot"></span>{{ group.label }}</div>
+      <div class="orbit-tile-value">{{ group.count }}</div>
+      <div class="orbit-tile-note">
+        {% if group.count and group.key == 'starting' %}{% trans "In progress" %}
+        {% elif group.count and group.key == 'error' %}{% trans "Resources held" %}{% endif %}
+      </div>
+    </div>
+  {% endfor %}
+  <div class="orbit-tile">
+    <div class="orbit-tile-label">{% trans "Reserved" %}</div>
+    <dl class="orbit-reserved">
+      <dt>{{ overview.vcpus }}</dt><dd>{% trans "vCPU" %}</dd>
+      <dt>{{ overview.memory_gib|floatformat:"-1" }}</dt><dd>{% trans "GiB memory" %}</dd>
+      <dt>{{ overview.disk_gb }}</dt><dd>{% trans "GiB disk" %}</dd>
+    </dl>
+  </div>
+  <div class="orbit-tile orbit-activity">
+    <div class="orbit-tile-label">
+      {% blocktrans count counter=overview.created_last_week %}Orbs created · {{ counter }} in 7 days{% plural %}Orbs created · {{ counter }} in 7 days{% endblocktrans %}
+    </div>
+    <div class="orbit-bars" aria-hidden="true">
+      {% for day in overview.days %}
+        <span class="orbit-bar{% if forloop.last %} orbit-today{% elif not day.count %} orbit-none{% endif %}"
+              style="height: {{ day.percent }}%" title="{{ day.date|date:'Y-m-d' }}: {{ day.count }}"></span>
+      {% endfor %}
+    </div>
+    <ul class="sr-only">
+      {% for day in overview.days %}
+        <li>{% blocktrans with date=day.date|date:'Y-m-d' count counter=day.count %}{{ date }}: {{ counter }} orb created{% plural %}{{ date }}: {{ counter }} orbs created{% endblocktrans %}</li>
+      {% endfor %}
+    </ul>
+    <div class="orbit-bars-axis" aria-hidden="true"><span>{% trans "14 days ago" %}</span><span>{% trans "Today" %}</span></div>
+  </div>
+</div>
+{% endif %}
