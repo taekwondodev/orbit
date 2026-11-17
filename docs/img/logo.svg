@@ -1,29 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="132" viewBox="-100 -66 200 132" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="112" viewBox="-80 -56 160 112" role="img" aria-labelledby="title">
 <title id="title">orbit</title>
-<style>
-  .satellite { fill: #f0f6fc; }
-  @media (prefers-color-scheme: light) {
-    .satellite { fill: #6e7781; }
-    .halo { display: none; }
-  }
-</style>
 <defs>
-  <path id="orbit" d="M-76 0 a76 22.8 0 1 0 152 0 a76 22.8 0 1 0 -152 0"/>
-  <clipPath id="behind"><rect x="-120" y="-90" width="240" height="90"/></clipPath>
-  <clipPath id="ahead"><rect x="-120" y="0" width="240" height="90"/></clipPath>
-  <g id="satellite">
-    <circle class="satellite halo" r="25.3" opacity="0.18"/>
-    <circle class="satellite" r="12.7" opacity="0.95"/>
-  </g>
+  <path id="orbit" d="M-62 0 a62 18 0 1 0 124 0 a62 18 0 1 0 -124 0"/>
+  <clipPath id="behind"><rect x="-80" y="-60" width="160" height="60"/></clipPath>
+  <clipPath id="ahead"><rect x="-80" y="0" width="160" height="60"/></clipPath>
+  <clipPath id="disc"><circle r="38"/></clipPath>
 </defs>
-<g transform="rotate(-18)" opacity="0"><animate attributeName="opacity" dur="0.32s" values="0;1" fill="freeze"/>
-  <path d="M-76 0 a76 22.8 0 0 1 152 0" fill="none" stroke="#8b949e" stroke-opacity="0.55" stroke-width="7.6" stroke-linecap="butt"/>
-  <g clip-path="url(#behind)"><use href="#satellite"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#orbit"/></animateMotion></use></g>
+<g transform="rotate(-18)" opacity="0"><animate attributeName="opacity" begin="1s" dur="0.12s" values="0;1" fill="freeze"/>
+  <path d="M-62 0 a62 18 0 0 1 124 0" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+  <g clip-path="url(#behind)"><circle r="4.5" fill="#f0f6fc"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#orbit"/></animateMotion></circle></g>
 </g>
-<circle r="32.9" fill="none" stroke="#58a6ff" stroke-opacity="0.9" stroke-width="10.1" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" transform="rotate(180)"><animate attributeName="stroke-dashoffset" begin="0.3s" dur="0.7s" values="1;0" fill="freeze"/></circle>
-<circle r="38" fill="#58a6ff" opacity="0"><animate attributeName="opacity" begin="1s" dur="0.4s" values="0;0.55;1" fill="freeze"/></circle>
-<g transform="rotate(-18)" opacity="0"><animate attributeName="opacity" dur="0.32s" values="0;1" fill="freeze"/>
-  <path d="M-76 0 a76 22.8 0 0 0 152 0" fill="none" stroke="#8b949e" stroke-opacity="0.55" stroke-width="7.6" stroke-linecap="butt"/>
-  <g clip-path="url(#ahead)"><use href="#satellite"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#orbit"/></animateMotion></use></g>
+<circle r="38" fill="#58a6ff" opacity="0"><animate attributeName="opacity" begin="0.7s" dur="0.4s" values="0;1" fill="freeze"/></circle>
+<path d="M-40 0 a40 40 0 1 0 80 0 a40 40 0 1 0 -80 0" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" fill="none" stroke="#1f6feb" stroke-width="4" stroke-linecap="butt"><animate attributeName="stroke-dashoffset" dur="0.7s" values="1;0" fill="freeze"/></path>
+<g transform="rotate(-18)" opacity="0"><animate attributeName="opacity" begin="1s" dur="0.12s" values="0;1" fill="freeze"/>
+  <path d="M-62 0 a62 18 0 0 0 124 0" fill="none" stroke="#1f6feb" stroke-width="6" clip-path="url(#disc)"/>
+  <path d="M-62 0 a62 18 0 0 0 124 0" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+  <g clip-path="url(#ahead)"><circle r="4.5" fill="#f0f6fc"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#orbit"/></animateMotion></circle></g>
 </g>
 </svg>
