@@ -1,28 +1,66 @@
 {% load i18n %}
+{# The panel is English only, whatever the user's language. #}
+{% language 'en' %}
+<div class="orbit-detail">
+  <div class="orbit-detail-head">
+    <span class="orbit-id">{{ orb.id }}</span>
+    {{ status_badge }}
+  </div>
 
-<div class="detail">
-  <dl class="dl-horizontal">
-    <dt>{% trans "ID" %}</dt>
-    <dd>{{ orb.id }}</dd>
-    <dt>{% trans "Status" %}</dt>
-    <dd>{{ status_label }}</dd>
-    <dt>{% trans "vCPUs" %}</dt>
-    <dd>{{ orb.size.vcpus }}</dd>
-    <dt>{% trans "Memory (MiB)" %}</dt>
-    <dd>{{ orb.size.memory_mb }}</dd>
-    <dt>{% trans "Disk (GiB)" %}</dt>
-    <dd>{{ orb.size.disk_gb }}</dd>
-    <dt>{% trans "SSH host" %}</dt>
-    <dd>{{ orb.ssh_host|default:_("-") }}</dd>
-    <dt>{% trans "SSH user" %}</dt>
-    <dd>{{ orb.ssh_user|default:_("-") }}</dd>
-    {% if orb.ssh_host %}
-      <dt>{% trans "SSH command" %}</dt>
-      <dd><code>ssh {{ orb.ssh_user }}@{{ orb.ssh_host }}</code></dd>
-    {% endif %}
-    <dt>{% trans "Fault" %}</dt>
-    <dd class="word-wrap">{{ orb.fault|default:_("-") }}</dd>
-    <dt>{% trans "Created" %}</dt>
-    <dd>{{ orb.created_at|parse_isotime }}</dd>
-  </dl>
+  {% if steps %}
+    <ol class="orbit-stepper">
+      {% for step in steps %}
+        <li class="orbit-step-{{ step.state }}"{% if step.state == 'now' %} aria-current="step"{% endif %}>
+          {{ step.label }}
+          <span class="sr-only">({% if step.state == 'done' %}{% trans "completed" %}{% elif step.state == 'now' %}{% trans "current" %}{% else %}{% trans "pending" %}{% endif %})</span>
+          <small>{{ step.help }}</small>
+        </li>
+      {% endfor %}
+    </ol>
+  {% elif orb.status == 'DELETING' %}
+    <p class="orbit-note">{% trans "Heat deletes the stack, then Blazar releases the reservation." %}</p>
+  {% endif %}
+
+  {% if orb.fault %}
+    <div class="orbit-callout">
+      <strong>{% trans "Fault" %}</strong>
+      <span class="word-wrap">{{ orb.fault }}</span>
+      {% if orb.status == 'ERROR' %}
+        <small>{% trans "The resources stay allocated for diagnosis until the orb is deleted." %}</small>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="orbit-cards">
+    <section class="orbit-card">
+      <h3>{% trans "Access" %}</h3>
+      <dl>
+        <dt>{% trans "SSH host" %}</dt>
+        <dd class="orbit-mono">{{ orb.ssh_host|default:_("-") }}</dd>
+        <dt>{% trans "SSH user" %}</dt>
+        <dd class="orbit-mono">{{ orb.ssh_user|default:_("-") }}</dd>
+      </dl>
+      <p class="orbit-note">
+        {% if orb.ssh_host %}
+          {% trans "Sign in with the private key that matches the public key sent at creation; orbit never holds it." %}
+        {% else %}
+          {% trans "The SSH host appears once the orb is active." %}
+        {% endif %}
+      </p>
+    </section>
+    <section class="orbit-card">
+      <h3>{% trans "Reserved resources" %}</h3>
+      <dl>
+        <dt>{% trans "vCPUs" %}</dt>
+        <dd>{{ orb.size.vcpus }}</dd>
+        <dt>{% trans "Memory (MiB)" %}</dt>
+        <dd>{{ orb.size.memory_mb }}</dd>
+        <dt>{% trans "Disk (GiB)" %}</dt>
+        <dd>{{ orb.size.disk_gb }}</dd>
+        <dt>{% trans "Created" %}</dt>
+        <dd>{{ orb.created_at|parse_isotime }}</dd>
+      </dl>
+    </section>
+  </div>
 </div>
+{% endlanguage %}

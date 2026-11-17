@@ -9,7 +9,7 @@ Who does what, where the ownership boundary runs and in which order things happe
 | `orbit-api` | authenticates and validates HTTP requests, creates leases, reconciles reads, requests stack and lease deletion | persist tokens, act without requester authorization |
 | creation task | background thread inside `orbit-api`: waits for reservation activation, creates the stack and follows SSH readiness using the request's token | survive a process restart or token expiry |
 | `orbs` table | the link between orb, lease and stack, the size and SSH network, the observed status, the host keys read at boot | hold the truth about the resources |
-| Orbs panel | inside Horizon, under Project → Orbit: lists and shows the project's orbs through `orbit-api`, with the logged-in user's token | create or delete orbs, call anything but `orbit-api` |
+| Orbs panel | inside Horizon, under Project → Orbit: lists and shows the project's orbs through `orbit-api`, with the logged-in user's token, in English; summarizes their statuses, reserved resources and daily creations from the same list read, deleted history included | create or delete orbs, call anything but `orbit-api`, report what a client does inside an orb |
 
 The creation task remains in the request-serving process with the request's token in memory. Authorization and restart trade-offs are recorded in [0002](adr/0002-resources-in-the-users-project.md); the creation deadlines and background following are defined in [reconciliation](design/state.md#reconciliation). Option values belong to [orbit/conf.py](../orbit/conf.py).
 

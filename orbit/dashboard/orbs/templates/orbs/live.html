@@ -4,13 +4,17 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block main %}
+{% language 'en' %}
 <div data-orbit-live data-url="{{ request.path }}">
-  <p class="orbit-live-status text-muted" role="status" aria-live="polite">
-    <span class="orbit-live-message">{% trans "Updates automatically every 5 seconds." %}</span>
+  <p class="orbit-live-status">
+    <span class="orbit-live-dot" aria-hidden="true"></span>
+    <span class="orbit-live-message" role="status" aria-live="polite">{% trans "Live · updates every 5 seconds" %}</span>
+    <span class="orbit-live-age"></span>
     <a class="orbit-live-login" href="{% url 'login' %}?next={{ request.path|urlencode }}" hidden>{% trans "Sign in again" %}</a>
   </p>
   <div class="orbit-live-content">
     {% block live_content %}{% endblock %}
   </div>
 </div>
+{% endlanguage %}
 {% endblock %}

@@ -1,21 +1,28 @@
+import datetime
+
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 import requests_mock
 
 from openstack_dashboard.test import helpers
+
+from orbit.dashboard import client
+from orbit.dashboard.orbs import overview
 
 ORBIT = 'http://orbit.example.com/orbit'
 INDEX_URL = reverse('horizon:project:orbs:index')
 
 
-def _orb(orb_id, status, ssh_host=None, fault=None):
+def _orb(orb_id, status, ssh_host=None, fault=None,
+         created_at='2026-10-20T12:00:00', vcpus=2):
     return {'id': orb_id, 'status': status,
-            'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
+            'size': {'vcpus': vcpus, 'memory_mb': 4096, 'disk_gb': 20},
             'ssh_host': ssh_host,
             'ssh_user': 'ubuntu', 'fault': fault,
-            'created_at': '2026-10-20T12:00:00'}
+            'created_at': created_at}
 
 
 class OrbsTestCase(helpers.TestCase):
@@ -36,30 +43,105 @@ class OrbsTestCase(helpers.TestCase):
 
 class IndexTests(OrbsTestCase):
 
-    def test_list_shows_the_orbs_that_still_exist(self):
+    def test_list_shows_the_orbs_that_still_exist_failures_first(self):
         self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': [
             _orb('orb-active', 'ACTIVE', ssh_host='172.24.4.17'),
             _orb('orb-building', 'BUILDING'),
-            _orb('orb-error', 'ERROR', fault='Quota exceeded'),
+            _orb('orb-error', 'ERROR', fault='<Quota exceeded>'),
             _orb('orb-deleted', 'DELETED'),
         ]})
 
         res = self.client.get(INDEX_URL)
 
-        self.assertEqual(['orb-active', 'orb-building', 'orb-error'],
+        self.assertEqual(['orb-error', 'orb-building', 'orb-active'],
                          [orb.id for orb in res.context['table'].data])
         rows = {row.datum.id: row for row in res.context['table'].get_rows()}
-        active = rows['orb-active'].cells
-        self.assertEqual('Active', active['status'].data)
-        self.assertEqual('172.24.4.17', active['ssh_host'].data)
-        self.assertEqual('2 vCPU · 4096 MiB · 20 GiB', active['size'].data)
-        self.assertNotIn('ajax-update', rows['orb-building'].classes)
-        self.assertIn('warning', rows['orb-building'].classes)
-        self.assertNotIn('warning', rows['orb-active'].classes)
-        self.assertNotIn('warning', rows['orb-error'].classes)
+        active = rows['orb-active']
+        self.assertIn('Active', active.cells['status'].data)
+        self.assertEqual('ACTIVE', active.attrs['data-orbit-status'])
+        self.assertNotIn('ssh_host', active.cells)
+        self.assertIn('orbit-row-error', rows['orb-error'].classes)
+        for row in rows.values():
+            self.assertNotIn('ajax-update', row.classes)
+            self.assertNotIn('warning', row.classes)
+        self.assertContains(
+            res, '<span class="orbit-chip"><b>4096</b> MiB</span>', html=True)
+        self.assertContains(res, '&lt;Quota exceeded&gt;')
+        self.assertNotContains(res, '<Quota exceeded>')
+        self.assertContains(
+            res, reverse('horizon:project:orbs:detail', args=['orb-error']))
         self.assertNotContains(res, 'orb-deleted')
         self.assertEqual(self.token.id,
                          self.orbit.last_request.headers['X-Auth-Token'])
+
+    def test_orbs_on_their_way_up_show_a_pulsing_badge_and_their_step(self):
+        self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': [
+            _orb('orb-reserving', 'RESERVING'),
+            _orb('orb-active', 'ACTIVE', ssh_host='172.24.4.17'),
+            _orb('orb-error', 'ERROR', fault='Quota exceeded'),
+        ]})
+
+        res = self.client.get(INDEX_URL)
+
+        rows = {row.datum.id: row for row in res.context['table'].get_rows()}
+        reserving = str(rows['orb-reserving'].cells['status'].data)
+        self.assertIn('orbit-pulse', reserving)
+        self.assertEqual(1, reserving.count('orbit-step-now'))
+        self.assertEqual(2, reserving.count('orbit-step-todo'))
+        active = str(rows['orb-active'].cells['status'].data)
+        self.assertNotIn('orbit-pulse', active)
+        self.assertEqual(3, active.count('orbit-step-done'))
+        # orbit does not say which step failed.
+        self.assertNotIn('orbit-steps',
+                         str(rows['orb-error'].cells['status'].data))
+
+    def test_summary_counts_the_project_including_deleted_history(self):
+        today = timezone.localdate()
+        self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': [
+            _orb('orb-active', 'ACTIVE', created_at=f'{today}T12:00:00'),
+            _orb('orb-error', 'ERROR', fault='Quota exceeded'),
+            _orb('orb-deleted', 'DELETED', created_at=f'{today}T11:00:00'),
+        ]})
+
+        res = self.client.get(INDEX_URL)
+
+        summary = res.context['overview']
+        self.assertEqual({'active': 1, 'starting': 0, 'error': 1,
+                          'deleting': 0},
+                         {group.key: group.count for group in summary.groups})
+        self.assertEqual(4, summary.vcpus)
+        self.assertEqual(2, summary.days[-1].count)
+        self.assertContains(res, 'class="orbit-overview"')
+        self.assertContains(res, 'Resources held')
+        # The bars are drawn for the eye; the counts are read as a list.
+        self.assertContains(res, f'<li>{today:%Y-%m-%d}: 2 orbs created</li>',
+                            html=True)
+        self.assertContains(res, '<div class="orbit-bars" aria-hidden="true">')
+
+    def test_panel_reads_in_english_whatever_the_users_language(self):
+        # The list shows an age, the detail a date: Django's own Italian
+        # catalog translates both. Horizon ships its catalogs uncompiled.
+        created = timezone.now() - datetime.timedelta(days=15)
+        listed = _orb('orb-1', 'ACTIVE', ssh_host='172.24.4.17',
+                      created_at=created.strftime('%Y-%m-%dT%H:%M:%S'))
+        self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': [listed]})
+        self.orbit.get(f'{ORBIT}/v1/orbs/orb-1',
+                       json=_orb('orb-1', 'ACTIVE', ssh_host='172.24.4.17',
+                                 created_at='2026-10-20T12:00:00'))
+        detail_url = reverse('horizon:project:orbs:detail', args=['orb-1'])
+        expected = {INDEX_URL: ('2\xa0weeks', '2\xa0settimane'),
+                    detail_url: ('Oct. 20, 2026', '20 Ottobre 2026')}
+
+        for url, (english, italian) in expected.items():
+            for live in ({}, {'live': '1'}):
+                with self.subTest(url=url, live=live):
+                    res = self.client.get(
+                        url, live, HTTP_ACCEPT_LANGUAGE='it',
+                        HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+                    html = res.json()['html'] if live else (
+                        res.content.decode())
+                    self.assertIn(english, html)
+                    self.assertNotIn(italian, html)
 
     def test_empty_list_says_how_to_create_an_orb(self):
         self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': []})
@@ -77,6 +159,9 @@ class IndexTests(OrbsTestCase):
         self.assertEqual(200, res.status_code)
         self.assertEqual([], res.context['table'].data)
         self.assertNotContains(res, 'POST /v1/orbs')
+        # No summary: zero orbs would be false.
+        self.assertNotIn('overview', res.context)
+        self.assertNotContains(res, 'orbit-overview')
         self.assertMessageCount(res, error=1)
         self.assertIn('Heat is unavailable',
                       str(list(res.context['messages'])[0]))
@@ -99,6 +184,8 @@ class IndexTests(OrbsTestCase):
         self.assertIn('orb-1', added.json()['html'])
         self.assertIn('orb-2', added.json()['html'])
         self.assertIn('Active', added.json()['html'])
+        self.assertIn('orbit-overview', added.json()['html'])
+        self.assertIn('data-orbit-status="BUILDING"', added.json()['html'])
         changed = self.client.get(INDEX_URL, {'live': '1'},
                                   HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertIn('orb-1', changed.json()['html'])
@@ -132,22 +219,92 @@ class IndexTests(OrbsTestCase):
                 self.assertEqual(b'', res.content)
         self.assertFalse(self.orbit.called)
 
-    def test_live_script_is_registered_and_discoverable(self):
+    def test_live_script_and_styles_are_registered_and_discoverable(self):
         self.assertIn('orbit/orbs-live.js', settings.HORIZON_CONFIG['js_files'])
         self.assertIsNotNone(finders.find('orbit/orbs-live.js'))
+        self.assertIn('orbit/orbs.scss',
+                      settings.HORIZON_CONFIG['scss_files'])
+        self.assertIsNotNone(finders.find('orbit/orbs.scss'))
+
+
+class OverviewTests(helpers.TestCase):
+
+    TODAY = datetime.date(2026, 10, 20)
+
+    def _summarize(self, *orbs):
+        with timezone.override('UTC'):
+            return overview.summarize([client.Orb(orb) for orb in orbs],
+                                      self.TODAY)
+
+    def test_reserved_resources_count_every_orb_until_deleted(self):
+        summary = self._summarize(
+            _orb('a', 'RESERVING', vcpus=1), _orb('b', 'ACTIVE', vcpus=2),
+            _orb('c', 'ERROR', vcpus=4), _orb('d', 'DELETING', vcpus=8),
+            _orb('e', 'DELETED', vcpus=16))
+
+        self.assertEqual(15, summary.vcpus)
+        self.assertEqual(16, summary.memory_gib)
+        self.assertEqual(80, summary.disk_gb)
+        self.assertEqual({'active': 1, 'starting': 1, 'error': 1,
+                          'deleting': 1},
+                         {group.key: group.count for group in summary.groups})
+
+    def test_activity_counts_creations_per_day_over_two_weeks(self):
+        summary = self._summarize(
+            _orb('today-1', 'ACTIVE', created_at='2026-10-20T00:30:00'),
+            _orb('today-2', 'DELETED', created_at='2026-10-20T23:59:00'),
+            _orb('week', 'DELETED', created_at='2026-10-14T08:00:00'),
+            _orb('older', 'DELETED', created_at='2026-10-13T08:00:00'),
+            _orb('window', 'DELETED', created_at='2026-10-07T08:00:00'),
+            _orb('outside', 'DELETED', created_at='2026-10-06T23:00:00'))
+
+        self.assertEqual(14, len(summary.days))
+        self.assertEqual(datetime.date(2026, 10, 7), summary.days[0].date)
+        self.assertEqual(self.TODAY, summary.days[-1].date)
+        self.assertEqual([1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 2],
+                         [day.count for day in summary.days])
+        self.assertEqual(3, summary.created_last_week)
+        self.assertEqual(100, summary.days[-1].percent)
+        self.assertEqual(50, summary.days[0].percent)
+
+    def test_days_follow_the_users_time_zone(self):
+        orb = _orb('late', 'ACTIVE', created_at='2026-10-19T23:30:00')
+        with timezone.override('Europe/Rome'):
+            summary = overview.summarize([client.Orb(orb)], self.TODAY)
+
+        self.assertEqual(1, summary.days[-1].count)
 
 
 class DetailTests(OrbsTestCase):
 
-    def test_active_orb_gives_the_ssh_command(self):
+    def test_active_orb_shows_its_address_without_a_partial_command(self):
         self.orbit.get(f'{ORBIT}/v1/orbs/orb-1',
                        json=_orb('orb-1', 'ACTIVE', ssh_host='172.24.4.17'))
 
         res = self.client.get(
             reverse('horizon:project:orbs:detail', args=['orb-1']))
 
-        self.assertContains(res, '<code>ssh ubuntu@172.24.4.17</code>',
-                            html=True)
+        self.assertContains(res, '172.24.4.17')
+        self.assertContains(res, 'ubuntu')
+        # Without the client's private key the bare command fails.
+        self.assertNotContains(res, 'ssh ubuntu@')
+        self.assertContains(res, 'private key')
+        self.assertEqual(['done', 'done', 'done'],
+                         [step['state'] for step in res.context['steps']])
+
+    def test_building_orb_shows_the_step_it_waits_for(self):
+        self.orbit.get(f'{ORBIT}/v1/orbs/orb-1',
+                       json=_orb('orb-1', 'BUILDING'))
+
+        res = self.client.get(
+            reverse('horizon:project:orbs:detail', args=['orb-1']))
+
+        self.assertEqual(['done', 'now', 'todo'],
+                         [step['state'] for step in res.context['steps']])
+        self.assertContains(res, 'orbit-pulse')
+        self.assertContains(res, 'aria-current="step"', count=1)
+        for state in ('(completed)', '(current)', '(pending)'):
+            self.assertContains(res, state, count=1)
 
     def test_failed_orb_shows_its_fault_and_no_ssh_command(self):
         fault = 'Resource CREATE failed: Quota exceeded for instances'
@@ -158,7 +315,8 @@ class DetailTests(OrbsTestCase):
             reverse('horizon:project:orbs:detail', args=['orb-1']))
 
         self.assertContains(res, fault)
-        self.assertNotContains(res, 'SSH command')
+        self.assertContains(res, 'resources stay allocated for diagnosis')
+        self.assertNotIn('steps', res.context)
 
     def test_live_detail_updates_ssh_fault_and_deleted_status(self):
         url = reverse('horizon:project:orbs:detail', args=['orb-1'])
@@ -169,7 +327,7 @@ class DetailTests(OrbsTestCase):
             {'json': _orb('orb-1', 'DELETED')},
         ])
         self.assertContains(self.client.get(url), 'data-orbit-live')
-        for expected in ('ssh ubuntu@172.24.4.17', '&lt;failed&gt;', 'Deleted'):
+        for expected in ('172.24.4.17', '&lt;failed&gt;', 'Deleted'):
             res = self.client.get(url, {'live': '1'},
                                   HTTP_X_REQUESTED_WITH='XMLHttpRequest')
             self.assertEqual(200, res.status_code)
