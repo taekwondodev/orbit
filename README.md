@@ -22,11 +22,9 @@
 - **Custom size**: processors, memory and disk are chosen orb by orb, without catalogs of fixed sizes.
 - **Reserved capacity**: capacity is reserved before building, so a request without room fails right away instead of halfway.
 - **Requester's project**: the orb is created in the project of whoever asks for it, among their resources and within their quota.
-- **Verified SSH access**: the orb gets the client's public key, and the client gets address, user and the machine's host keys to verify whom it connects to.
-- **SSH source network**: SSH is admitted only from the network the client names in each request, one address or a small network, within an optional cap set by the operator.
+- **Secure SSH access**: the orb gets the client's public key, and the client gets address, user and the machine's host keys to verify whom it connects to; SSH is admitted only from the network the client names in each request, within an optional cap set by the operator ([0008](docs/adr/0008-ssh-network-named-by-the-request.md)).
 - **Default-deny egress**: outbound connections are denied by default. External hostnames are reachable only through the operator's egress proxy, which admits its allowed domains; without a proxy, an orb reaches only the addresses and ports the operator lists ([outbound access](docs/egress.md)).
 - **Complete deletion**: one repeatable operation deletes capacity, flavor, machine and surrounding resources.
-- **Truthful status**: every read looks at the real resources, so a machine deleted by hand does not leave behind an orb that lies.
 
 ---
 
