@@ -11,9 +11,11 @@ from orbit import orb as orb_model
 
 def database():
     """An in-memory SQLite database with orbit's schema."""
-    engine = sa.create_engine('sqlite://',
-                              poolclass=sa.pool.StaticPool,
-                              connect_args={'check_same_thread': False})
+    engine = sa.create_engine(
+        'sqlite://',
+        poolclass=sa.pool.StaticPool,
+        connect_args={'check_same_thread': False},
+    )
     db_api.metadata.create_all(engine)
     return engine
 
@@ -38,8 +40,10 @@ def repository():
     return db_api.OrbRepository(database())
 
 
-PUBLIC_KEY = ('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGOhftmAAN4BAVfQqYzlzcso'
-              '+BQ5/8gHIjywO8hhD6es test@orbit')
+PUBLIC_KEY = (
+    'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGOhftmAAN4BAVfQqYzlzcso'
+    '+BQ5/8gHIjywO8hhD6es test@orbit'
+)
 
 
 class FakeBlazar:
@@ -55,10 +59,12 @@ class FakeBlazar:
             raise self.refuse_with
         self.created.append((name, size, end_date))
         number = len(self.created)
-        lease = clients.Lease(id=f'lease-{number}',
-                              status='PENDING',
-                              reservation_id=f'reservation-{number}',
-                              reservation_status='pending')
+        lease = clients.Lease(
+            id=f'lease-{number}',
+            status='PENDING',
+            reservation_id=f'reservation-{number}',
+            reservation_status='pending',
+        )
         self.leases[lease.id] = lease
         return lease
 
@@ -71,7 +77,8 @@ class FakeBlazar:
     def activate(self, lease_id):
         lease = self.leases[lease_id]
         self.leases[lease_id] = dataclasses.replace(
-            lease, status='ACTIVE', reservation_status='active')
+            lease, status='ACTIVE', reservation_status='active'
+        )
 
 
 class FakeHeat:
@@ -86,9 +93,12 @@ class FakeHeat:
         if self.refuse_with:
             raise self.refuse_with
         self.created.append((name, template, parameters, tag))
-        stack = clients.Stack(id=f'stack-{len(self.created)}',
-                              status='CREATE_IN_PROGRESS', status_reason='',
-                              outputs={})
+        stack = clients.Stack(
+            id=f'stack-{len(self.created)}',
+            status='CREATE_IN_PROGRESS',
+            status_reason='',
+            outputs={},
+        )
         self.stacks[name] = stack
         return stack.id
 
@@ -100,8 +110,11 @@ class FakeHeat:
 
     def set_status(self, name, status, reason='', **outputs):
         self.stacks[name] = dataclasses.replace(
-            self.stacks[name], status=status, status_reason=reason,
-            outputs=outputs)
+            self.stacks[name],
+            status=status,
+            status_reason=reason,
+            outputs=outputs,
+        )
 
 
 class FakeCreator:
@@ -114,11 +127,15 @@ class FakeCreator:
         self.started.append((orb, public_key))
 
 
-HOST_KEY_ED25519 = ('ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMAjisZdvWGFparxBlql'
-                    'B/fzA2Q+G0SQNgba9SaQRxJT')
-HOST_KEY_ECDSA = ('ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI'
-                  'bmlzdHAyNTYAAABBBJ8l4ljo43v0fplqGt9j7zEwq4HpAi8GwTzO6U4m'
-                  'vM2TcZ9FCbJ44kddcn0w9m48yfEIWRTyFfeoKTd9nnHzEpM=')
+HOST_KEY_ED25519 = (
+    'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMAjisZdvWGFparxBlql'
+    'B/fzA2Q+G0SQNgba9SaQRxJT'
+)
+HOST_KEY_ECDSA = (
+    'ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAI'
+    'bmlzdHAyNTYAAABBBJ8l4ljo43v0fplqGt9j7zEwq4HpAi8GwTzO6U4m'
+    'vM2TcZ9FCbJ44kddcn0w9m48yfEIWRTyFfeoKTd9nnHzEpM='
+)
 
 # The tail of an Ubuntu console as cloud-init leaves it, line endings
 # included.
@@ -128,11 +145,11 @@ CONSOLE = (
     f'{HOST_KEY_ECDSA} root@orb\r\n'
     f'{HOST_KEY_ED25519} root@orb\r\n'
     '-----END SSH HOST KEY KEYS-----\r\n'
-    'Ubuntu 24.04 LTS orb ttyS0\r\n')
+    'Ubuntu 24.04 LTS orb ttyS0\r\n'
+)
 
 
 class FakeNova:
-
     def __init__(self):
         self.servers = {}
         self.consoles = {}
@@ -150,5 +167,6 @@ class FakeNova:
 
 
 def fake_clients():
-    return clients.Clients(blazar=FakeBlazar(), heat=FakeHeat(),
-                           nova=FakeNova())
+    return clients.Clients(
+        blazar=FakeBlazar(), heat=FakeHeat(), nova=FakeNova()
+    )

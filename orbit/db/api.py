@@ -7,7 +7,8 @@ from orbit import orb as orb_model
 metadata = sa.MetaData()
 
 orbs = sa.Table(
-    'orbs', metadata,
+    'orbs',
+    metadata,
     sa.Column('id', sa.String(36), primary_key=True),
     sa.Column('project_id', sa.String(255), nullable=False, index=True),
     sa.Column('user_id', sa.String(255), nullable=False),
@@ -29,40 +30,44 @@ orbs = sa.Table(
 
 
 class OrbRepository:
-
     def __init__(self, engine):
         self._engine = engine
 
     def add(self, orb):
         with self._engine.begin() as conn:
-            conn.execute(orbs.insert().values(
-                id=orb.id,
-                project_id=orb.project_id,
-                user_id=orb.user_id,
-                vcpus=orb.size.vcpus,
-                memory_mb=orb.size.memory_mb,
-                disk_gb=orb.size.disk_gb,
-                lease_id=orb.lease_id,
-                reservation_id=orb.reservation_id,
-                stack_id=orb.stack_id,
-                status=orb.status.value,
-                fault=orb.fault,
-                ssh_allowed_cidr=orb.ssh_allowed_cidr,
-                created_at=orb.created_at,
-            ))
+            conn.execute(
+                orbs.insert().values(
+                    id=orb.id,
+                    project_id=orb.project_id,
+                    user_id=orb.user_id,
+                    vcpus=orb.size.vcpus,
+                    memory_mb=orb.size.memory_mb,
+                    disk_gb=orb.size.disk_gb,
+                    lease_id=orb.lease_id,
+                    reservation_id=orb.reservation_id,
+                    stack_id=orb.stack_id,
+                    status=orb.status.value,
+                    fault=orb.fault,
+                    ssh_allowed_cidr=orb.ssh_allowed_cidr,
+                    created_at=orb.created_at,
+                )
+            )
 
     def get(self, project_id, orb_id):
         """The orb, or None if missing or in another project."""
-        query = orbs.select().where(orbs.c.id == orb_id,
-                                    orbs.c.project_id == project_id)
+        query = orbs.select().where(
+            orbs.c.id == orb_id, orbs.c.project_id == project_id
+        )
         with self._engine.connect() as conn:
             row = conn.execute(query).one_or_none()
         return _to_orb(row) if row else None
 
     def list(self, project_id):
-        query = (orbs.select()
-                 .where(orbs.c.project_id == project_id)
-                 .order_by(orbs.c.created_at))
+        query = (
+            orbs.select()
+            .where(orbs.c.project_id == project_id)
+            .order_by(orbs.c.created_at)
+        )
         with self._engine.connect() as conn:
             return [_to_orb(row) for row in conn.execute(query)]
 
@@ -74,15 +79,17 @@ class OrbRepository:
         are written only if none are stored yet.
         Returns True if the row was updated.
         """
-        values = {key: _column_value(key, value)
-                  for key, value in changes.items()}
+        values = {
+            key: _column_value(key, value) for key, value in changes.items()
+        }
         values['updated_at'] = orb_model.utcnow()
         if changes.get('status') == orb_model.Status.DELETED:
             values['deleted_at'] = values['updated_at']
-        query = (orbs.update()
-                 .where(orbs.c.id == orb_id,
-                        orbs.c.status == expected_status.value)
-                 .values(**values))
+        query = (
+            orbs.update()
+            .where(orbs.c.id == orb_id, orbs.c.status == expected_status.value)
+            .values(**values)
+        )
         if 'ssh_host_keys' in changes:
             # Written once: a reader holding a stale row does not replace
             # them with a later console (docs/adr/0007).
@@ -111,8 +118,11 @@ def _to_orb(row):
         status=orb_model.Status(row.status),
         fault=row.fault,
         ssh_allowed_cidr=row.ssh_allowed_cidr,
-        ssh_host_keys=(tuple(row.ssh_host_keys.split('\n'))
-                       if row.ssh_host_keys is not None else None),
+        ssh_host_keys=(
+            tuple(row.ssh_host_keys.split('\n'))
+            if row.ssh_host_keys is not None
+            else None
+        ),
         created_at=row.created_at,
         updated_at=row.updated_at,
         deleted_at=row.deleted_at,

@@ -16,8 +16,13 @@ from orbit.dashboard.orbs import overview
 from orbit.dashboard.orbs import tables as orbs_tables
 
 # Rows needing attention first: failures, then orbs on their way up.
-ROW_ORDER = {'ERROR': 0, 'RESERVING': 1, 'BUILDING': 1, 'ACTIVE': 2,
-             'DELETING': 3}
+ROW_ORDER = {
+    'ERROR': 0,
+    'RESERVING': 1,
+    'BUILDING': 1,
+    'ACTIVE': 2,
+    'DELETING': 3,
+}
 
 # What each of the table's STEPS waits for, shown on the detail page.
 STEP_HELP = (
@@ -53,8 +58,13 @@ class LiveViewMixin:
     def render_to_response(self, context, **response_kwargs):
         if not self.live:
             return super().render_to_response(context, **response_kwargs)
-        response = JsonResponse({'html': render_to_string(
-            self.fragment_template, context, request=self.request)})
+        response = JsonResponse(
+            {
+                'html': render_to_string(
+                    self.fragment_template, context, request=self.request
+                )
+            }
+        )
         response['Cache-Control'] = 'no-store'
         return response
 
@@ -88,7 +98,8 @@ class IndexView(LiveViewMixin, tables.DataTableView):
         context = super().get_context_data(**kwargs)
         if self.orbs is not None:
             context['overview'] = overview.summarize(
-                self.orbs, timezone.localdate())
+                self.orbs, timezone.localdate()
+            )
         return context
 
 
@@ -108,7 +119,8 @@ class DetailView(LiveViewMixin, views.HorizonTemplateView):
                 self.request,
                 _('Unable to retrieve details for orb "%s".')
                 % self.kwargs['orb_id'],
-                redirect=reverse('horizon:project:orbs:index'))
+                redirect=reverse('horizon:project:orbs:index'),
+            )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -118,8 +130,13 @@ class DetailView(LiveViewMixin, views.HorizonTemplateView):
         states = orbs_tables.step_states(orb.status)
         if states is not None:
             context['steps'] = [
-                {'label': orbs_tables.status_label(status), 'help': text,
-                 'state': state}
+                {
+                    'label': orbs_tables.status_label(status),
+                    'help': text,
+                    'state': state,
+                }
                 for status, text, state in zip(
-                    orbs_tables.STEPS, STEP_HELP, states)]
+                    orbs_tables.STEPS, STEP_HELP, states
+                )
+            ]
         return context

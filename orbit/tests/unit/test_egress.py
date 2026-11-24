@@ -6,25 +6,38 @@ from orbit import egress
 
 
 class TestParse(unittest.TestCase):
-
     def test_destination_is_a_single_host_with_protocol_and_port(self):
-        self.assertEqual(egress.Destination('udp', '10.0.0.2', 53),
-                         egress.parse_destination('udp:10.0.0.2:53'))
+        self.assertEqual(
+            egress.Destination('udp', '10.0.0.2', 53),
+            egress.parse_destination('udp:10.0.0.2:53'),
+        )
 
     def test_destination_must_not_be_a_network_or_lack_a_part(self):
-        for value in ('tcp:10.0.0.0/8:443', 'tcp:10.0.0.5', 'icmp:10.0.0.5:443',
-                      'tcp:git.example.com:443', 'tcp:2001:db8::1:443',
-                      'tcp:10.0.0.5:0', 'tcp:10.0.0.5:65536',
-                      'tcp:10.0.0.5:https', 'tcp:10.0.0.5:\u00b2',
-                      'tcp::443', 'tcp:0.0.0.0:443', 'tcp:127.0.0.1:443',
-                      'udp:224.0.0.251:5353', 'udp:255.255.255.255:67'):
+        for value in (
+            'tcp:10.0.0.0/8:443',
+            'tcp:10.0.0.5',
+            'icmp:10.0.0.5:443',
+            'tcp:git.example.com:443',
+            'tcp:2001:db8::1:443',
+            'tcp:10.0.0.5:0',
+            'tcp:10.0.0.5:65536',
+            'tcp:10.0.0.5:https',
+            'tcp:10.0.0.5:\u00b2',
+            'tcp::443',
+            'tcp:0.0.0.0:443',
+            'tcp:127.0.0.1:443',
+            'udp:224.0.0.251:5353',
+            'udp:255.255.255.255:67',
+        ):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     egress.parse_destination(value)
 
     def test_proxy_is_a_tcp_host_and_port(self):
-        self.assertEqual(egress.Destination('tcp', '172.24.4.1', 4750),
-                         egress.parse_proxy('172.24.4.1:4750'))
+        self.assertEqual(
+            egress.Destination('tcp', '172.24.4.1', 4750),
+            egress.parse_proxy('172.24.4.1:4750'),
+        )
 
     def test_proxy_must_not_be_a_network(self):
         for value in ('172.24.4.0/24:4750', '172.24.4.1', 'proxy:4750'):
@@ -34,7 +47,6 @@ class TestParse(unittest.TestCase):
 
 
 class TestRules(unittest.TestCase):
-
     def test_nothing_listed_adds_no_rule(self):
         self.assertEqual([], egress.rules([], None))
 
@@ -43,13 +55,26 @@ class TestRules(unittest.TestCase):
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)
 
         self.assertEqual(
-            [{'direction': 'egress', 'ethertype': 'IPv4', 'protocol': 'tcp',
-              'remote_ip_prefix': '10.0.0.5/32',
-              'port_range_min': 443, 'port_range_max': 443},
-             {'direction': 'egress', 'ethertype': 'IPv4', 'protocol': 'tcp',
-              'remote_ip_prefix': '172.24.4.1/32',
-              'port_range_min': 4750, 'port_range_max': 4750}],
-            egress.rules([mirror], proxy))
+            [
+                {
+                    'direction': 'egress',
+                    'ethertype': 'IPv4',
+                    'protocol': 'tcp',
+                    'remote_ip_prefix': '10.0.0.5/32',
+                    'port_range_min': 443,
+                    'port_range_max': 443,
+                },
+                {
+                    'direction': 'egress',
+                    'ethertype': 'IPv4',
+                    'protocol': 'tcp',
+                    'remote_ip_prefix': '172.24.4.1/32',
+                    'port_range_min': 4750,
+                    'port_range_max': 4750,
+                },
+            ],
+            egress.rules([mirror], proxy),
+        )
 
     def test_a_destination_listed_twice_opens_one_rule(self):
         # Neutron refuses a rule identical to one the group already has.
@@ -59,7 +84,6 @@ class TestRules(unittest.TestCase):
 
 
 class TestUserData(unittest.TestCase):
-
     def test_without_a_proxy_there_is_no_user_data(self):
         mirror = egress.Destination('tcp', '10.0.0.5', 443)
 
@@ -83,18 +107,22 @@ class TestUserData(unittest.TestCase):
         self.assertEqual(
             f'SetEnv http_proxy={url} https_proxy={url} no_proxy={bypass} '
             f'HTTP_PROXY={url} HTTPS_PROXY={url} NO_PROXY={bypass}\n',
-            files['/etc/ssh/sshd_config.d/90-orbit-proxy.conf']['content'])
+            files['/etc/ssh/sshd_config.d/90-orbit-proxy.conf']['content'],
+        )
         sudo = files['/etc/sudoers.d/90-orbit-proxy']
         self.assertEqual('0440', sudo['permissions'])
         self.assertEqual(
             'Defaults env_keep += "http_proxy https_proxy no_proxy '
-            'HTTP_PROXY HTTPS_PROXY NO_PROXY"\n', sudo['content'])
+            'HTTP_PROXY HTTPS_PROXY NO_PROXY"\n',
+            sudo['content'],
+        )
         self.assertEqual(
             f'Acquire::http::Proxy "{url}";\n'
             f'Acquire::https::Proxy "{url}";\n'
             'Acquire::http::Proxy::10.0.0.5 "DIRECT";\n'
             'Acquire::https::Proxy::10.0.0.5 "DIRECT";\n',
-            files['/etc/apt/apt.conf.d/90orbit-proxy']['content'])
+            files['/etc/apt/apt.conf.d/90orbit-proxy']['content'],
+        )
 
     def test_proxy_alone_is_bypassed_only_for_the_machine_itself(self):
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)

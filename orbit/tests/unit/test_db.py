@@ -7,7 +7,6 @@ Status = orb_model.Status
 
 
 class TestOrbRepository(unittest.TestCase):
-
     def setUp(self):
         self.repo = fakes.repository()
 
@@ -32,15 +31,20 @@ class TestOrbRepository(unittest.TestCase):
         for orb in (mine, active, other):
             self.repo.add(orb)
 
-        self.assertEqual(['a', 'b'],
-                         [o.id for o in self.repo.list('project-a')])
+        self.assertEqual(
+            ['a', 'b'], [o.id for o in self.repo.list('project-a')]
+        )
 
     def test_update_applies_when_status_is_the_expected_one(self):
         orb = fakes.orb()
         self.repo.add(orb)
 
-        updated = self.repo.update(orb.id, Status.RESERVING,
-                                   status=Status.BUILDING, stack_id='stack-1')
+        updated = self.repo.update(
+            orb.id,
+            Status.RESERVING,
+            status=Status.BUILDING,
+            stack_id='stack-1',
+        )
 
         self.assertTrue(updated)
         stored = self.repo.get('project-a', orb.id)
@@ -52,8 +56,12 @@ class TestOrbRepository(unittest.TestCase):
         orb = fakes.orb(status=Status.DELETING)
         self.repo.add(orb)
 
-        updated = self.repo.update(orb.id, Status.RESERVING,
-                                   status=Status.BUILDING, stack_id='stack-1')
+        updated = self.repo.update(
+            orb.id,
+            Status.RESERVING,
+            status=Status.BUILDING,
+            stack_id='stack-1',
+        )
 
         self.assertFalse(updated)
         self.assertEqual(orb, self.repo.get('project-a', orb.id))
@@ -61,15 +69,19 @@ class TestOrbRepository(unittest.TestCase):
     def test_stored_host_keys_are_not_replaced(self):
         orb = fakes.orb(status=Status.ACTIVE)
         self.repo.add(orb)
-        self.repo.update(orb.id, Status.ACTIVE,
-                         ssh_host_keys=(fakes.HOST_KEY_ED25519,))
+        self.repo.update(
+            orb.id, Status.ACTIVE, ssh_host_keys=(fakes.HOST_KEY_ED25519,)
+        )
 
-        updated = self.repo.update(orb.id, Status.ACTIVE,
-                                   ssh_host_keys=(fakes.HOST_KEY_ECDSA,))
+        updated = self.repo.update(
+            orb.id, Status.ACTIVE, ssh_host_keys=(fakes.HOST_KEY_ECDSA,)
+        )
 
         self.assertFalse(updated)
-        self.assertEqual((fakes.HOST_KEY_ED25519,),
-                         self.repo.get('project-a', orb.id).ssh_host_keys)
+        self.assertEqual(
+            (fakes.HOST_KEY_ED25519,),
+            self.repo.get('project-a', orb.id).ssh_host_keys,
+        )
 
     def test_reaching_deleted_records_the_deletion_time(self):
         orb = fakes.orb(status=Status.DELETING)

@@ -8,10 +8,15 @@ import binascii
 MAX_KEY_LENGTH = 8192
 MAX_HOST_KEYS = 8
 
-KEY_TYPES = ('ssh-ed25519', 'ssh-rsa', 'ecdsa-sha2-nistp256',
-             'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521',
-             'sk-ssh-ed25519@openssh.com',
-             'sk-ecdsa-sha2-nistp256@openssh.com')
+KEY_TYPES = (
+    'ssh-ed25519',
+    'ssh-rsa',
+    'ecdsa-sha2-nistp256',
+    'ecdsa-sha2-nistp384',
+    'ecdsa-sha2-nistp521',
+    'sk-ssh-ed25519@openssh.com',
+    'sk-ecdsa-sha2-nistp256@openssh.com',
+)
 
 # Printed at boot by cloud-init (keys_to_console) and by CirrOS
 # (cirros-status).
@@ -24,8 +29,13 @@ def public_key(text):
     key, otherwise None."""
     key = text.strip()
     parts = key.split()
-    if (len(key) > MAX_KEY_LENGTH or '\n' in key or '\r' in key
-            or len(parts) < 2 or parts[0] not in KEY_TYPES):
+    if (
+        len(key) > MAX_KEY_LENGTH
+        or '\n' in key
+        or '\r' in key
+        or len(parts) < 2
+        or parts[0] not in KEY_TYPES
+    ):
         return None
     try:
         base64.b64decode(parts[1], validate=True)

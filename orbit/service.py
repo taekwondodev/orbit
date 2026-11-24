@@ -13,6 +13,7 @@ Status = orb_model.Status
 @dataclasses.dataclass(frozen=True)
 class Context:
     """Who makes the request, and their authentication to act for them."""
+
     project_id: str
     user_id: str
     auth: object
@@ -26,7 +27,6 @@ class CreateRequest:
 
 
 class Orbs:
-
     def __init__(self, repository, clients_for, creator):
         self._repository = repository
         self._clients_for = clients_for
@@ -41,7 +41,8 @@ class Orbs:
         clients = self._clients_for(context.auth)
         orb_id = str(uuid.uuid4())
         lease = clients.blazar.create_lease(
-            f'orbit-{orb_id}', request.size, CONF.orbs.lease_end_date)
+            f'orbit-{orb_id}', request.size, CONF.orbs.lease_end_date
+        )
         orb = orb_model.Orb(
             id=orb_id,
             project_id=context.project_id,
@@ -70,8 +71,10 @@ class Orbs:
 
     def list(self, context, status=None):
         clients = self._clients_for(context.auth)
-        observed = [self._observe(orb, clients)
-                    for orb in self._repository.list(context.project_id)]
+        observed = [
+            self._observe(orb, clients)
+            for orb in self._repository.list(context.project_id)
+        ]
         if status is None:
             return observed
         return [o for o in observed if o.orb.status is status]
@@ -85,8 +88,9 @@ class Orbs:
         if orb is None:
             return None
         while orb.status not in (Status.DELETING, Status.DELETED):
-            if self._repository.update(orb.id, orb.status,
-                                       status=Status.DELETING, fault=None):
+            if self._repository.update(
+                orb.id, orb.status, status=Status.DELETING, fault=None
+            ):
                 break
             orb = self._repository.get(context.project_id, orb_id)
         if orb.status is not Status.DELETED:
@@ -96,9 +100,11 @@ class Orbs:
             # (docs/adr/0005).
             clients.heat.delete_stack(orb.resource_name)
             clients.blazar.delete_lease(orb.lease_id)
-        return reconciliation.Observed(self._repository.get(context.project_id, orb_id))
+        return reconciliation.Observed(
+            self._repository.get(context.project_id, orb_id)
+        )
 
     def _observe(self, orb, clients):
-        return reconciliation.reconcile(self._repository, orb, clients,
-                                        orb_model.utcnow())
-
+        return reconciliation.reconcile(
+            self._repository, orb, clients, orb_model.utcnow()
+        )

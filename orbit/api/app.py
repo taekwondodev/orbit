@@ -31,5 +31,6 @@ def create_wsgi_app():
     repository = db_api.OrbRepository(engine)
     creator = creation.Creator(repository, creation.load_template())
     orbs = service.Orbs(repository, clients.for_auth, creator)
-    return auth_token.AuthProtocol(create_app(orbs).wsgi_app,
-                                   {'oslo_config_config': CONF})
+    return auth_token.AuthProtocol(
+        create_app(orbs).wsgi_app, {'oslo_config_config': CONF}
+    )

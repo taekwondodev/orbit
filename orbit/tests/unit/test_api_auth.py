@@ -13,13 +13,14 @@ from orbit.tests.unit import fakes
 
 
 class TestAuthentication(unittest.TestCase):
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
-        conf.CONF.set_override('www_authenticate_uri',
-                               'http://keystone.invalid/identity',
-                               'keystone_authtoken')
+        conf.CONF.set_override(
+            'www_authenticate_uri',
+            'http://keystone.invalid/identity',
+            'keystone_authtoken',
+        )
         conf.CONF.set_override('connection', 'sqlite://', 'database')
 
     def test_request_without_token_is_rejected(self):
@@ -31,8 +32,9 @@ class TestAuthentication(unittest.TestCase):
                 response = client.get('/v1/orbs')
 
                 self.assertEqual(401, response.status_code)
-                self.assertIn('keystone.invalid',
-                              response.headers['WWW-Authenticate'])
+                self.assertIn(
+                    'keystone.invalid', response.headers['WWW-Authenticate']
+                )
 
     def test_api_creates_its_table_and_starts_again_with_it(self):
         engine = sa.create_engine('sqlite://')
@@ -40,8 +42,9 @@ class TestAuthentication(unittest.TestCase):
         repository = db_api.OrbRepository(engine)
         orb = fakes.orb()
 
-        with mock.patch.object(enginefacade.writer, 'get_engine',
-                               return_value=engine):
+        with mock.patch.object(
+            enginefacade.writer, 'get_engine', return_value=engine
+        ):
             app.create_wsgi_app()
             repository.add(orb)
             app.create_wsgi_app()
@@ -53,17 +56,19 @@ class TestAuthentication(unittest.TestCase):
             with self.subTest(cap=cap):
                 conf.CONF.set_override('ssh_allowed_cidr', cap, 'orbs')
 
-                with self.assertRaisesRegex(conf.InvalidOption,
-                                            'ssh_allowed_cidr'):
+                with self.assertRaisesRegex(
+                    conf.InvalidOption, 'ssh_allowed_cidr'
+                ):
                     app.create_wsgi_app()
 
     def test_api_does_not_start_with_an_invalid_egress_destination(self):
-        conf.CONF.set_override('egress_destinations',
-                               ['udp:10.0.0.2:53', 'tcp:10.0.0.0/8:443'],
-                               'orbs')
+        conf.CONF.set_override(
+            'egress_destinations',
+            ['udp:10.0.0.2:53', 'tcp:10.0.0.0/8:443'],
+            'orbs',
+        )
 
-        with self.assertRaisesRegex(conf.InvalidOption,
-                                    'egress_destinations'):
+        with self.assertRaisesRegex(conf.InvalidOption, 'egress_destinations'):
             app.create_wsgi_app()
 
     def test_api_does_not_start_with_an_invalid_egress_proxy(self):
@@ -84,9 +89,9 @@ class TestAuthentication(unittest.TestCase):
     def test_api_does_not_start_without_time_to_boot(self):
         for ready_timeout in (60, 120):
             with self.subTest(ready_timeout=ready_timeout):
-                conf.CONF.set_override('ready_timeout', ready_timeout,
-                                       'orbs')
+                conf.CONF.set_override('ready_timeout', ready_timeout, 'orbs')
 
-                with self.assertRaisesRegex(conf.InvalidOption,
-                                            'ready_timeout'):
+                with self.assertRaisesRegex(
+                    conf.InvalidOption, 'ready_timeout'
+                ):
                     app.create_wsgi_app()

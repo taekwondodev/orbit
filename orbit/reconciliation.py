@@ -22,6 +22,7 @@ Status = orb_model.Status
 @dataclasses.dataclass(frozen=True)
 class Observed:
     """An orb as it looks now, with the address if it is reachable."""
+
     orb: orb_model.Orb
     ssh_host: str | None = None
 
@@ -39,14 +40,16 @@ def reconcile(repository, orb, clients, now):
         server_id = stack.outputs.get('server_id')
         server = clients.nova.get_server(server_id) if server_id else None
 
-    timeouts = lifecycle.Timeouts(creation=CONF.orbs.creation_timeout,
-                                  ready=CONF.orbs.ready_timeout)
+    timeouts = lifecycle.Timeouts(
+        creation=CONF.orbs.creation_timeout, ready=CONF.orbs.ready_timeout
+    )
     ssh_host_keys = orb.ssh_host_keys
     if lifecycle.awaits_host_keys(orb, now, timeouts):
         ssh_host_keys = _read_host_keys(orb, clients.nova, server)
 
-    observation = lifecycle.observe(orb, now, timeouts, lease, stack,
-                                    server, ssh_host_keys)
+    observation = lifecycle.observe(
+        orb, now, timeouts, lease, stack, server, ssh_host_keys
+    )
     changes = {}
     if (observation.status, observation.fault) != (orb.status, orb.fault):
         changes.update(status=observation.status, fault=observation.fault)
@@ -60,10 +63,12 @@ def reconcile(repository, orb, clients, now):
         # Another request, or the creation task, wrote first: its
         # version wins, and is checked again now, so that an orb it
         # made ACTIVE comes back with its address.
-        return reconcile(repository, repository.get(orb.project_id, orb.id),
-                         clients, now)
-    return Observed(repository.get(orb.project_id, orb.id),
-                    observation.ssh_host)
+        return reconcile(
+            repository, repository.get(orb.project_id, orb.id), clients, now
+        )
+    return Observed(
+        repository.get(orb.project_id, orb.id), observation.ssh_host
+    )
 
 
 def _read_host_keys(orb, nova, server):
@@ -78,7 +83,6 @@ def _read_host_keys(orb, nova, server):
     try:
         console = nova.get_console_output(server.id)
     except (orbit_clients.Rejected, orbit_clients.Unavailable) as e:
-        LOG.warning('Console of %s not readable: %s',
-                    orb.resource_name, e)
+        LOG.warning('Console of %s not readable: %s', orb.resource_name, e)
         return None
     return ssh.host_keys(console)

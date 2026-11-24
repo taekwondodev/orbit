@@ -62,15 +62,22 @@ def summarize(orbs, today):
     holding = [orb for orb in orbs if orb.status in HOLDING]
     groups = tuple(
         Group(key, label, sum(orb.status in statuses for orb in holding))
-        for key, label, statuses in GROUPS)
+        for key, label, statuses in GROUPS
+    )
     created = [_local_date(orb.created_at) for orb in orbs]
-    counts = [created.count(today - datetime.timedelta(days=offset))
-              for offset in range(ACTIVITY_DAYS - 1, -1, -1)]
+    counts = [
+        created.count(today - datetime.timedelta(days=offset))
+        for offset in range(ACTIVITY_DAYS - 1, -1, -1)
+    ]
     busiest = max(counts) or 1
     days = tuple(
-        Day(today - datetime.timedelta(days=ACTIVITY_DAYS - 1 - index),
-            count, round(100 * count / busiest))
-        for index, count in enumerate(counts))
+        Day(
+            today - datetime.timedelta(days=ACTIVITY_DAYS - 1 - index),
+            count,
+            round(100 * count / busiest),
+        )
+        for index, count in enumerate(counts)
+    )
     return Overview(
         groups=groups,
         vcpus=sum(orb.size['vcpus'] for orb in holding),

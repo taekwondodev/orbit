@@ -28,23 +28,27 @@ STACK_TAG = 'orbit'
 
 
 def load_template():
-    return (importlib.resources.files('orbit') / 'templates' / 'orb.yaml'
-            ).read_text()
+    return (
+        importlib.resources.files('orbit') / 'templates' / 'orb.yaml'
+    ).read_text()
 
 
 class Creator:
-
-    def __init__(self, repository, template, sleep=time.sleep,
-                 clock=orb_model.utcnow):
+    def __init__(
+        self, repository, template, sleep=time.sleep, clock=orb_model.utcnow
+    ):
         self._repository = repository
         self._template = template
         self._sleep = sleep
         self._clock = clock
 
     def start(self, orb, clients, public_key):
-        threading.Thread(target=self.run, args=(orb, clients, public_key),
-                         name=f'create-{orb.resource_name}',
-                         daemon=True).start()
+        threading.Thread(
+            target=self.run,
+            args=(orb, clients, public_key),
+            name=f'create-{orb.resource_name}',
+            daemon=True,
+        ).start()
 
     def run(self, orb, clients, public_key):
         try:
@@ -54,34 +58,40 @@ class Creator:
             self._fail(orb, 'creation interrupted by an internal error')
 
     def _fail(self, orb, fault):
-        self._repository.update(orb.id, Status.RESERVING,
-                                status=Status.ERROR, fault=fault)
+        self._repository.update(
+            orb.id, Status.RESERVING, status=Status.ERROR, fault=fault
+        )
 
     def _create(self, orb, clients, public_key):
         try:
             active = self._wait_for_reservation(orb, clients.blazar)
         except orbit_clients.Rejected as e:
-            LOG.warning('Blazar rejects the read of %s: %s',
-                        orb.resource_name, e)
+            LOG.warning(
+                'Blazar rejects the read of %s: %s', orb.resource_name, e
+            )
             self._fail(orb, f'reservation not readable: {e}')
             return
         if not active:
-            LOG.warning('Reservation of %s not active: no stack',
-                        orb.resource_name)
+            LOG.warning(
+                'Reservation of %s not active: no stack', orb.resource_name
+            )
             return
         current = self._repository.get(orb.project_id, orb.id)
         if current.status is not Status.RESERVING:
             return
         try:
             stack_id = clients.heat.create_stack(
-                orb.resource_name, self._template,
-                self._parameters(orb, public_key), STACK_TAG)
+                orb.resource_name,
+                self._template,
+                self._parameters(orb, public_key),
+                STACK_TAG,
+            )
         except (orbit_clients.Rejected, orbit_clients.Unavailable) as e:
             self._fail(orb, str(e))
             return
-        if not self._repository.update(orb.id, Status.RESERVING,
-                                       status=Status.BUILDING,
-                                       stack_id=stack_id):
+        if not self._repository.update(
+            orb.id, Status.RESERVING, status=Status.BUILDING, stack_id=stack_id
+        ):
             # The orb changed while the stack was being created: it was
             # deleted, or declared interrupted. The stack no longer belongs
             # to it.
@@ -97,21 +107,23 @@ class Creator:
         without host keys goes to ERROR as on a read.
         """
         deadline = orb.created_at + datetime.timedelta(
-            seconds=CONF.orbs.ready_timeout)
+            seconds=CONF.orbs.ready_timeout
+        )
         while True:
             current = self._repository.get(orb.project_id, orb.id)
             if current is None or current.status is not Status.BUILDING:
                 return
             try:
                 observed = reconciliation.reconcile(
-                    self._repository, current, clients, self._clock())
+                    self._repository, current, clients, self._clock()
+                )
             except orbit_clients.Rejected as e:
-                LOG.warning('Stopped following %s, refused: %s',
-                            orb.resource_name, e)
+                LOG.warning(
+                    'Stopped following %s, refused: %s', orb.resource_name, e
+                )
                 return
             except orbit_clients.Unavailable as e:
-                LOG.warning('Following %s, retrying: %s',
-                            orb.resource_name, e)
+                LOG.warning('Following %s, retrying: %s', orb.resource_name, e)
             else:
                 if observed.orb.status is not Status.BUILDING:
                     return
@@ -122,13 +134,16 @@ class Creator:
 
     def _wait_for_reservation(self, orb, blazar):
         deadline = orb.created_at + datetime.timedelta(
-            seconds=CONF.orbs.creation_timeout)
+            seconds=CONF.orbs.creation_timeout
+        )
         while self._clock() < deadline:
             try:
                 lease = blazar.get_lease(orb.lease_id)
             except orbit_clients.Unavailable:
-                LOG.warning('Blazar does not respond, retrying for %s',
-                            orb.resource_name)
+                LOG.warning(
+                    'Blazar does not respond, retrying for %s',
+                    orb.resource_name,
+                )
             else:
                 if lease is None or lease.is_failed:
                     return False
@@ -139,10 +154,15 @@ class Creator:
 
     @staticmethod
     def _parameters(orb, public_key):
-        destinations = [egress.parse_destination(value)
-                        for value in CONF.orbs.egress_destinations]
-        proxy = (egress.parse_proxy(CONF.orbs.egress_proxy)
-                 if CONF.orbs.egress_proxy else None)
+        destinations = [
+            egress.parse_destination(value)
+            for value in CONF.orbs.egress_destinations
+        ]
+        proxy = (
+            egress.parse_proxy(CONF.orbs.egress_proxy)
+            if CONF.orbs.egress_proxy
+            else None
+        )
         return {
             'orb_id': orb.id,
             'reservation_id': orb.reservation_id,

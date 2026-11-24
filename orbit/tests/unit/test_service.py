@@ -14,12 +14,12 @@ CONTEXT = service.Context('project-a', 'user-a', auth='auth')
 REQUEST = service.CreateRequest(
     size=orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
     public_key=fakes.PUBLIC_KEY,
-    ssh_allowed_cidr='198.51.100.20/32')
+    ssh_allowed_cidr='198.51.100.20/32',
+)
 HOST_KEYS = (fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519)
 
 
 class TestCreate(unittest.TestCase):
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
@@ -27,8 +27,9 @@ class TestCreate(unittest.TestCase):
         self.blazar = self.clients.blazar
         self.creator = fakes.FakeCreator()
         self.repository = mock.Mock(wraps=fakes.repository())
-        self.orbs = service.Orbs(self.repository, lambda auth: self.clients,
-                                 self.creator)
+        self.orbs = service.Orbs(
+            self.repository, lambda auth: self.clients, self.creator
+        )
 
     def test_lease_is_deleted_when_the_orb_cannot_be_recorded(self):
         self.repository.add.side_effect = RuntimeError('database down')
@@ -41,7 +42,6 @@ class TestCreate(unittest.TestCase):
 
 
 class ServiceTestCase(unittest.TestCase):
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
@@ -49,19 +49,29 @@ class ServiceTestCase(unittest.TestCase):
         self.blazar, self.heat = self.clients.blazar, self.clients.heat
         self.nova = self.clients.nova
         self.repository = fakes.repository()
-        self.orbs = service.Orbs(self.repository, lambda auth: self.clients,
-                                 fakes.FakeCreator())
+        self.orbs = service.Orbs(
+            self.repository, lambda auth: self.clients, fakes.FakeCreator()
+        )
         self.orb = self.orbs.create(CONTEXT, REQUEST).orb
 
     def build(self):
         """Bring the orb up to a running machine, as the task would."""
         self.blazar.activate(self.orb.lease_id)
-        stack_id = self.heat.create_stack(self.orb.resource_name, 't', {},
-                                          'orbit')
-        self.repository.update(self.orb.id, Status.RESERVING,
-                               status=Status.BUILDING, stack_id=stack_id)
-        self.heat.set_status(self.orb.resource_name, 'CREATE_COMPLETE',
-                             ssh_host='172.24.4.17', server_id='server-1')
+        stack_id = self.heat.create_stack(
+            self.orb.resource_name, 't', {}, 'orbit'
+        )
+        self.repository.update(
+            self.orb.id,
+            Status.RESERVING,
+            status=Status.BUILDING,
+            stack_id=stack_id,
+        )
+        self.heat.set_status(
+            self.orb.resource_name,
+            'CREATE_COMPLETE',
+            ssh_host='172.24.4.17',
+            server_id='server-1',
+        )
         self.nova.servers['server-1'] = clients.Server('server-1', 'ACTIVE')
         self.nova.consoles['server-1'] = fakes.CONSOLE
 
@@ -70,7 +80,6 @@ class ServiceTestCase(unittest.TestCase):
 
 
 class TestRead(ServiceTestCase):
-
     def test_read_reports_reality_and_records_it(self):
         self.build()
 
@@ -97,12 +106,14 @@ class TestRead(ServiceTestCase):
         self.build()
         stale = self.stored()
         # The creation task records ACTIVE while this read is under way.
-        reconciliation.reconcile(self.repository, stale, self.clients,
-                                 orb_model.utcnow())
+        reconciliation.reconcile(
+            self.repository, stale, self.clients, orb_model.utcnow()
+        )
         latest = self.repository.get
         reads = [stale]
         self.repository.get = lambda *args: (
-            reads.pop() if reads else latest(*args))
+            reads.pop() if reads else latest(*args)
+        )
 
         observed = self.orbs.get(CONTEXT, self.orb.id)
 
@@ -123,14 +134,14 @@ class TestRead(ServiceTestCase):
 
         self.assertEqual(0, self.nova.console_reads)
         self.assertEqual(Status.ERROR, observed.orb.status)
-        self.assertEqual('SSH host keys not published on the console',
-                         observed.orb.fault)
+        self.assertEqual(
+            'SSH host keys not published on the console', observed.orb.fault
+        )
         self.assertIsNone(observed.orb.ssh_host_keys)
 
     def test_unreadable_console_leaves_the_orb_building(self):
         self.build()
-        self.nova.console_refused_with = clients.Unavailable('compute',
-                                                             'down')
+        self.nova.console_refused_with = clients.Unavailable('compute', 'down')
 
         observed = self.orbs.get(CONTEXT, self.orb.id)
 
@@ -151,13 +162,14 @@ class TestRead(ServiceTestCase):
     def test_list_filters_on_the_observed_status(self):
         self.build()
 
-        self.assertEqual([self.orb.id], [
-            o.orb.id for o in self.orbs.list(CONTEXT, Status.ACTIVE)])
+        self.assertEqual(
+            [self.orb.id],
+            [o.orb.id for o in self.orbs.list(CONTEXT, Status.ACTIVE)],
+        )
         self.assertEqual([], self.orbs.list(CONTEXT, Status.BUILDING))
 
 
 class TestDelete(ServiceTestCase):
-
     def test_delete_removes_stack_and_lease_then_reads_deleted(self):
         self.build()
 
@@ -199,7 +211,8 @@ class TestDelete(ServiceTestCase):
     def test_unregistered_stack_still_deleting_keeps_the_orb_deleting(self):
         self.heat.create_stack(self.orb.resource_name, 't', {}, 'orbit')
         self.heat.delete_stack = lambda name: self.heat.set_status(
-            name, 'DELETE_IN_PROGRESS')
+            name, 'DELETE_IN_PROGRESS'
+        )
         self.orbs.delete(CONTEXT, self.orb.id)
 
         observed = self.orbs.get(CONTEXT, self.orb.id)
@@ -220,16 +233,19 @@ class TestDelete(ServiceTestCase):
         self.build()
         delete_stack = self.heat.delete_stack
         self.heat.delete_stack = lambda name: self.heat.set_status(
-            name, 'DELETE_FAILED', 'Port in use')
+            name, 'DELETE_FAILED', 'Port in use'
+        )
         self.orbs.delete(CONTEXT, self.orb.id)
-        self.assertEqual(Status.ERROR,
-                         self.orbs.get(CONTEXT, self.orb.id).orb.status)
+        self.assertEqual(
+            Status.ERROR, self.orbs.get(CONTEXT, self.orb.id).orb.status
+        )
         self.heat.delete_stack = delete_stack
 
         self.orbs.delete(CONTEXT, self.orb.id)
 
-        self.assertEqual(Status.DELETED,
-                         self.orbs.get(CONTEXT, self.orb.id).orb.status)
+        self.assertEqual(
+            Status.DELETED, self.orbs.get(CONTEXT, self.orb.id).orb.status
+        )
 
     def test_unknown_orb_is_none(self):
         self.assertIsNone(self.orbs.delete(CONTEXT, 'missing'))

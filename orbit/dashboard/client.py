@@ -29,7 +29,7 @@ def orb_get(request, orb_id):
     # even percent-encoded: such an id would address another resource.
     if orb_id in ('.', '..'):
         raise OrbNotFound(f'Orb {orb_id} not found')
-    return Orb(_get(request, f"/v1/orbs/{parse.quote(orb_id, safe='')}"))
+    return Orb(_get(request, f'/v1/orbs/{parse.quote(orb_id, safe="")}'))
 
 
 def _get(request, path):
@@ -37,7 +37,8 @@ def _get(request, path):
     session = ks_session.Session(verify=_verify(), timeout=TIMEOUT)
     try:
         return session.get(
-            url, headers={'X-Auth-Token': request.user.token.id}).json()
+            url, headers={'X-Auth-Token': request.user.token.id}
+        ).json()
     except ks_exc.Unauthorized as e:
         raise OrbitUnauthorized(_message(e)) from e
     except ks_exc.NotFound as e:

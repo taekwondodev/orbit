@@ -26,8 +26,9 @@ class FakeClock:
         return self.now
 
     def at(self, seconds, action):
-        self.events.append((START + datetime.timedelta(seconds=seconds),
-                            action))
+        self.events.append(
+            (START + datetime.timedelta(seconds=seconds), action)
+        )
 
     def sleep(self, seconds):
         self.now += datetime.timedelta(seconds=seconds)
@@ -38,7 +39,6 @@ class FakeClock:
 
 
 class TestCreator(unittest.TestCase):
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
@@ -46,14 +46,19 @@ class TestCreator(unittest.TestCase):
         self.blazar, self.heat = self.clients.blazar, self.clients.heat
         self.repository = fakes.repository()
         self.clock = FakeClock()
-        self.creator = creation.Creator(self.repository, 'template-text',
-                                        sleep=self.clock.sleep,
-                                        clock=self.clock)
+        self.creator = creation.Creator(
+            self.repository,
+            'template-text',
+            sleep=self.clock.sleep,
+            clock=self.clock,
+        )
         lease = self.blazar.create_lease('orbit-x', None, None)
-        self.orb = fakes.orb(lease_id=lease.id,
-                             reservation_id=lease.reservation_id,
-                             created_at=START,
-                             ssh_allowed_cidr='203.0.113.0/24')
+        self.orb = fakes.orb(
+            lease_id=lease.id,
+            reservation_id=lease.reservation_id,
+            created_at=START,
+            ssh_allowed_cidr='203.0.113.0/24',
+        )
         self.repository.add(self.orb)
 
     def stored(self):
@@ -68,6 +73,7 @@ class TestCreator(unittest.TestCase):
             if len(calls) == polls:
                 self.blazar.activate(lease_id)
             return get_lease(lease_id)
+
         self.blazar.get_lease = counting
 
     def test_stack_is_created_once_the_reservation_is_active(self):
@@ -79,6 +85,7 @@ class TestCreator(unittest.TestCase):
         def timed(*args):
             created_at.append(self.clock.now)
             return create_stack(*args)
+
         self.heat.create_stack = timed
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -87,20 +94,26 @@ class TestCreator(unittest.TestCase):
         self.assertEqual(self.orb.resource_name, name)
         self.assertEqual('template-text', template)
         self.assertEqual('orbit', tag)
-        self.assertEqual({'orb_id': self.orb.id,
-                          'reservation_id': self.orb.reservation_id,
-                          'image': 'orb-image',
-                          'public_key': fakes.PUBLIC_KEY,
-                          'public_network': 'public',
-                          'ssh_allowed_cidr': '203.0.113.0/24',
-                          'egress_rules': [],
-                          'user_data': ''}, parameters)
+        self.assertEqual(
+            {
+                'orb_id': self.orb.id,
+                'reservation_id': self.orb.reservation_id,
+                'image': 'orb-image',
+                'public_key': fakes.PUBLIC_KEY,
+                'public_network': 'public',
+                'ssh_allowed_cidr': '203.0.113.0/24',
+                'egress_rules': [],
+                'user_data': '',
+            },
+            parameters,
+        )
         self.assertEqual(Status.BUILDING, self.stored().status)
         self.assertEqual('stack-1', self.stored().stack_id)
         self.assertEqual([START + datetime.timedelta(seconds=4)], created_at)
         declared = yaml.safe_load(creation.load_template())['parameters']
-        required = {name for name, spec in declared.items()
-                    if 'default' not in spec}
+        required = {
+            name for name, spec in declared.items() if 'default' not in spec
+        }
         self.assertLessEqual(required, set(parameters))
         self.assertLessEqual(set(parameters), set(declared))
 
@@ -109,12 +122,14 @@ class TestCreator(unittest.TestCase):
 
         self.assertEqual([], self.heat.created)
         self.assertEqual(Status.RESERVING, self.stored().status)
-        self.assertEqual(START + datetime.timedelta(seconds=120),
-                         self.clock.now)
+        self.assertEqual(
+            START + datetime.timedelta(seconds=120), self.clock.now
+        )
 
     def test_failed_reservation_creates_no_stack(self):
         self.blazar.leases[self.orb.lease_id] = clients.Lease(
-            self.orb.lease_id, 'ERROR', self.orb.reservation_id, 'error')
+            self.orb.lease_id, 'ERROR', self.orb.reservation_id, 'error'
+        )
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
@@ -130,6 +145,7 @@ class TestCreator(unittest.TestCase):
                 raise clients.Unavailable('reservation', 'down')
             self.blazar.activate(lease_id)
             return get_lease(lease_id)
+
         self.blazar.get_lease = flaky
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -138,8 +154,9 @@ class TestCreator(unittest.TestCase):
 
     def test_orb_deleted_while_waiting_gets_no_stack(self):
         self.blazar.activate(self.orb.lease_id)
-        self.repository.update(self.orb.id, Status.RESERVING,
-                               status=Status.DELETING)
+        self.repository.update(
+            self.orb.id, Status.RESERVING, status=Status.DELETING
+        )
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
@@ -150,9 +167,11 @@ class TestCreator(unittest.TestCase):
         create_stack = self.heat.create_stack
 
         def racing_delete(*args):
-            self.repository.update(self.orb.id, Status.RESERVING,
-                                   status=Status.DELETING)
+            self.repository.update(
+                self.orb.id, Status.RESERVING, status=Status.DELETING
+            )
             return create_stack(*args)
+
         self.heat.create_stack = racing_delete
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -163,7 +182,8 @@ class TestCreator(unittest.TestCase):
     def test_refused_stack_puts_the_orb_in_error_with_heat_reason(self):
         self.blazar.activate(self.orb.lease_id)
         self.heat.refuse_with = clients.Rejected(
-            'Quota exceeded for ports', 400)
+            'Quota exceeded for ports', 400
+        )
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
@@ -171,35 +191,42 @@ class TestCreator(unittest.TestCase):
         self.assertEqual('Quota exceeded for ports', self.stored().fault)
 
     def test_stack_receives_the_operators_destinations_and_proxy(self):
-        conf.CONF.set_override('egress_destinations', ['udp:10.0.0.2:53'],
-                               'orbs')
+        conf.CONF.set_override(
+            'egress_destinations', ['udp:10.0.0.2:53'], 'orbs'
+        )
         conf.CONF.set_override('egress_proxy', '172.24.4.1:4750', 'orbs')
         self.activate_after(polls=1)
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         parameters = self.heat.created[0][2]
-        self.assertEqual(['10.0.0.2/32', '172.24.4.1/32'],
-                         [rule['remote_ip_prefix']
-                          for rule in parameters['egress_rules']])
-        self.assertIn('https_proxy=http://172.24.4.1:4750',
-                      parameters['user_data'])
+        self.assertEqual(
+            ['10.0.0.2/32', '172.24.4.1/32'],
+            [rule['remote_ip_prefix'] for rule in parameters['egress_rules']],
+        )
+        self.assertIn(
+            'https_proxy=http://172.24.4.1:4750', parameters['user_data']
+        )
 
     def test_unexpected_failure_is_recorded_inside_the_thread(self):
         def broken(lease_id):
             raise RuntimeError('bug')
+
         self.blazar.get_lease = broken
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         self.assertEqual(Status.ERROR, self.stored().status)
-        self.assertEqual('creation interrupted by an internal error',
-                         self.stored().fault)
+        self.assertEqual(
+            'creation interrupted by an internal error', self.stored().fault
+        )
 
     def test_lease_read_refused_is_recorded_with_its_reason(self):
         def refused(lease_id):
-            raise clients.Rejected('The request you have made requires '
-                                   'authentication.', 401)
+            raise clients.Rejected(
+                'The request you have made requires authentication.', 401
+            )
+
         self.blazar.get_lease = refused
 
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
@@ -219,14 +246,19 @@ class TestFollow(unittest.TestCase):
         self.nova = self.clients.nova
         self.repository = fakes.repository()
         self.clock = FakeClock()
-        self.creator = creation.Creator(self.repository, 'template-text',
-                                        sleep=self.clock.sleep,
-                                        clock=self.clock)
+        self.creator = creation.Creator(
+            self.repository,
+            'template-text',
+            sleep=self.clock.sleep,
+            clock=self.clock,
+        )
         lease = self.blazar.create_lease('orbit-x', None, None)
         self.blazar.activate(lease.id)
-        self.orb = fakes.orb(lease_id=lease.id,
-                             reservation_id=lease.reservation_id,
-                             created_at=START)
+        self.orb = fakes.orb(
+            lease_id=lease.id,
+            reservation_id=lease.reservation_id,
+            created_at=START,
+        )
         self.repository.add(self.orb)
 
     def stored(self):
@@ -237,16 +269,22 @@ class TestFollow(unittest.TestCase):
 
     def machine_up_at(self, seconds):
         def up():
-            self.heat.set_status(self.orb.resource_name, 'CREATE_COMPLETE',
-                                 ssh_host='172.24.4.17',
-                                 server_id='server-1')
-            self.nova.servers['server-1'] = clients.Server('server-1',
-                                                           'ACTIVE')
+            self.heat.set_status(
+                self.orb.resource_name,
+                'CREATE_COMPLETE',
+                ssh_host='172.24.4.17',
+                server_id='server-1',
+            )
+            self.nova.servers['server-1'] = clients.Server(
+                'server-1', 'ACTIVE'
+            )
+
         self.clock.at(seconds, up)
 
     def keys_on_console_at(self, seconds):
         def printed():
             self.nova.consoles['server-1'] = fakes.CONSOLE
+
         self.clock.at(seconds, printed)
 
     def run_creation(self):
@@ -259,8 +297,10 @@ class TestFollow(unittest.TestCase):
         self.run_creation()
 
         self.assertEqual(Status.ACTIVE, self.stored().status)
-        self.assertEqual((fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519),
-                         self.stored().ssh_host_keys)
+        self.assertEqual(
+            (fakes.HOST_KEY_ECDSA, fakes.HOST_KEY_ED25519),
+            self.stored().ssh_host_keys,
+        )
         self.assertEqual(200, self.elapsed())
 
     def test_machine_without_keys_goes_to_error_at_ready_timeout(self):
@@ -274,8 +314,12 @@ class TestFollow(unittest.TestCase):
 
     def test_orb_deleted_while_followed_stays_deleting(self):
         self.machine_up_at(30)
-        self.clock.at(40, lambda: self.repository.update(
-            self.orb.id, Status.BUILDING, status=Status.DELETING))
+        self.clock.at(
+            40,
+            lambda: self.repository.update(
+                self.orb.id, Status.BUILDING, status=Status.DELETING
+            ),
+        )
 
         self.run_creation()
 
@@ -283,21 +327,29 @@ class TestFollow(unittest.TestCase):
         self.assertEqual(40, self.elapsed())
 
     def test_failed_stack_ends_the_orb_in_error_with_heat_reason(self):
-        self.clock.at(10, lambda: self.heat.set_status(
-            self.orb.resource_name, 'CREATE_FAILED',
-            'Resource CREATE failed: port quota'))
+        self.clock.at(
+            10,
+            lambda: self.heat.set_status(
+                self.orb.resource_name,
+                'CREATE_FAILED',
+                'Resource CREATE failed: port quota',
+            ),
+        )
 
         self.run_creation()
 
         self.assertEqual(Status.ERROR, self.stored().status)
-        self.assertEqual('Resource CREATE failed: port quota',
-                         self.stored().fault)
+        self.assertEqual(
+            'Resource CREATE failed: port quota', self.stored().fault
+        )
         self.assertEqual(10, self.elapsed())
 
     def test_refused_token_stops_following_and_leaves_the_status(self):
         def expired(lease_id):
-            raise clients.Rejected('The request you have made requires '
-                                   'authentication.', 401)
+            raise clients.Rejected(
+                'The request you have made requires authentication.', 401
+            )
+
         self.clock.at(10, lambda: setattr(self.blazar, 'get_lease', expired))
 
         self.run_creation()
@@ -310,6 +362,7 @@ class TestFollow(unittest.TestCase):
 
         def down(name):
             raise clients.Unavailable('orchestration', 'down')
+
         self.clock.at(10, lambda: setattr(self.heat, 'get_stack', down))
         self.clock.at(20, lambda: setattr(self.heat, 'get_stack', get_stack))
         self.machine_up_at(30)
@@ -322,7 +375,6 @@ class TestFollow(unittest.TestCase):
 
 
 class TestTemplate(unittest.TestCase):
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)
@@ -337,20 +389,37 @@ class TestTemplate(unittest.TestCase):
         # declares one: the template always does, towards loopback, and
         # towards the network's own DHCP service, without which the machine
         # gets no address.
-        egress_rules = [rule for rule in fixed
-                        if rule.get('direction') == 'egress']
+        egress_rules = [
+            rule for rule in fixed if rule.get('direction') == 'egress'
+        ]
         self.assertCountEqual(
-            [{'direction': 'egress', 'protocol': 'icmp',
-              'remote_ip_prefix': '127.0.0.1/32'},
-             {'direction': 'egress', 'protocol': 'udp',
-              'remote_ip_prefix': '255.255.255.255/32',
-              'port_range_min': 67, 'port_range_max': 67},
-             {'direction': 'egress', 'protocol': 'udp',
-              'remote_ip_prefix': {'get_param': 'cidr'},
-              'port_range_min': 67, 'port_range_max': 67}],
-            egress_rules)
-        self.assertEqual([{'get_resource': 'security_group'}],
-                         resources['port']['properties']['security_groups'])
+            [
+                {
+                    'direction': 'egress',
+                    'protocol': 'icmp',
+                    'remote_ip_prefix': '127.0.0.1/32',
+                },
+                {
+                    'direction': 'egress',
+                    'protocol': 'udp',
+                    'remote_ip_prefix': '255.255.255.255/32',
+                    'port_range_min': 67,
+                    'port_range_max': 67,
+                },
+                {
+                    'direction': 'egress',
+                    'protocol': 'udp',
+                    'remote_ip_prefix': {'get_param': 'cidr'},
+                    'port_range_min': 67,
+                    'port_range_max': 67,
+                },
+            ],
+            egress_rules,
+        )
+        self.assertEqual(
+            [{'get_resource': 'security_group'}],
+            resources['port']['properties']['security_groups'],
+        )
         # Without egress the machine cannot reach the metadata service.
         server = resources['server']['properties']
         self.assertIs(True, server['config_drive'])
@@ -361,13 +430,19 @@ class TestTemplate(unittest.TestCase):
 
         port = resources['port']['properties']
         self.assertEqual({'get_resource': 'network'}, port['network'])
-        self.assertEqual([{'subnet': {'get_resource': 'subnet'}}],
-                         port['fixed_ips'])
         self.assertEqual(
-            {'router': {'get_resource': 'router'},
-             'subnet': {'get_resource': 'subnet'}},
-            resources['router_interface']['properties'])
+            [{'subnet': {'get_resource': 'subnet'}}], port['fixed_ips']
+        )
+        self.assertEqual(
+            {
+                'router': {'get_resource': 'router'},
+                'subnet': {'get_resource': 'subnet'},
+            },
+            resources['router_interface']['properties'],
+        )
         # Neutron associates the external address only with a port reachable
         # from the router.
-        self.assertEqual('router_interface',
-                         resources['floating_ip_association']['depends_on'])
+        self.assertEqual(
+            'router_interface',
+            resources['floating_ip_association']['depends_on'],
+        )

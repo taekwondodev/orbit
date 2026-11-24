@@ -11,72 +11,122 @@ from orbit import egress
 CONF = cfg.CONF
 
 orbs_opts = [
-    cfg.IntOpt('max_vcpus', default=8, min=1,
-               help='Maximum processors of an orb.'),
-    cfg.IntOpt('max_memory_mb', default=16384, min=1,
-               help='Maximum memory of an orb, in MiB.'),
-    cfg.IntOpt('max_disk_gb', default=80, min=1,
-               help='Maximum disk of an orb, in GiB.'),
-    cfg.StrOpt('image', default='orbit-alpine-3.24.3-aarch64',
-               help='Glance image every orb boots: the image built by '
-                    'tools/image (docs/adr/0010).'),
-    cfg.StrOpt('lease_end_date', default='2099-12-31 23:59',
-               help='End date of the leases, in the Blazar format '
-                    '"YYYY-MM-DD hh:mm". Not an expiry: Blazar requires '
-                    'an end, the orb ends with DELETE (docs/adr/0003).'),
-    cfg.IntOpt('creation_timeout', default=120, min=1,
-               help='Seconds within which the reservation must activate and '
-                    'the stack be created. Beyond that, the creation task '
-                    'gives up and an orb without a stack counts as '
-                    'interrupted.'),
-    cfg.IntOpt('ready_timeout', default=600, min=1,
-               help='Seconds, counted from the creation request like '
-                    'creation_timeout, within which the machine must boot '
-                    'and print its SSH host keys on the console. Beyond '
-                    'that, the orb goes to ERROR. It includes the wait for '
-                    'the reservation and the stack, so it must be greater '
-                    'than creation_timeout, well above it to leave time '
-                    'for the boot.'),
-    cfg.FloatOpt('reservation_poll_interval', default=2.0, min=0.1,
-                 help='Seconds between two reads of the lease while waiting '
-                      'for the reservation to be active.'),
-    cfg.FloatOpt('ready_poll_interval', default=5.0, min=0.1,
-                 help='Seconds between two reads of the stack, the machine '
-                      'and its console while the creation task follows a new '
-                      'orb until its host keys are stored, within '
-                      'ready_timeout.'),
-    cfg.IntOpt('api_timeout', default=60, min=1,
-               help='Maximum seconds to wait for a response from Blazar, '
-                    'Heat or Nova. Deleting an active lease responds only '
-                    'after the machine is destroyed.'),
-    cfg.StrOpt('public_network', default='public',
-               help='External network that the router of each orb '
-                    'connects to and that provides the reachable address.'),
-    cfg.IntOpt('ssh_min_prefix', default=24, min=1, max=32,
-               help='Narrowest prefix length a request may use for its SSH '
-                    'network: a client connects from one address or a '
-                    'small NAT pool, so wider networks are rejected. Lower '
-                    'it only for a client that needs a wider range.'),
-    cfg.StrOpt('ssh_allowed_cidr',
-               help='Cap on the networks SSH to the orbs may be admitted '
-                    'from, as an IPv4 CIDR. Each creation request names its own '
-                    'network, which must lie inside this one. Without a '
-                    'value, any network but the whole Internet is '
-                    'accepted.'),
-    cfg.ListOpt('egress_destinations', default=[],
-                help='Destinations every orb may open connections to, as '
-                     'protocol:address:port with protocol tcp or udp and a '
-                     'single IPv4 address. Everything else is denied '
-                     '(docs/adr/0009). Never list a control-plane service '
-                     'or the networks clients connect from.'),
-    cfg.StrOpt('egress_proxy',
-               help='HTTP egress proxy every orb reaches external '
-                    'destinations through, as address:port with a single '
-                    'IPv4 address. Each orb may connect to it over TCP and '
-                    'gets it in the environment of its SSH sessions, kept '
-                    'by sudo, and in its apt configuration. '
-                    'The proxy decides which hostnames are reachable; '
-                    'without a value, orbs reach no external destination.'),
+    cfg.IntOpt(
+        'max_vcpus', default=8, min=1, help='Maximum processors of an orb.'
+    ),
+    cfg.IntOpt(
+        'max_memory_mb',
+        default=16384,
+        min=1,
+        help='Maximum memory of an orb, in MiB.',
+    ),
+    cfg.IntOpt(
+        'max_disk_gb',
+        default=80,
+        min=1,
+        help='Maximum disk of an orb, in GiB.',
+    ),
+    cfg.StrOpt(
+        'image',
+        default='orbit-alpine-3.24.3-aarch64',
+        help='Glance image every orb boots: the image built by '
+        'tools/image (docs/adr/0010).',
+    ),
+    cfg.StrOpt(
+        'lease_end_date',
+        default='2099-12-31 23:59',
+        help='End date of the leases, in the Blazar format '
+        '"YYYY-MM-DD hh:mm". Not an expiry: Blazar requires '
+        'an end, the orb ends with DELETE (docs/adr/0003).',
+    ),
+    cfg.IntOpt(
+        'creation_timeout',
+        default=120,
+        min=1,
+        help='Seconds within which the reservation must activate and '
+        'the stack be created. Beyond that, the creation task '
+        'gives up and an orb without a stack counts as '
+        'interrupted.',
+    ),
+    cfg.IntOpt(
+        'ready_timeout',
+        default=600,
+        min=1,
+        help='Seconds, counted from the creation request like '
+        'creation_timeout, within which the machine must boot '
+        'and print its SSH host keys on the console. Beyond '
+        'that, the orb goes to ERROR. It includes the wait for '
+        'the reservation and the stack, so it must be greater '
+        'than creation_timeout, well above it to leave time '
+        'for the boot.',
+    ),
+    cfg.FloatOpt(
+        'reservation_poll_interval',
+        default=2.0,
+        min=0.1,
+        help='Seconds between two reads of the lease while waiting '
+        'for the reservation to be active.',
+    ),
+    cfg.FloatOpt(
+        'ready_poll_interval',
+        default=5.0,
+        min=0.1,
+        help='Seconds between two reads of the stack, the machine '
+        'and its console while the creation task follows a new '
+        'orb until its host keys are stored, within '
+        'ready_timeout.',
+    ),
+    cfg.IntOpt(
+        'api_timeout',
+        default=60,
+        min=1,
+        help='Maximum seconds to wait for a response from Blazar, '
+        'Heat or Nova. Deleting an active lease responds only '
+        'after the machine is destroyed.',
+    ),
+    cfg.StrOpt(
+        'public_network',
+        default='public',
+        help='External network that the router of each orb '
+        'connects to and that provides the reachable address.',
+    ),
+    cfg.IntOpt(
+        'ssh_min_prefix',
+        default=24,
+        min=1,
+        max=32,
+        help='Narrowest prefix length a request may use for its SSH '
+        'network: a client connects from one address or a '
+        'small NAT pool, so wider networks are rejected. Lower '
+        'it only for a client that needs a wider range.',
+    ),
+    cfg.StrOpt(
+        'ssh_allowed_cidr',
+        help='Cap on the networks SSH to the orbs may be admitted '
+        'from, as an IPv4 CIDR. Each creation request names its own '
+        'network, which must lie inside this one. Without a '
+        'value, any network but the whole Internet is '
+        'accepted.',
+    ),
+    cfg.ListOpt(
+        'egress_destinations',
+        default=[],
+        help='Destinations every orb may open connections to, as '
+        'protocol:address:port with protocol tcp or udp and a '
+        'single IPv4 address. Everything else is denied '
+        '(docs/adr/0009). Never list a control-plane service '
+        'or the networks clients connect from.',
+    ),
+    cfg.StrOpt(
+        'egress_proxy',
+        help='HTTP egress proxy every orb reaches external '
+        'destinations through, as address:port with a single '
+        'IPv4 address. Each orb may connect to it over TCP and '
+        'gets it in the environment of its SSH sessions, kept '
+        'by sudo, and in its apt configuration. '
+        'The proxy decides which hostnames are reachable; '
+        'without a value, orbs reach no external destination.',
+    ),
 ]
 
 CONF.register_opts(orbs_opts, group='orbs')
@@ -105,7 +155,8 @@ def check_api_options():
             ipaddress.IPv4Network(cap)
         except ValueError as e:
             raise InvalidOption(
-                f'[orbs] ssh_allowed_cidr is not an IPv4 network: {e}') from e
+                f'[orbs] ssh_allowed_cidr is not an IPv4 network: {e}'
+            ) from e
     for value in CONF.orbs.egress_destinations:
         try:
             egress.parse_destination(value)
@@ -120,4 +171,5 @@ def check_api_options():
         raise InvalidOption(
             '[orbs] ready_timeout must be greater than creation_timeout: '
             'both count from the creation request, and the machine boots '
-            'only after the stack is created.')
+            'only after the stack is created.'
+        )

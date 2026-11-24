@@ -20,10 +20,14 @@ class Destination:
     port: int
 
     def rule(self):
-        return {'direction': 'egress', 'ethertype': 'IPv4',
-                'protocol': self.protocol,
-                'remote_ip_prefix': f'{self.address}/32',
-                'port_range_min': self.port, 'port_range_max': self.port}
+        return {
+            'direction': 'egress',
+            'ethertype': 'IPv4',
+            'protocol': self.protocol,
+            'remote_ip_prefix': f'{self.address}/32',
+            'port_range_min': self.port,
+            'port_range_max': self.port,
+        }
 
 
 def parse_destination(value):
@@ -33,10 +37,10 @@ def parse_destination(value):
     except ValueError:
         raise ValueError(f'{value!r} is not protocol:address:port') from None
     if protocol not in PROTOCOLS:
-        raise ValueError(f'{value!r}: protocol must be one of '
-                         f'{", ".join(PROTOCOLS)}')
-    return Destination(protocol, _address(value, address),
-                       _port(value, port))
+        raise ValueError(
+            f'{value!r}: protocol must be one of {", ".join(PROTOCOLS)}'
+        )
+    return Destination(protocol, _address(value, address), _port(value, port))
 
 
 def parse_proxy(value):
@@ -52,10 +56,15 @@ def _address(value, address):
     try:
         parsed = ipaddress.IPv4Address(address)
     except ValueError:
-        raise ValueError(f'{value!r}: {address!r} is not a single IPv4 '
-                         'address') from None
-    if (parsed.is_unspecified or parsed.is_loopback or parsed.is_multicast
-            or parsed == ipaddress.IPv4Address('255.255.255.255')):
+        raise ValueError(
+            f'{value!r}: {address!r} is not a single IPv4 address'
+        ) from None
+    if (
+        parsed.is_unspecified
+        or parsed.is_loopback
+        or parsed.is_multicast
+        or parsed == ipaddress.IPv4Address('255.255.255.255')
+    ):
         raise ValueError(f'{value!r}: {address!r} is not a single host')
     return str(parsed)
 
@@ -84,27 +93,57 @@ def user_data(destinations, proxy):
     if proxy is None:
         return ''
     url = f'http://{proxy.address}:{proxy.port}'
-    bypass = ','.join(['localhost', '127.0.0.1', '::1'] +
-                      [d.address for d in destinations])
-    environment = (('http_proxy', url), ('https_proxy', url),
-                   ('no_proxy', bypass), ('HTTP_PROXY', url),
-                   ('HTTPS_PROXY', url), ('NO_PROXY', bypass))
-    sshd = 'SetEnv ' + ' '.join(f'{name}={value}'
-                                for name, value in environment) + '\n'
-    sudo = ('Defaults env_keep += "' +
-            ' '.join(name for name, _ in environment) + '"\n')
-    apt = (f'Acquire::http::Proxy "{url}";\n'
-           f'Acquire::https::Proxy "{url}";\n' +
-           ''.join(f'Acquire::http::Proxy::{d.address} "DIRECT";\n'
-                   f'Acquire::https::Proxy::{d.address} "DIRECT";\n'
-                   for d in destinations))
-    config = {'write_files': [
-        {'path': '/etc/ssh/sshd_config.d/90-orbit-proxy.conf',
-         'owner': 'root:root', 'permissions': '0644', 'content': sshd},
-        {'path': '/etc/sudoers.d/90-orbit-proxy',
-         'owner': 'root:root', 'permissions': '0440', 'content': sudo},
-        {'path': '/etc/apt/apt.conf.d/90orbit-proxy',
-         'owner': 'root:root', 'permissions': '0644', 'content': apt},
-    ]}
+    bypass = ','.join(
+        ['localhost', '127.0.0.1', '::1'] + [d.address for d in destinations]
+    )
+    environment = (
+        ('http_proxy', url),
+        ('https_proxy', url),
+        ('no_proxy', bypass),
+        ('HTTP_PROXY', url),
+        ('HTTPS_PROXY', url),
+        ('NO_PROXY', bypass),
+    )
+    sshd = (
+        'SetEnv '
+        + ' '.join(f'{name}={value}' for name, value in environment)
+        + '\n'
+    )
+    sudo = (
+        'Defaults env_keep += "'
+        + ' '.join(name for name, _ in environment)
+        + '"\n'
+    )
+    apt = (
+        f'Acquire::http::Proxy "{url}";\n'
+        f'Acquire::https::Proxy "{url}";\n'
+        + ''.join(
+            f'Acquire::http::Proxy::{d.address} "DIRECT";\n'
+            f'Acquire::https::Proxy::{d.address} "DIRECT";\n'
+            for d in destinations
+        )
+    )
+    config = {
+        'write_files': [
+            {
+                'path': '/etc/ssh/sshd_config.d/90-orbit-proxy.conf',
+                'owner': 'root:root',
+                'permissions': '0644',
+                'content': sshd,
+            },
+            {
+                'path': '/etc/sudoers.d/90-orbit-proxy',
+                'owner': 'root:root',
+                'permissions': '0440',
+                'content': sudo,
+            },
+            {
+                'path': '/etc/apt/apt.conf.d/90orbit-proxy',
+                'owner': 'root:root',
+                'permissions': '0644',
+                'content': apt,
+            },
+        ]
+    }
     # cloud-config is YAML, of which JSON is a subset.
     return '#cloud-config\n' + json.dumps(config, indent=2) + '\n'

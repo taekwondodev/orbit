@@ -50,16 +50,18 @@ class Clients:
 def for_auth(auth):
     """The clients that act on behalf of whoever holds ``auth``."""
     session = ks_session.Session(auth=auth, timeout=CONF.orbs.api_timeout)
-    return Clients(blazar=Blazar(session), heat=Heat(session),
-                   nova=Nova(session))
+    return Clients(
+        blazar=Blazar(session), heat=Heat(session), nova=Nova(session)
+    )
 
 
 class _Client:
     service_type = None
 
     def __init__(self, session):
-        self._api = adapter.Adapter(session, service_type=self.service_type,
-                                    interface='public')
+        self._api = adapter.Adapter(
+            session, service_type=self.service_type, interface='public'
+        )
 
     def _call(self, method, url, missing_ok=False, **kwargs):
         """The response, with errors translated into the module's exceptions.
@@ -79,11 +81,15 @@ class _Client:
             raise Unavailable(self.service_type, _error_text(e)) from e
         except ks_exc.HTTPClientError as e:
             raise Rejected(_message(e), e.http_status) from e
-        except (ks_exc.ConnectionError, ks_exc.EndpointNotFound,
-                ks_exc.HttpServerError) as e:
+        except (
+            ks_exc.ConnectionError,
+            ks_exc.EndpointNotFound,
+            ks_exc.HttpServerError,
+        ) as e:
             detail = _error_text(e)
-            LOG.warning('%s %s on %s: %s', method, url, self.service_type,
-                        detail)
+            LOG.warning(
+                '%s %s on %s: %s', method, url, self.service_type, detail
+            )
             raise Unavailable(self.service_type, detail) from e
 
     def _get_or_none(self, url):
@@ -150,15 +156,17 @@ class Blazar(_Client):
             'name': name,
             'start_date': 'now',
             'end_date': end_date,
-            'reservations': [{
-                'resource_type': 'virtual:instance',
-                'vcpus': size.vcpus,
-                'memory_mb': size.memory_mb,
-                'disk_gb': size.disk_gb,
-                'amount': 1,
-                'affinity': None,
-                'resource_properties': '',
-            }],
+            'reservations': [
+                {
+                    'resource_type': 'virtual:instance',
+                    'vcpus': size.vcpus,
+                    'memory_mb': size.memory_mb,
+                    'disk_gb': size.disk_gb,
+                    'amount': 1,
+                    'affinity': None,
+                    'resource_properties': '',
+                }
+            ],
             'events': [],
         }
         try:
@@ -181,9 +189,12 @@ class Blazar(_Client):
 
 def _lease(body):
     reservation = body['reservations'][0]
-    return Lease(id=body['id'], status=body['status'],
-                 reservation_id=reservation['id'],
-                 reservation_status=reservation['status'])
+    return Lease(
+        id=body['id'],
+        status=body['status'],
+        reservation_id=reservation['id'],
+        reservation_status=reservation['status'],
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -224,11 +235,16 @@ class Heat(_Client):
         if body is None or body['stack']['stack_status'] == 'DELETE_COMPLETE':
             return None
         stack = body['stack']
-        outputs = {output['output_key']: output.get('output_value')
-                   for output in stack.get('outputs') or []}
-        return Stack(id=stack['id'], status=stack['stack_status'],
-                     status_reason=stack.get('stack_status_reason') or '',
-                     outputs=outputs)
+        outputs = {
+            output['output_key']: output.get('output_value')
+            for output in stack.get('outputs') or []
+        }
+        return Stack(
+            id=stack['id'],
+            status=stack['stack_status'],
+            status_reason=stack.get('stack_status_reason') or '',
+            outputs=outputs,
+        )
 
     def delete_stack(self, name):
         """Delete the stack; a stack already gone is not an error.
@@ -267,6 +283,9 @@ class Nova(_Client):
         Nova keeps only its last part (100 KiB with libvirt): what the
         machine printed at boot scrolls out on a chatty orb.
         """
-        response = self._call('POST', f'/servers/{server_id}/action',
-                              json={'os-getConsoleOutput': {}})
+        response = self._call(
+            'POST',
+            f'/servers/{server_id}/action',
+            json={'os-getConsoleOutput': {}},
+        )
         return response.json()['output']

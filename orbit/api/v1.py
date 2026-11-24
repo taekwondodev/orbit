@@ -26,9 +26,11 @@ def _context():
     project_id = environ.get('HTTP_X_PROJECT_ID')
     if not project_id:
         raise http_exc.Forbidden('A project-scoped token is required.')
-    return service.Context(project_id=project_id,
-                           user_id=environ.get('HTTP_X_USER_ID'),
-                           auth=environ.get('keystone.token_auth'))
+    return service.Context(
+        project_id=project_id,
+        user_id=environ.get('HTTP_X_USER_ID'),
+        auth=environ.get('keystone.token_auth'),
+    )
 
 
 @blueprint.post('/orbs')
@@ -67,8 +69,9 @@ def delete_orb(orb_id):
 
 @blueprint.errorhandler(clients.CapacityExhausted)
 def _capacity_exhausted(error):
-    return _error(409, 'Capacity exhausted: no host has room for the '
-                       'requested size.')
+    return _error(
+        409, 'Capacity exhausted: no host has room for the requested size.'
+    )
 
 
 @blueprint.errorhandler(clients.Rejected)
@@ -106,15 +109,19 @@ def _create_request(body):
 def _size(size):
     if not isinstance(size, dict):
         raise http_exc.BadRequest(
-            'size must specify vcpus, memory_mb and disk_gb.')
-    limits = {'vcpus': CONF.orbs.max_vcpus,
-              'memory_mb': CONF.orbs.max_memory_mb,
-              'disk_gb': CONF.orbs.max_disk_gb}
+            'size must specify vcpus, memory_mb and disk_gb.'
+        )
+    limits = {
+        'vcpus': CONF.orbs.max_vcpus,
+        'memory_mb': CONF.orbs.max_memory_mb,
+        'disk_gb': CONF.orbs.max_disk_gb,
+    }
     for field, limit in limits.items():
         value = size.get(field)
         if type(value) is not int or not 1 <= value <= limit:
             raise http_exc.BadRequest(
-                f'size.{field} must be an integer between 1 and {limit}.')
+                f'size.{field} must be an integer between 1 and {limit}.'
+            )
     return orb_model.Size(**{field: size[field] for field in limits})
 
 
@@ -123,8 +130,7 @@ def _public_key(key):
         raise http_exc.BadRequest('public_key is required.')
     key = ssh.public_key(key)
     if key is None:
-        raise http_exc.BadRequest(
-            'public_key must be an OpenSSH public key.')
+        raise http_exc.BadRequest('public_key must be an OpenSSH public key.')
     return key
 
 
@@ -136,19 +142,22 @@ def _ssh_allowed_cidr(cidr):
     if not isinstance(cidr, str) or not cidr:
         raise http_exc.BadRequest(
             'ssh_allowed_cidr is required: the network the orb admits SSH '
-            'from.')
+            'from.'
+        )
     try:
         network = ipaddress.IPv4Network(cidr)
     except ValueError as e:
         # The orb's network and floating IP are IPv4 only: an IPv6 rule
         # would admit nobody.
         raise http_exc.BadRequest(
-            f'ssh_allowed_cidr is not an IPv4 network: {e}') from e
+            f'ssh_allowed_cidr is not an IPv4 network: {e}'
+        ) from e
     if network.prefixlen < CONF.orbs.ssh_min_prefix:
         raise http_exc.BadRequest(
             f'ssh_allowed_cidr is wider than /{CONF.orbs.ssh_min_prefix}: '
             f'name the address or the small network the client connects '
-            f'from.')
+            f'from.'
+        )
     cap = CONF.orbs.ssh_allowed_cidr
     if cap is not None and not network.subnet_of(ipaddress.IPv4Network(cap)):
         raise http_exc.BadRequest(f'ssh_allowed_cidr must be inside {cap}.')
@@ -160,12 +169,15 @@ def _view(observed):
     return {
         'id': orb.id,
         'status': orb.status.value,
-        'size': {'vcpus': orb.size.vcpus,
-                 'memory_mb': orb.size.memory_mb,
-                 'disk_gb': orb.size.disk_gb},
+        'size': {
+            'vcpus': orb.size.vcpus,
+            'memory_mb': orb.size.memory_mb,
+            'disk_gb': orb.size.disk_gb,
+        },
         'ssh_host': observed.ssh_host,
-        'ssh_host_keys': (list(orb.ssh_host_keys)
-                          if orb.ssh_host_keys is not None else None),
+        'ssh_host_keys': (
+            list(orb.ssh_host_keys) if orb.ssh_host_keys is not None else None
+        ),
         'ssh_user': _SSH_USER,
         'ssh_allowed_cidr': orb.ssh_allowed_cidr,
         'fault': orb.fault,

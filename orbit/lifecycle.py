@@ -29,6 +29,7 @@ class Observation:
 class Timeouts:
     """Seconds from the creation request within which the stack must exist
     (``creation``) and the machine must publish its host keys (``ready``)."""
+
     creation: int
     ready: int
 
@@ -40,9 +41,11 @@ def awaits_host_keys(orb, now, timeouts):
     later may come from a process inside the orb, not from the boot
     (docs/adr/0007).
     """
-    return (orb.ssh_host_keys is None
-            and orb.status not in (Status.DELETING, Status.DELETED)
-            and _age(orb, now) < timeouts.ready)
+    return (
+        orb.ssh_host_keys is None
+        and orb.status not in (Status.DELETING, Status.DELETED)
+        and _age(orb, now) < timeouts.ready
+    )
 
 
 def observe(orb, now, timeouts, lease, stack, server, ssh_host_keys):
@@ -54,8 +57,9 @@ def observe(orb, now, timeouts, lease, stack, server, ssh_host_keys):
     are the machine's host keys, stored or just read from its console, or
     None if not published yet: without them the orb is not ACTIVE.
     """
-    observation = _observe(orb, now, timeouts, lease, stack, server,
-                           ssh_host_keys)
+    observation = _observe(
+        orb, now, timeouts, lease, stack, server, ssh_host_keys
+    )
     if observation.status is Status.ERROR and orb.status is Status.ERROR:
         # The first reason is the useful one: the failed stack might already
         # have been deleted when someone reads the orb again.
@@ -77,8 +81,10 @@ def _observe(orb, now, timeouts, lease, stack, server, ssh_host_keys):
         return Observation(Status.ERROR, LEASE_GONE)
     if lease.is_failed:
         return Observation(
-            Status.ERROR, f'reservation in error: lease {lease.status}, '
-                          f'reservation {lease.reservation_status}')
+            Status.ERROR,
+            f'reservation in error: lease {lease.status}, '
+            f'reservation {lease.reservation_status}',
+        )
 
     if orb.stack_id is None:
         if orb.status is Status.ERROR:
@@ -100,9 +106,11 @@ def _observe(orb, now, timeouts, lease, stack, server, ssh_host_keys):
             if _age(orb, now) < timeouts.ready:
                 return Observation(Status.BUILDING)
             return Observation(Status.ERROR, HOST_KEYS_MISSING)
-        return Observation(Status.ACTIVE,
-                           ssh_host=stack.outputs.get('ssh_host'),
-                           ssh_host_keys=ssh_host_keys)
+        return Observation(
+            Status.ACTIVE,
+            ssh_host=stack.outputs.get('ssh_host'),
+            ssh_host_keys=ssh_host_keys,
+        )
     if stack.status in ('CREATE_FAILED', 'DELETE_FAILED'):
         return Observation(Status.ERROR, stack.status_reason)
     return Observation(Status.ERROR, f'stack in status {stack.status}')
