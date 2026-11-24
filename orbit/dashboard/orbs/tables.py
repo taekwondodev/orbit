@@ -99,9 +99,11 @@ def get_size(orb):
 class OrbRow(tables.Row):
     def load_cells(self, datum=None):
         super().load_cells(datum)
+        orb = self.datum
+        assert orb is not None, 'Horizon loads cells only with a datum'
         # The live script compares statuses between snapshots.
-        self.attrs['data-orbit-status'] = self.datum.status
-        if self.datum.status == 'ERROR':
+        self.attrs['data-orbit-status'] = orb.status
+        if orb.status == 'ERROR':
             self.classes.append('orbit-row-error')
 
 

@@ -6,6 +6,7 @@ from django.contrib.staticfiles import finders
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from openstack_auth import user as auth_user
 from openstack_dashboard.test import helpers
 
 from orbit.dashboard import client
@@ -35,6 +36,10 @@ def _orb(
 
 
 class OrbsTestCase(helpers.TestCase):
+    # Set by Horizon's test data loader, which pyright cannot follow.
+    service_catalog: list[dict]
+    token: auth_user.Token
+
     def _setup_test_data(self):
         super()._setup_test_data()
         self.service_catalog.append(
@@ -57,6 +62,11 @@ class OrbsTestCase(helpers.TestCase):
         self.orbit = requests_mock.Mocker()
         self.orbit.start()
         self.addCleanup(self.orbit.stop)
+
+    def last_request(self):
+        request = self.orbit.last_request
+        assert request is not None, 'orbit-api was not called'
+        return request
 
 
 class IndexTests(OrbsTestCase):
@@ -98,7 +108,7 @@ class IndexTests(OrbsTestCase):
         )
         self.assertNotContains(res, 'orb-deleted')
         self.assertEqual(
-            self.token.id, self.orbit.last_request.headers['X-Auth-Token']
+            self.token.id, self.last_request().headers['X-Auth-Token']
         )
 
     def test_orbs_on_their_way_up_show_a_pulsing_badge_and_their_step(self):
@@ -490,7 +500,7 @@ class ClientTests(OrbsTestCase):
         self.client.get(INDEX_URL)
 
         self.assertEqual(
-            '/etc/ssl/devstack-ca.pem', self.orbit.last_request.verify
+            '/etc/ssl/devstack-ca.pem', self.last_request().verify
         )
 
     @override_settings(OPENSTACK_SSL_NO_VERIFY=True)
@@ -499,11 +509,11 @@ class ClientTests(OrbsTestCase):
 
         self.client.get(INDEX_URL)
 
-        self.assertIs(False, self.orbit.last_request.verify)
+        self.assertIs(False, self.last_request().verify)
 
     def test_requests_give_up_after_30_seconds(self):
         self.orbit.get(f'{ORBIT}/v1/orbs', json={'orbs': []})
 
         self.client.get(INDEX_URL)
 
-        self.assertEqual(30, self.orbit.last_request.timeout)
+        self.assertEqual(30, self.last_request().timeout)

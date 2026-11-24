@@ -1,12 +1,22 @@
 """Test doubles shared by the unit tests."""
 
 import dataclasses
+import typing
 
 import sqlalchemy as sa
 
 from orbit import clients
 from orbit import orb as orb_model
 from orbit.db import api as db_api
+
+T = typing.TypeVar('T')
+
+
+def found(value: T | None) -> T:
+    """``value``, failing the test when a lookup found nothing."""
+    if value is None:
+        raise AssertionError('expected a value, found None')
+    return value
 
 
 def database():
@@ -52,7 +62,7 @@ class FakeBlazar:
     def __init__(self):
         self.leases = {}
         self.created = []
-        self.refuse_with = None
+        self.refuse_with: Exception | None = None
 
     def create_lease(self, name, size, end_date):
         if self.refuse_with:
@@ -87,7 +97,7 @@ class FakeHeat:
     def __init__(self):
         self.stacks = {}
         self.created = []
-        self.refuse_with = None
+        self.refuse_with: Exception | None = None
 
     def create_stack(self, name, template, parameters, tag):
         if self.refuse_with:
@@ -154,7 +164,7 @@ class FakeNova:
         self.servers = {}
         self.consoles = {}
         self.console_reads = 0
-        self.console_refused_with = None
+        self.console_refused_with: Exception | None = None
 
     def get_server(self, server_id):
         return self.servers.get(server_id)
@@ -166,7 +176,14 @@ class FakeNova:
         return self.consoles.get(server_id, '')
 
 
+@dataclasses.dataclass(frozen=True)
+class FakeClients:
+    """Stands in for clients.Clients, typed so tests reach the fakes."""
+
+    blazar: FakeBlazar
+    heat: FakeHeat
+    nova: FakeNova
+
+
 def fake_clients():
-    return clients.Clients(
-        blazar=FakeBlazar(), heat=FakeHeat(), nova=FakeNova()
-    )
+    return FakeClients(blazar=FakeBlazar(), heat=FakeHeat(), nova=FakeNova())

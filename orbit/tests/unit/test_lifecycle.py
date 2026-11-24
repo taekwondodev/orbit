@@ -28,7 +28,7 @@ COMPLETE = stack(
 
 
 def observe(
-    lease=ACTIVE_LEASE,
+    lease: clients.Lease | None = ACTIVE_LEASE,
     stack=None,
     server=None,
     keys=KEYS,
@@ -66,7 +66,7 @@ class TestObserve(unittest.TestCase):
         )
 
         self.assertEqual(Status.ERROR, observed.status)
-        self.assertIn('ERROR', observed.fault)
+        self.assertIn('ERROR', fakes.found(observed.fault))
 
     def test_stack_in_progress_is_building(self):
         self.assertEqual(

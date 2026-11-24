@@ -3,6 +3,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views import generic
 from horizon import exceptions, tables, views
 from horizon.utils import memoized
 
@@ -32,8 +33,10 @@ STEP_HELP = (
 )
 
 
-class LiveViewMixin:
+class LiveViewMixin(generic.TemplateView):
     """Use the same authenticated view for page loads and live snapshots."""
+
+    fragment_template: str
 
     @property
     def live(self):
@@ -121,6 +124,8 @@ class DetailView(LiveViewMixin, views.HorizonTemplateView):
                 % self.kwargs['orb_id'],
                 redirect=reverse('horizon:project:orbs:index'),
             )
+            # handle() answers with the redirect; it never returns here.
+            raise
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

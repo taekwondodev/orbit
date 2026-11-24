@@ -9,6 +9,7 @@ import dataclasses
 import datetime
 
 from django.utils import timezone
+from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 from horizon.utils import filters
 
@@ -28,7 +29,7 @@ ACTIVITY_DAYS = 14
 @dataclasses.dataclass(frozen=True)
 class Group:
     key: str
-    label: str
+    label: str | Promise
     count: int
 
 

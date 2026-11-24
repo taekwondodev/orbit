@@ -62,7 +62,7 @@ class TestCreate(ApiTestCase):
         name, size, end_date = self.blazar.created[0]
         self.assertEqual(f'orbit-{orb["id"]}', name)
         self.assertEqual('2099-12-31 23:59', end_date)
-        stored = self.repository.get('project-a', orb['id'])
+        stored = fakes.found(self.repository.get('project-a', orb['id']))
         self.assertEqual('lease-1', stored.lease_id)
         self.assertEqual('reservation-1', stored.reservation_id)
         self.assertEqual(size, stored.size)

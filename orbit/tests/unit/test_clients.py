@@ -7,6 +7,7 @@ from keystoneauth1 import token_endpoint
 
 from orbit import clients, conf
 from orbit import orb as orb_model
+from orbit.tests.unit import fakes
 
 # As in DevStack, Blazar's endpoint in the catalog already includes /v1.
 BLAZAR = 'http://blazar.test/reservation/v1'
@@ -40,7 +41,7 @@ class TestBlazar(unittest.TestCase):
 
         lease = self.blazar.create_lease('orbit-1', SIZE, '2099-12-31 23:59')
 
-        sent = self.http.last_request
+        sent = fakes.found(self.http.last_request)
         self.assertEqual('user-token', sent.headers['X-Auth-Token'])
         body = sent.json()
         self.assertEqual('orbit-1', body['name'])
@@ -141,7 +142,7 @@ class TestBlazar(unittest.TestCase):
 
         clients.for_auth(auth).blazar.get_lease('lease-1')
 
-        self.assertEqual(7, self.http.last_request.timeout)
+        self.assertEqual(7, fakes.found(self.http.last_request).timeout)
 
     def test_unreachable_blazar_means_unavailable(self):
         self.http.get(
@@ -156,7 +157,9 @@ class TestBlazar(unittest.TestCase):
             f'{BLAZAR}/leases/lease-1', json=_lease_body('ACTIVE', 'active')
         )
 
-        self.assertTrue(self.blazar.get_lease('lease-1').is_active)
+        self.assertTrue(
+            fakes.found(self.blazar.get_lease('lease-1')).is_active
+        )
 
     def test_missing_lease_reads_as_none(self):
         self.http.get(f'{BLAZAR}/leases/lease-1', status_code=404)
@@ -168,7 +171,7 @@ class TestBlazar(unittest.TestCase):
 
         self.blazar.delete_lease('lease-1')
 
-        self.assertEqual('DELETE', self.http.last_request.method)
+        self.assertEqual('DELETE', fakes.found(self.http.last_request).method)
 
 
 # As in DevStack, Heat's endpoint in the catalog includes the project.
@@ -217,7 +220,7 @@ class TestHeat(unittest.TestCase):
                 'tags': 'orbit',
                 'disable_rollback': True,
             },
-            self.http.last_request.json(),
+            fakes.found(self.http.last_request).json(),
         )
 
     def test_refused_stack_carries_the_heat_message(self):
@@ -282,9 +285,10 @@ class TestHeat(unittest.TestCase):
 
         self.heat.delete_stack('orbit-1')
 
-        self.assertEqual('DELETE', self.http.last_request.method)
+        self.assertEqual('DELETE', fakes.found(self.http.last_request).method)
         self.assertEqual(
-            f'{HEAT}/stacks/orbit-1/stack-1', self.http.last_request.url
+            f'{HEAT}/stacks/orbit-1/stack-1',
+            fakes.found(self.http.last_request).url,
         )
 
     def test_deleting_a_missing_stack_is_not_an_error(self):
@@ -292,7 +296,7 @@ class TestHeat(unittest.TestCase):
 
         self.heat.delete_stack('orbit-1')
 
-        self.assertEqual('GET', self.http.last_request.method)
+        self.assertEqual('GET', fakes.found(self.http.last_request).method)
 
 
 NOVA = 'http://nova.test/compute/v2.1'
@@ -331,7 +335,8 @@ class TestNova(unittest.TestCase):
 
         self.assertEqual('login:\n', self.nova.get_console_output('server-1'))
         self.assertEqual(
-            {'os-getConsoleOutput': {}}, self.http.last_request.json()
+            {'os-getConsoleOutput': {}},
+            fakes.found(self.http.last_request).json(),
         )
 
     def test_console_of_a_missing_server_is_a_refusal(self):

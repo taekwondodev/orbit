@@ -1,5 +1,6 @@
 import datetime
 import unittest
+from unittest import mock
 
 import yaml
 
@@ -59,7 +60,9 @@ class TestCreator(unittest.TestCase):
         self.repository.add(self.orb)
 
     def stored(self):
-        return self.repository.get(self.orb.project_id, self.orb.id)
+        return fakes.found(
+            self.repository.get(self.orb.project_id, self.orb.id)
+        )
 
     def activate_after(self, polls):
         get_lease = self.blazar.get_lease
@@ -83,9 +86,8 @@ class TestCreator(unittest.TestCase):
             created_at.append(self.clock.now)
             return create_stack(*args)
 
-        self.heat.create_stack = timed
-
-        self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
+        with mock.patch.object(self.heat, 'create_stack', side_effect=timed):
+            self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         name, template, parameters, tag = self.heat.created[0]
         self.assertEqual(self.orb.resource_name, name)
@@ -169,9 +171,10 @@ class TestCreator(unittest.TestCase):
             )
             return create_stack(*args)
 
-        self.heat.create_stack = racing_delete
-
-        self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
+        with mock.patch.object(
+            self.heat, 'create_stack', side_effect=racing_delete
+        ):
+            self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         self.assertEqual({}, self.heat.stacks)
         self.assertEqual(Status.DELETING, self.stored().status)
@@ -229,7 +232,9 @@ class TestCreator(unittest.TestCase):
         self.creator.run(self.orb, self.clients, fakes.PUBLIC_KEY)
 
         self.assertEqual(Status.ERROR, self.stored().status)
-        self.assertIn('requires authentication', self.stored().fault)
+        self.assertIn(
+            'requires authentication', fakes.found(self.stored().fault)
+        )
 
 
 class TestFollow(unittest.TestCase):
@@ -259,7 +264,9 @@ class TestFollow(unittest.TestCase):
         self.repository.add(self.orb)
 
     def stored(self):
-        return self.repository.get(self.orb.project_id, self.orb.id)
+        return fakes.found(
+            self.repository.get(self.orb.project_id, self.orb.id)
+        )
 
     def elapsed(self):
         return (self.clock.now - START).total_seconds()

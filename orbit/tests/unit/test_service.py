@@ -73,14 +73,14 @@ class ServiceTestCase(unittest.TestCase):
         self.nova.consoles['server-1'] = fakes.CONSOLE
 
     def stored(self):
-        return self.repository.get('project-a', self.orb.id)
+        return fakes.found(self.repository.get('project-a', self.orb.id))
 
 
 class TestRead(ServiceTestCase):
     def test_read_reports_reality_and_records_it(self):
         self.build()
 
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.ACTIVE, observed.orb.status)
         self.assertEqual('172.24.4.17', observed.ssh_host)
@@ -93,7 +93,7 @@ class TestRead(ServiceTestCase):
         self.orbs.get(CONTEXT, self.orb.id)
         self.nova.consoles['server-1'] = 'the boot block scrolled out\n'
 
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(1, self.nova.console_reads)
         self.assertEqual(Status.ACTIVE, observed.orb.status)
@@ -108,11 +108,12 @@ class TestRead(ServiceTestCase):
         )
         latest = self.repository.get
         reads = [stale]
-        self.repository.get = lambda *args: (
-            reads.pop() if reads else latest(*args)
-        )
-
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        with mock.patch.object(
+            self.repository,
+            'get',
+            side_effect=lambda *args: reads.pop() if reads else latest(*args),
+        ):
+            observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.ACTIVE, observed.orb.status)
         self.assertEqual('172.24.4.17', observed.ssh_host)
@@ -127,7 +128,7 @@ class TestRead(ServiceTestCase):
             # A block printed now may come from inside the orb.
             self.nova.consoles['server-1'] = fakes.CONSOLE
 
-            observed = self.orbs.get(CONTEXT, self.orb.id)
+            observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(0, self.nova.console_reads)
         self.assertEqual(Status.ERROR, observed.orb.status)
@@ -140,7 +141,7 @@ class TestRead(ServiceTestCase):
         self.build()
         self.nova.console_refused_with = clients.Unavailable('compute', 'down')
 
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.BUILDING, observed.orb.status)
         self.assertIsNone(observed.orb.ssh_host_keys)
@@ -150,7 +151,7 @@ class TestRead(ServiceTestCase):
         self.orbs.get(CONTEXT, self.orb.id)
         del self.nova.servers['server-1']
 
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.ERROR, observed.orb.status)
         self.assertEqual('machine no longer available', observed.orb.fault)
@@ -170,8 +171,8 @@ class TestDelete(ServiceTestCase):
     def test_delete_removes_stack_and_lease_then_reads_deleted(self):
         self.build()
 
-        deleting = self.orbs.delete(CONTEXT, self.orb.id)
-        deleted = self.orbs.get(CONTEXT, self.orb.id)
+        deleting = fakes.found(self.orbs.delete(CONTEXT, self.orb.id))
+        deleted = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.DELETING, deleting.orb.status)
         self.assertEqual({}, self.heat.stacks)
@@ -183,7 +184,7 @@ class TestDelete(ServiceTestCase):
         self.build()
         self.orbs.delete(CONTEXT, self.orb.id)
 
-        second = self.orbs.delete(CONTEXT, self.orb.id)
+        second = fakes.found(self.orbs.delete(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.DELETING, second.orb.status)
 
@@ -192,7 +193,7 @@ class TestDelete(ServiceTestCase):
         self.orbs.get(CONTEXT, self.orb.id)
         self.clients = None
 
-        observed = self.orbs.delete(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.delete(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.DELETED, observed.orb.status)
 
@@ -212,7 +213,7 @@ class TestDelete(ServiceTestCase):
         )
         self.orbs.delete(CONTEXT, self.orb.id)
 
-        observed = self.orbs.get(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.DELETING, observed.orb.status)
 
@@ -221,7 +222,7 @@ class TestDelete(ServiceTestCase):
         del self.nova.servers['server-1']
         self.orbs.get(CONTEXT, self.orb.id)
 
-        observed = self.orbs.delete(CONTEXT, self.orb.id)
+        observed = fakes.found(self.orbs.delete(CONTEXT, self.orb.id))
 
         self.assertEqual(Status.DELETING, observed.orb.status)
         self.assertIsNone(observed.orb.fault)
@@ -234,14 +235,16 @@ class TestDelete(ServiceTestCase):
         )
         self.orbs.delete(CONTEXT, self.orb.id)
         self.assertEqual(
-            Status.ERROR, self.orbs.get(CONTEXT, self.orb.id).orb.status
+            Status.ERROR,
+            fakes.found(self.orbs.get(CONTEXT, self.orb.id)).orb.status,
         )
         self.heat.delete_stack = delete_stack
 
         self.orbs.delete(CONTEXT, self.orb.id)
 
         self.assertEqual(
-            Status.DELETED, self.orbs.get(CONTEXT, self.orb.id).orb.status
+            Status.DELETED,
+            fakes.found(self.orbs.get(CONTEXT, self.orb.id)).orb.status,
         )
 
     def test_unknown_orb_is_none(self):

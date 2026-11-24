@@ -47,7 +47,7 @@ class TestOrbRepository(unittest.TestCase):
         )
 
         self.assertTrue(updated)
-        stored = self.repo.get('project-a', orb.id)
+        stored = fakes.found(self.repo.get('project-a', orb.id))
         self.assertEqual(Status.BUILDING, stored.status)
         self.assertEqual('stack-1', stored.stack_id)
         self.assertIsNotNone(stored.updated_at)
@@ -80,7 +80,7 @@ class TestOrbRepository(unittest.TestCase):
         self.assertFalse(updated)
         self.assertEqual(
             (fakes.HOST_KEY_ED25519,),
-            self.repo.get('project-a', orb.id).ssh_host_keys,
+            fakes.found(self.repo.get('project-a', orb.id)).ssh_host_keys,
         )
 
     def test_reaching_deleted_records_the_deletion_time(self):
@@ -89,4 +89,6 @@ class TestOrbRepository(unittest.TestCase):
 
         self.repo.update(orb.id, Status.DELETING, status=Status.DELETED)
 
-        self.assertIsNotNone(self.repo.get('project-a', orb.id).deleted_at)
+        self.assertIsNotNone(
+            fakes.found(self.repo.get('project-a', orb.id)).deleted_at
+        )
