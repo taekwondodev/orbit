@@ -1,6 +1,3 @@
-# Shared helpers for the dev #251 image builds. Sourced by build.sh and sources.sh; run as root.
-# Everything is confined to $B (/var/tmp/dev-251-build).
-
 B=/var/tmp/dev-251-build
 ALPINE_VER=3.24.3
 ROOTFS_TGZ=$B/dl/rootfs/alpine-minirootfs-$ALPINE_VER-aarch64.tar.gz
@@ -14,7 +11,7 @@ W=
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 die() { log "ERROR: $*" >&2; exit 1; }
 
-# Mount points currently mounted at or below $R, deepest first.
+# Deepest first, so that umount_all unmounts children before parents.
 mounts_below() {
 	findmnt -rn -o TARGET | awk -v r="$R" 'index($0, r "/") == 1 || $0 == r' | sort -r
 }
@@ -36,7 +33,6 @@ cleanup() {
 	if [ -n "$LOOP" ] && losetup "$LOOP" >/dev/null 2>&1; then losetup -d "$LOOP"; fi
 }
 
-# Detach loop devices that point at our own image file only.
 detach_stale() {
 	local img="$1" d
 	for d in $(losetup -j "$img" -O NAME -n 2>/dev/null); do losetup -d "$d"; done

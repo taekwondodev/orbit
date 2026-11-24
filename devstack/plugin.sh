@@ -1,5 +1,3 @@
-# Installs and starts orbit-api inside DevStack.
-
 XTRACE=$(set +o | grep xtrace)
 set +o xtrace
 
@@ -27,9 +25,6 @@ function configure_orbit {
     iniset $ORBIT_UWSGI_CONF uwsgi threads 4
 }
 
-# The Orbs panel: Horizon loads it from the enabled files in its local
-# directory. This phase precedes init_horizon (collectstatic, compress) and
-# start_horizon in stack.sh.
 ORBIT_DASHBOARD_ENABLED="_1950_project_orbit_panel_group.py _1951_project_orbs_panel.py"
 
 function configure_orbit_dashboard {
@@ -40,11 +35,6 @@ function configure_orbit_dashboard {
     done
 }
 
-# The lab's egress proxy (docs/adr/0009): Smokescreen, a CONNECT proxy that
-# admits only the listed hostnames and refuses private addresses and this
-# host's own. It listens only on the public network's gateway address, the
-# one the orbs' routers reach. DevStack creates that subnet and assigns the
-# address to the host after post-config, so the proxy is configured in extra.
 ORBIT_SMOKESCREEN_VERSION=v0.1.0
 ORBIT_SMOKESCREEN_CONF=$ORBIT_CONF_DIR/smokescreen.yaml
 ORBIT_SMOKESCREEN_ACL=$ORBIT_CONF_DIR/smokescreen-acl.yaml
@@ -118,10 +108,6 @@ function start_orbit_egress_proxy {
         "/usr/local/bin/smokescreen --config-file $ORBIT_SMOKESCREEN_CONF"
 }
 
-# The orb image (docs/adr/0010): built by tools/image and published as a
-# release asset of this repository. Every orb boots it, in any project, so it
-# is public. Repeatable: an active image with its name is not uploaded again;
-# one left incomplete by an interrupted upload stops the plugin.
 ORBIT_IMAGE_URL=https://github.com/taekwondodev/orbit/releases/download/image-alpine-3.24.3/orbit-alpine-3.24.3-aarch64.qcow2
 ORBIT_IMAGE_SHA256=a1063f4b86a86a3fd0d045be6c80c266ac80e709dd53faf31102c200fa28e560
 
@@ -155,7 +141,6 @@ function upload_orbit_image {
 }
 
 function init_orbit {
-    # orbit-api creates its table when it starts.
     recreate_database orbit
 }
 
@@ -168,14 +153,12 @@ function create_orbit_accounts {
         "$SERVICE_PROTOCOL://$SERVICE_HOST/orbit"
 }
 
-# No lease can be created until Blazar knows the compute host.
-# Registration is repeatable: a host already registered is not registered twice.
 function register_compute_hosts_in_blazar {
     local hosts="" host
     # nova-compute may register its hypervisor a few seconds later.
     for _ in $(seq 1 12); do
         # DevStack maps hosts into the cell only after the extra phase, and
-        # the Nova API does not show unmapped hypervisors. Repeatable.
+        # the Nova API does not show unmapped hypervisors.
         $NOVA_BIN_DIR/nova-manage --config-file $NOVA_CONF cell_v2 discover_hosts
         hosts=$(openstack --os-cloud devstack-admin hypervisor list \
             -f value -c "Hypervisor Hostname")
@@ -237,7 +220,9 @@ if is_service_enabled orbit-api; then
         echo_summary "Starting orbit"
         register_compute_hosts_in_blazar
         upload_orbit_image
-        # orbit-api reads egress_proxy when it starts.
+        # DevStack assigns the public gateway address, where the proxy
+        # listens, only after post-config; orbit-api reads egress_proxy when
+        # it starts.
         if is_service_enabled orbit-egress-proxy; then
             configure_orbit_egress_proxy
         fi

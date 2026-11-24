@@ -1,9 +1,5 @@
 #!/bin/bash
-# Build the orb image: Alpine aarch64 UEFI, initializer tiny-cloud, which
-# applies orbit's cloud-config user data. Every orb boots it (docs/adr/0010).
-#   sudo build.sh
-# Needs, in $B (lib.sh): dl/ with the frozen rootfs and APKs.
-# Output: $B/out/orbit-alpine-<ver>-aarch64.qcow2 (+ evidence under $B/out/evidence-tinycloud/)
+# Usage: README.md.
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
@@ -54,8 +50,8 @@ mkdir -p "$R/etc/mkinitfs"
 cat > "$R/etc/mkinitfs/mkinitfs.conf" <<EOF
 features="base ext4 virtio"
 EOF
-# Retained exact-version inputs, including all transitive dependencies. No
-# repository resolution or downloads; apk still verifies Alpine signatures.
+# Offline install from the retained archive; apk still verifies Alpine
+# signatures.
 ARCHIVE=$B/dl/packages/$V
 (cd "$ARCHIVE" && sha256sum -c SHA256SUMS)
 mkdir -p "$R/tmp/packages"
@@ -192,7 +188,6 @@ find "$R/tmp" -mindepth 1 -delete 2>/dev/null || true
 find "$R/var/log" -type f -exec truncate -s 0 {} + 2>/dev/null || true
 find "$R/var/tmp" -mindepth 1 -delete 2>/dev/null || true
 : > "$R/etc/resolv.conf"
-# hostkey/clientkey scan (evidence)
 {
 	echo "# private-key material or authorized_keys found (must be empty):"
 	grep -rIl -e 'BEGIN [A-Z ]*PRIVATE KEY' "$R/etc" "$R/root" "$R/home" "$R/var" "$R/usr/local" "$R/boot" 2>/dev/null || true

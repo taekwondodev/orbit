@@ -1,5 +1,4 @@
 /* global horizon */
-// The panel is English only, whatever the user's language.
 (function ($) {
   'use strict';
 
@@ -64,8 +63,6 @@
         showStatus(message, true, status === 401);
       }
 
-      // Highlight rows that appeared or changed status since the last
-      // snapshot: the sign that orbit moved an orb along.
       function highlight($table, before) {
         var $changed = $table.find('tbody tr[data-object-id]').filter(function () {
           return before[this.getAttribute('data-object-id')] !== this.getAttribute('data-orbit-status');
@@ -111,7 +108,7 @@
         }
         lastUpdate = Date.now();
         showStatus('Live · updates every 5 seconds', false, false);
-        // One ping per snapshot received: restart the animation.
+        // Forcing a reflow restarts the animation.
         var dot = $status.find('.orbit-live-dot')[0];
         dot.classList.remove('orbit-tick');
         void dot.offsetWidth;

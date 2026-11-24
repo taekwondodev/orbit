@@ -36,8 +36,6 @@ $orbit-states: (
   .orbit-tile.orbit-#{$state} .orbit-tile-value { color: nth($colors, 1); }
 }
 
-// Status badge and the steps to ACTIVE
-
 .orbit-badge {
   display: inline-flex;
   align-items: center;
@@ -76,8 +74,6 @@ $orbit-states: (
 }
 
 .orbit-badge.orbit-active + .orbit-steps .orbit-step-done { background: #22a565; }
-
-// Table
 
 .orbit-status-cell { width: 170px; }
 
@@ -122,8 +118,6 @@ table.datatable > tbody > tr {
   }
 }
 
-// Live status
-
 .orbit-live-status {
   display: inline-flex;
   align-items: center;
@@ -163,8 +157,6 @@ table.datatable > tbody > tr {
     animation: orbit-ping 1s $orbit-ease-out;
   }
 }
-
-// Summary
 
 .orbit-overview {
   display: grid;
@@ -259,8 +251,6 @@ table.datatable > tbody > tr {
   color: $orbit-muted;
   font-size: 11px;
 }
-
-// Detail
 
 .orbit-detail-head {
   display: flex;

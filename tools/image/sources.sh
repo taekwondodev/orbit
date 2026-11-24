@@ -1,10 +1,5 @@
 #!/bin/sh
-# Collect the source of every package in the orb image: the aports directory
-# each package was built from, at the commit its apk database records, and the
-# archives its APKBUILD names, checked against the APKBUILD's sha512sums.
-#   sources.sh <apk-installed-db> <output.tar>
-# Runs as root on Alpine with abuild, git and GNU tar (README: Licenses and
-# sources). The database is /lib/apk/db/installed of the image.
+# Usage: README.md, "Licenses and sources".
 set -eu
 . "$(dirname "$0")/lib.sh"
 
