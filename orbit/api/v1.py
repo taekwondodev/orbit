@@ -86,9 +86,16 @@ def _unavailable(error):
     return _error(503, f'{str(error).capitalize()}.')
 
 
-@blueprint.errorhandler(http_exc.HTTPException)
+# Registered on the app: routing errors such as an unknown path or a 405 are
+# raised before any blueprint is selected.
+@blueprint.app_errorhandler(http_exc.HTTPException)
 def _http_error(error):
-    return _error(error.code, error.description)
+    body, _ = _error(error.code, error.description)
+    # The exception's own response keeps headers such as Allow on a 405.
+    response = error.get_response()
+    response.set_data(flask.json.dumps(body))
+    response.mimetype = 'application/json'
+    return response
 
 
 def _error(code, message):

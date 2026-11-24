@@ -237,6 +237,28 @@ class TestRead(ApiTestCase):
         self.assertEqual([], self.blazar.created)
 
 
+class TestRoutingErrors(ApiTestCase):
+    def test_routing_errors_are_json_errors(self):
+        for method, path, code in (
+            ('GET', '/v1/unknown', 404),
+            ('GET', '/v1/orbs/', 404),
+            ('PUT', '/v1/orbs', 405),
+        ):
+            with self.subTest(method=method, path=path):
+                response = self.request(method, path)
+
+                self.assertEqual(code, response.status_code)
+                self.assertEqual('application/json', response.mimetype)
+                self.assertEqual(code, response.get_json()['error']['code'])
+
+    def test_method_not_allowed_names_the_allowed_methods(self):
+        response = self.request('PUT', '/v1/orbs')
+
+        self.assertEqual(
+            {'GET', 'POST'}, set(response.allow) - {'HEAD', 'OPTIONS'}
+        )
+
+
 class TestDelete(ApiTestCase):
     def test_delete_is_202_and_repeatable(self):
         orb_id = self.create().get_json()['id']
