@@ -121,7 +121,3 @@ def check_api_options():
             '[orbs] ready_timeout must be greater than creation_timeout: '
             'both count from the creation request, and the machine boots '
             'only after the stack is created.')
-
-
-def list_opts():
-    return [('orbs', orbs_opts)]

@@ -132,7 +132,6 @@ What each plugin does and what the installation requires: [docs/architecture.md]
 
 ```console
 $ tox -e py3          # unit tests, no OpenStack needed
-$ tox -e genconfig    # regenerate etc/orbit.conf.sample
 $ tox -e dashboard    # Horizon panel tests
 ```
 
