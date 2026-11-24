@@ -22,24 +22,26 @@ class ApiTestCase(unittest.TestCase):
         self.auths.append(auth)
         return self.clients
 
-    def request(self, method, path, project='project-a', **kwargs):
+    def request(
+        self, method, path, project='project-a', user='user-a', **kwargs
+    ):
         environ = {
             'HTTP_X_PROJECT_ID': project,
-            'HTTP_X_USER_ID': 'user-a',
+            'HTTP_X_USER_ID': user,
             'keystone.token_auth': f'auth-of-{project}',
         }
         return self.client.open(
             path, method=method, environ_overrides=environ, **kwargs
         )
 
-    def create(self, **overrides):
+    def create(self, user='user-a', **overrides):
         body = {
             'size': {'vcpus': 2, 'memory_mb': 4096, 'disk_gb': 20},
             'public_key': fakes.PUBLIC_KEY,
             'ssh_allowed_cidr': '198.51.100.20/32',
         }
         body.update(overrides)
-        return self.request('POST', '/v1/orbs', json=body)
+        return self.request('POST', '/v1/orbs', user=user, json=body)
 
 
 class TestCreate(ApiTestCase):
@@ -228,6 +230,12 @@ class TestRead(ApiTestCase):
         response = self.request('GET', '/v1/orbs', project='')
 
         self.assertEqual(403, response.status_code)
+
+    def test_token_without_user_is_403(self):
+        response = self.create(user='')
+
+        self.assertEqual(403, response.status_code)
+        self.assertEqual([], self.blazar.created)
 
 
 class TestDelete(ApiTestCase):

@@ -24,9 +24,12 @@ def _context():
     project_id = environ.get('HTTP_X_PROJECT_ID')
     if not project_id:
         raise http_exc.Forbidden('A project-scoped token is required.')
+    user_id = environ.get('HTTP_X_USER_ID')
+    if not user_id:
+        raise http_exc.Forbidden('A user token is required.')
     return service.Context(
         project_id=project_id,
-        user_id=environ.get('HTTP_X_USER_ID'),
+        user_id=user_id,
         auth=environ.get('keystone.token_auth'),
     )
 
