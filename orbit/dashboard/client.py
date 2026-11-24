@@ -7,9 +7,11 @@ from keystoneauth1 import exceptions as ks_exc
 from keystoneauth1 import session as ks_session
 from openstack_dashboard.api import base
 
-from orbit.dashboard.exceptions import OrbitError
-from orbit.dashboard.exceptions import OrbitUnauthorized
-from orbit.dashboard.exceptions import OrbNotFound
+from orbit.dashboard.exceptions import (
+    OrbitError,
+    OrbitUnauthorized,
+    OrbNotFound,
+)
 
 # Seconds to wait for orbit-api. Every list, detail and live refresh holds a
 # Horizon worker while it waits; orbit-api bounds its own calls downstream.

@@ -3,9 +3,9 @@
 import dataclasses
 import uuid
 
-from orbit.conf import CONF
 from orbit import orb as orb_model
 from orbit import reconciliation
+from orbit.conf import CONF
 
 Status = orb_model.Status
 

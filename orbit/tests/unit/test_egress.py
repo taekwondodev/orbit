@@ -29,9 +29,8 @@ class TestParse(unittest.TestCase):
             'udp:224.0.0.251:5353',
             'udp:255.255.255.255:67',
         ):
-            with self.subTest(value=value):
-                with self.assertRaises(ValueError):
-                    egress.parse_destination(value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                egress.parse_destination(value)
 
     def test_proxy_is_a_tcp_host_and_port(self):
         self.assertEqual(
@@ -41,9 +40,8 @@ class TestParse(unittest.TestCase):
 
     def test_proxy_must_not_be_a_network(self):
         for value in ('172.24.4.0/24:4750', '172.24.4.1', 'proxy:4750'):
-            with self.subTest(value=value):
-                with self.assertRaises(ValueError):
-                    egress.parse_proxy(value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                egress.parse_proxy(value)
 
 
 class TestRules(unittest.TestCase):

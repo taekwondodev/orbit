@@ -1,12 +1,11 @@
 import datetime
 
+import requests_mock
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
-import requests_mock
-
 from openstack_dashboard.test import helpers
 
 from orbit.dashboard import client
@@ -230,7 +229,7 @@ class IndexTests(OrbsTestCase):
         self.assertNotContains(res, 'orbit-overview')
         self.assertMessageCount(res, error=1)
         self.assertIn(
-            'Heat is unavailable', str(list(res.context['messages'])[0])
+            'Heat is unavailable', str(next(iter(res.context['messages'])))
         )
 
     def test_live_list_discovers_orbs_and_updates_stable_rows(self):

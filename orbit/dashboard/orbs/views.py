@@ -3,15 +3,15 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from horizon import exceptions
-from horizon import tables
-from horizon import views
+from horizon import exceptions, tables, views
 from horizon.utils import memoized
 
 from orbit.dashboard import client
-from orbit.dashboard.exceptions import OrbitError
-from orbit.dashboard.exceptions import OrbitUnauthorized
-from orbit.dashboard.exceptions import OrbNotFound
+from orbit.dashboard.exceptions import (
+    OrbitError,
+    OrbitUnauthorized,
+    OrbNotFound,
+)
 from orbit.dashboard.orbs import overview
 from orbit.dashboard.orbs import tables as orbs_tables
 

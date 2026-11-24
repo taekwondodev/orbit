@@ -3,10 +3,7 @@ import unittest
 
 import yaml
 
-from orbit import clients
-from orbit import conf
-from orbit import creation
-from orbit import lifecycle
+from orbit import clients, conf, creation, lifecycle
 from orbit import orb as orb_model
 from orbit.tests.unit import fakes
 

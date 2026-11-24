@@ -1,9 +1,8 @@
 """Horizon's test settings with the Orbs panel enabled, as heat-dashboard's."""
 
 import openstack_dashboard.enabled
-from openstack_dashboard.test.settings import *  # noqa: F401,F403
-from openstack_dashboard.test.settings import HORIZON_CONFIG
-from openstack_dashboard.test.settings import INSTALLED_APPS
+from openstack_dashboard.test.settings import *
+from openstack_dashboard.test.settings import HORIZON_CONFIG, INSTALLED_APPS
 from openstack_dashboard.utils import settings as settings_utils
 
 import orbit.dashboard.enabled

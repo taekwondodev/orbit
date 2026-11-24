@@ -3,8 +3,7 @@
 import datetime
 import unittest
 
-from orbit import clients
-from orbit import lifecycle
+from orbit import clients, lifecycle
 from orbit import orb as orb_model
 from orbit.tests.unit import fakes
 

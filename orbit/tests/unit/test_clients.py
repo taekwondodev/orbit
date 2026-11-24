@@ -1,12 +1,11 @@
 import unittest
 
-from keystoneauth1 import session as ks_session
-from keystoneauth1 import token_endpoint
 import requests
 import requests_mock
+from keystoneauth1 import session as ks_session
+from keystoneauth1 import token_endpoint
 
-from orbit import clients
-from orbit import conf
+from orbit import clients, conf
 from orbit import orb as orb_model
 
 # As in DevStack, Blazar's endpoint in the catalog already includes /v1.

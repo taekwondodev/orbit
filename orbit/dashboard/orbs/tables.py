@@ -1,6 +1,5 @@
 from django.urls import reverse
-from django.utils.html import format_html
-from django.utils.html import format_html_join
+from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 from horizon import tables

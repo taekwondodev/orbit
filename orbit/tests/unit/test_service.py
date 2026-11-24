@@ -2,11 +2,8 @@ import datetime
 import unittest
 from unittest import mock
 
-from orbit import clients
-from orbit import conf
+from orbit import clients, conf, reconciliation, service
 from orbit import orb as orb_model
-from orbit import reconciliation
-from orbit import service
 from orbit.tests.unit import fakes
 
 Status = orb_model.Status

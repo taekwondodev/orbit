@@ -5,8 +5,8 @@ import dataclasses
 import sqlalchemy as sa
 
 from orbit import clients
-from orbit.db import api as db_api
 from orbit import orb as orb_model
+from orbit.db import api as db_api
 
 
 def database():
@@ -21,17 +21,17 @@ def database():
 
 
 def orb(**overrides):
-    values = dict(
-        id='11111111-1111-1111-1111-111111111111',
-        project_id='project-a',
-        user_id='user-a',
-        size=orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
-        lease_id='lease-1',
-        reservation_id='reservation-1',
-        status=orb_model.Status.RESERVING,
-        created_at=orb_model.utcnow(),
-        ssh_allowed_cidr='198.51.100.20/32',
-    )
+    values = {
+        'id': '11111111-1111-1111-1111-111111111111',
+        'project_id': 'project-a',
+        'user_id': 'user-a',
+        'size': orb_model.Size(vcpus=2, memory_mb=4096, disk_gb=20),
+        'lease_id': 'lease-1',
+        'reservation_id': 'reservation-1',
+        'status': orb_model.Status.RESERVING,
+        'created_at': orb_model.utcnow(),
+        'ssh_allowed_cidr': '198.51.100.20/32',
+    }
     values.update(overrides)
     return orb_model.Orb(**values)
 

@@ -5,11 +5,9 @@ import ipaddress
 import flask
 from werkzeug import exceptions as http_exc
 
-from orbit import clients
-from orbit.conf import CONF
+from orbit import clients, service, ssh
 from orbit import orb as orb_model
-from orbit import service
-from orbit import ssh
+from orbit.conf import CONF
 
 blueprint = flask.Blueprint('v1', __name__)
 

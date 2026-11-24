@@ -10,10 +10,9 @@ import dataclasses
 from oslo_log import log
 
 from orbit import clients as orbit_clients
-from orbit.conf import CONF
-from orbit import lifecycle
+from orbit import lifecycle, ssh
 from orbit import orb as orb_model
-from orbit import ssh
+from orbit.conf import CONF
 
 LOG = log.getLogger(__name__)
 Status = orb_model.Status

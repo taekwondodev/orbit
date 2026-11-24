@@ -1,10 +1,8 @@
 import unittest
 
-from orbit.api import app
-from orbit import clients
-from orbit import conf
+from orbit import clients, conf, service
 from orbit import orb as orb_model
-from orbit import service
+from orbit.api import app
 from orbit.tests.unit import fakes
 
 

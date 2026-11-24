@@ -2,12 +2,12 @@ import tempfile
 import unittest
 from unittest import mock
 
-from oslo_db.sqlalchemy import enginefacade
 import sqlalchemy as sa
+from oslo_db.sqlalchemy import enginefacade
 from werkzeug import test as werkzeug_test
 
-from orbit.api import app
 from orbit import conf
+from orbit.api import app
 from orbit.db import api as db_api
 from orbit.tests.unit import fakes
 

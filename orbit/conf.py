@@ -146,7 +146,8 @@ class InvalidOption(ValueError):
 def check_api_options():
     """Refuse to serve with the options orbit-api cannot run with."""
     try:
-        CONF.orbs.ssh_min_prefix
+        # oslo.config checks the value's range only when it is read.
+        _ = CONF.orbs.ssh_min_prefix
     except cfg.ConfigFileValueError as e:
         raise InvalidOption(f'[orbs] ssh_min_prefix: {e}') from e
     cap = CONF.orbs.ssh_allowed_cidr
