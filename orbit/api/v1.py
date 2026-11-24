@@ -48,7 +48,7 @@ def list_orbs():
         try:
             status = orb_model.Status(status)
         except ValueError:
-            raise http_exc.BadRequest(f'Unknown status: {status}')
+            raise http_exc.BadRequest(f'Unknown status: {status}') from None
     return {'orbs': [_view(o) for o in _orbs().list(context, status)]}
 
 
