@@ -127,10 +127,10 @@ rcadd sshd default
 rcadd tiny-cloud-boot boot
 for s in early main final; do rcadd tiny-cloud-$s default; done
 # post-install of tiny-cloud-openstack wrote CLOUD=openstack; pin the rest.
+# run_userdata only executes script user data: save_userdata and
+# organize_userdata still apply the egress proxy's write_files.
 cat >> "$R/etc/tiny-cloud.conf" <<EOF
 
-# dev #251: ConfigDrive only, user ubuntu. User data is saved and organized
-# (orbit's cloud-config write_files for the egress proxy); scripts stay skipped.
 CLOUD=openstack
 IMDS_SOURCE=configdrive
 IMDS_FORMAT=native

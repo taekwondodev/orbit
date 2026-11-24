@@ -1,4 +1,4 @@
-B=/var/tmp/dev-251-build
+B=/var/tmp/orbit-image-build
 ALPINE_VER=3.24.3
 ROOTFS_TGZ=$B/dl/rootfs/alpine-minirootfs-$ALPINE_VER-aarch64.tar.gz
 ROOTFS_SHA256=4d3f80afaebd447c5591a63a73bde380a149fe8b2d85488cafabb2ff97551f50
