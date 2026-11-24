@@ -226,9 +226,13 @@ class TestRead(ApiTestCase):
         self.assertEqual(400, response.status_code)
 
     def test_token_without_project_is_403(self):
-        response = self.request('GET', '/v1/orbs', project='')
+        for method, body in (('GET', None), ('POST', {})):
+            with self.subTest(method=method):
+                response = self.request(
+                    method, '/v1/orbs', project='', json=body
+                )
 
-        self.assertEqual(403, response.status_code)
+                self.assertEqual(403, response.status_code)
 
     def test_token_without_user_is_403(self):
         response = self.create(user='')

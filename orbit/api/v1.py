@@ -34,20 +34,22 @@ def _context():
 
 @blueprint.post('/orbs')
 def create_orb():
+    context = _context()
     request = _create_request(flask.request.get_json(silent=True))
-    observed = _orbs().create(_context(), request)
+    observed = _orbs().create(context, request)
     return _view(observed), 202
 
 
 @blueprint.get('/orbs')
 def list_orbs():
+    context = _context()
     status = flask.request.args.get('status')
     if status is not None:
         try:
             status = orb_model.Status(status)
         except ValueError:
             raise http_exc.BadRequest(f'Unknown status: {status}')
-    return {'orbs': [_view(o) for o in _orbs().list(_context(), status)]}
+    return {'orbs': [_view(o) for o in _orbs().list(context, status)]}
 
 
 @blueprint.get('/orbs/<orb_id>')
