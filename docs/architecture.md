@@ -15,7 +15,7 @@ The creation task remains in the request-serving process with the request's toke
 
 ## Ownership boundary
 
-![Architecture: the client talks to orbit-api; orbit asks Blazar for capacity and flavor and Heat for the resources with the user's token, and only reads from Nova](img/architecture.svg)
+![Architecture: the client harness talks to the orbit server over HTTP; orbit asks Blazar for capacity and flavor and Heat for the resources with the user's token, and only reads from Nova](img/architecture.svg)
 
 Calls to Blazar, Heat and Nova use the requester's authorization ([0002](adr/0002-resources-in-the-users-project.md)). Blazar owns capacity and flavor; Heat owns the resources in the [template](../orbit/templates/orb.yaml). orbit reads Nova for machine status and console output, and does not write to Nova or Neutron directly ([0001](adr/0001-provisioning-delegated-to-heat.md)). Add new orb resources to the template rather than introducing direct provisioning.
 

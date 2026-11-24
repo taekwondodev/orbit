@@ -105,13 +105,7 @@ Use an aarch64 host: every orb boots the same aarch64 image, which `stack.sh` do
    $ systemctl status devstack@orbit-egress-proxy
    ```
 
-5. If the agent runs on another machine, make the orbs reachable from there by running this on it; its header says when to run it again:
-
-   ```console
-   $ tools/reach-orbs.sh <host>
-   ```
-
-6. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
+5. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 

@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
-# Make the orbs' floating IPs reachable from this machine, for SSH to an orb
-# from outside the DevStack host.
+# Route DevStack's public network from this machine through the DevStack
+# host, so that this machine can SSH to the orbs' floating IPs.
 #
 #   tools/reach-orbs.sh <devstack-host>
 #
-# <devstack-host> is an SSH destination, an alias from ~/.ssh/config too.
-# The floating IPs live on DevStack's public network, which only the DevStack
-# host can reach: this machine sends that network to the host, and the host
-# forwards it to the orbs. No NAT on the way in, so an orb sees this
-# machine's address on the network it shares with the host: that is the
-# address to pass as ssh_allowed_cidr.
+# Run it on the machine that connects to the orbs, when that machine is not
+# the DevStack host: the computer running DevStack in a VM, or a machine on
+# the same local network as a separate DevStack host. <devstack-host> is an
+# SSH destination, an alias from ~/.ssh/config too, whose host name is the
+# host's IP address. It runs sudo on both machines.
 #
-# Neither side survives a reboot: run it again after either machine restarts.
+# The route goes straight to the host's address, so no router may stand
+# between the two machines. Nothing translates the connections on the way in:
+# an orb sees this machine's address on the network it shares with the host,
+# the host side of the virtualizer's network for a VM. Pass that address as
+# ssh_allowed_cidr.
+#
+# Neither side outlives the machine it is on, and on a computer running the
+# VM the route can go with the VM's network interface. Run it again every
+# time the VM starts; for a separate host, after either machine restarts or
+# the host's address changes. The orbit skill, skills/orbit/SKILL.md, says
+# how to find this machine's address.
 # Repeatable: what is already in place is left as it is.
 #
 # DevStack's defaults; override them as in local.conf.
@@ -42,6 +51,8 @@ done"
 # One line, so that any login shell on the host passes it to bash intact.
 ssh -t "$host" "sudo bash -c $(printf '%q' "${remote//$'\n'/ }")"
 
+# Here: send the public network to the host. macOS refuses to add a route
+# that exists, so replace it only when it points elsewhere.
 echo "Here: $FLOATING_RANGE via $host_ip"
 case $(uname -s) in
     Darwin)
