@@ -10,7 +10,7 @@ from orbit.db import api as db_api
 
 def create_app(orbs):
     app = flask.Flask('orbit')
-    app.config['ORBS'] = orbs
+    app.extensions['orbit'] = orbs
     app.register_blueprint(v1.blueprint, url_prefix='/v1')
     return app
 

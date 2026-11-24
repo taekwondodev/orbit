@@ -14,7 +14,7 @@ _SSH_USER = 'ubuntu'
 
 
 def _orbs():
-    return flask.current_app.config['ORBS']
+    return flask.current_app.extensions['orbit']
 
 
 def _context():
