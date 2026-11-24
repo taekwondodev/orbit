@@ -1,8 +1,4 @@
-"""Horizon's test settings with the Orbs panel enabled, as heat-dashboard's."""
-
 import openstack_dashboard.enabled
-
-# Django settings extend a base module by star import.
 from openstack_dashboard.test.settings import *  # pyright: ignore[reportWildcardImportFromLibrary]
 from openstack_dashboard.test.settings import HORIZON_CONFIG, INSTALLED_APPS
 from openstack_dashboard.utils import settings as settings_utils

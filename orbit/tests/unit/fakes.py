@@ -1,5 +1,3 @@
-"""Test doubles shared by the unit tests."""
-
 import dataclasses
 import typing
 
@@ -13,14 +11,12 @@ T = typing.TypeVar('T')
 
 
 def found(value: T | None) -> T:
-    """``value``, failing the test when a lookup found nothing."""
     if value is None:
         raise AssertionError('expected a value, found None')
     return value
 
 
 def database():
-    """An in-memory SQLite database with orbit's schema."""
     engine = sa.create_engine(
         'sqlite://',
         poolclass=sa.pool.StaticPool,
@@ -57,8 +53,6 @@ PUBLIC_KEY = (
 
 
 class FakeBlazar:
-    """An in-memory Blazar: leases are born waiting for activation."""
-
     def __init__(self):
         self.leases = {}
         self.created = []
@@ -92,8 +86,6 @@ class FakeBlazar:
 
 
 class FakeHeat:
-    """An in-memory Heat: stacks are born under construction."""
-
     def __init__(self):
         self.stacks = {}
         self.created = []
@@ -128,8 +120,6 @@ class FakeHeat:
 
 
 class FakeCreator:
-    """Records the started creations without running them."""
-
     def __init__(self):
         self.started = []
 
@@ -147,8 +137,6 @@ HOST_KEY_ECDSA = (
     'vM2TcZ9FCbJ44kddcn0w9m48yfEIWRTyFfeoKTd9nnHzEpM='
 )
 
-# The tail of an Ubuntu console as cloud-init leaves it, line endings
-# included.
 CONSOLE = (
     '[   10.112233] cloud-init[812]: Cloud-init v. 24.1 finished\r\n'
     '-----BEGIN SSH HOST KEY KEYS-----\r\n'
@@ -178,8 +166,6 @@ class FakeNova:
 
 @dataclasses.dataclass(frozen=True)
 class FakeClients:
-    """Stands in for clients.Clients, typed so tests reach the fakes."""
-
     blazar: FakeBlazar
     heat: FakeHeat
     nova: FakeNova

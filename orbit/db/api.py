@@ -1,5 +1,3 @@
-"""Access to the orbs table."""
-
 import sqlalchemy as sa
 
 from orbit import orb as orb_model
@@ -21,7 +19,6 @@ orbs = sa.Table(
     sa.Column('status', sa.String(16), nullable=False),
     sa.Column('fault', sa.Text),
     sa.Column('ssh_allowed_cidr', sa.String(18)),
-    # One key per line: an OpenSSH key holds no line break.
     sa.Column('ssh_host_keys', sa.Text),
     sa.Column('created_at', sa.DateTime, nullable=False),
     sa.Column('updated_at', sa.DateTime),
@@ -54,7 +51,6 @@ class OrbRepository:
             )
 
     def get(self, project_id, orb_id):
-        """The orb, or None if missing or in another project."""
         query = orbs.select().where(
             orbs.c.id == orb_id, orbs.c.project_id == project_id
         )
@@ -72,13 +68,9 @@ class OrbRepository:
             return [_to_orb(row) for row in conn.execute(query)]
 
     def update(self, orb_id, expected_status, **changes):
-        """Apply the changes only if the status is still the expected one.
-
-        The creation task and the reads write to the same row: whoever read
-        an outdated status does not overwrite the more recent one. Host keys
-        are written only if none are stored yet.
-        Returns True if the row was updated.
-        """
+        # Compare-and-set on the status: the creation task and the reads
+        # write to the same row, and whoever read an outdated status must
+        # not overwrite the more recent one.
         values = {
             key: _column_value(key, value) for key, value in changes.items()
         }

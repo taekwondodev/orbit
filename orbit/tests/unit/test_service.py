@@ -52,7 +52,6 @@ class ServiceTestCase(unittest.TestCase):
         self.orb = self.orbs.create(CONTEXT, REQUEST).orb
 
     def build(self):
-        """Bring the orb up to a running machine, as the task would."""
         self.blazar.activate(self.orb.lease_id)
         stack_id = self.heat.create_stack(
             self.orb.resource_name, 't', {}, 'orbit'
@@ -125,7 +124,6 @@ class TestRead(ServiceTestCase):
         late = self.orb.created_at + datetime.timedelta(seconds=600)
         with mock.patch.object(orb_model, 'utcnow', return_value=late):
             self.orbs.get(CONTEXT, self.orb.id)
-            # A block printed now may come from inside the orb.
             self.nova.consoles['server-1'] = fakes.CONSOLE
 
             observed = fakes.found(self.orbs.get(CONTEXT, self.orb.id))

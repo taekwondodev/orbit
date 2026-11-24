@@ -18,11 +18,8 @@ STATUS_DISPLAY_CHOICES = (
     ('DELETED', pgettext_lazy('Current status of an orb', 'Deleted')),
 )
 
-# The steps an orb goes through until it is ready, as in the API's state
-# machine. ERROR does not say which step failed, so it shows none.
 STEPS = ('RESERVING', 'BUILDING', 'ACTIVE')
 
-# Waiting states; the badge pulses while orbit works on them.
 IN_PROGRESS = ('RESERVING', 'BUILDING', 'DELETING')
 
 
@@ -31,7 +28,6 @@ def status_label(status):
 
 
 def step_states(status):
-    """'done', 'now' or 'todo' for each of STEPS; None outside them."""
     if status not in STEPS:
         return None
     reached = STEPS.index(status)
@@ -84,8 +80,6 @@ def get_id(orb):
 
 
 def get_size(orb):
-    # The units of the request, not Horizon's GB: the user reads back the
-    # numbers they asked for.
     return format_html(
         '<span class="orbit-chip"><b>{}</b> vCPU</span>'
         '<span class="orbit-chip"><b>{}</b> MiB</span>'
@@ -101,7 +95,6 @@ class OrbRow(tables.Row):
         super().load_cells(datum)
         orb = self.datum
         assert orb is not None, 'Horizon loads cells only with a datum'
-        # The live script compares statuses between snapshots.
         self.attrs['data-orbit-status'] = orb.status
         if orb.status == 'ERROR':
             self.classes.append('orbit-row-error')
@@ -120,14 +113,11 @@ class OrbsTable(tables.DataTable):
         attrs={'data-type': 'timesince'},
     )
 
-    # Set by the view when the list could not be read: then "no orbs"
-    # would be false.
     unavailable = False
 
     def get_empty_message(self):
         if self.unavailable:
             return super().get_empty_message()
-        # The panel is read-only: without this, an empty list is a dead end.
         return format_html(
             '{} <code>{}</code>',
             _('No orbs in this project. Create one through the orbit API:'),

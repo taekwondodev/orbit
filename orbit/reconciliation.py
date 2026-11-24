@@ -1,10 +1,3 @@
-"""The reconciliation: the status of an orb re-read from Blazar, Heat and
-Nova and written back to the table.
-
-Run by every read of an orb and by the creation task while it follows a new
-orb (docs/design/state.md, Reconciliation).
-"""
-
 import dataclasses
 
 from oslo_log import log
@@ -20,14 +13,11 @@ Status = orb_model.Status
 
 @dataclasses.dataclass(frozen=True)
 class Observed:
-    """An orb as it looks now, with the address if it is reachable."""
-
     orb: orb_model.Orb
     ssh_host: str | None = None
 
 
 def reconcile(repository, orb, clients, now):
-    """Re-read lease, stack and machine at ``now``, and correct the table."""
     if orb.status is Status.DELETED:
         return Observed(orb)
     lease = clients.blazar.get_lease(orb.lease_id)
@@ -53,8 +43,6 @@ def reconcile(repository, orb, clients, now):
     if (observation.status, observation.fault) != (orb.status, orb.fault):
         changes.update(status=observation.status, fault=observation.fault)
     if orb.ssh_host_keys is None and observation.ssh_host_keys:
-        # Stored once: the console may lose them or show forged ones
-        # later (docs/adr/0007).
         changes.update(ssh_host_keys=observation.ssh_host_keys)
     if not changes:
         return Observed(orb, observation.ssh_host)
@@ -71,12 +59,8 @@ def reconcile(repository, orb, clients, now):
 
 
 def _read_host_keys(orb, nova, server):
-    """The host keys on the running machine's console, or None.
-
-    A console that cannot be read counts as keys not published yet: the
-    read of the orb does not fail for it, and past ready_timeout the orb
-    goes to ERROR.
-    """
+    # An unreadable console counts as keys not published yet: the read of the
+    # orb does not fail for it, and past ready_timeout the orb goes to ERROR.
     if server is None or server.status != 'ACTIVE':
         return None
     try:

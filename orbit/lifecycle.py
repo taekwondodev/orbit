@@ -1,6 +1,4 @@
-"""The status of an orb derived from what Blazar, Heat and Nova show.
-
-Translates the reconciliation table of docs/design/state.md: if reality and
+"""Translates the reconciliation table of docs/design/state.md: if reality and
 the orbs table diverge, reality is right.
 """
 
@@ -35,12 +33,8 @@ class Timeouts:
 
 
 def awaits_host_keys(orb, now, timeouts):
-    """Whether the machine's console may still be read for its host keys.
-
-    Only within ``ready_timeout`` of the creation request: a block printed
-    later may come from a process inside the orb, not from the boot
-    (docs/adr/0007).
-    """
+    # Past the ready timeout a block on the console may come from a process
+    # inside the orb, not from the boot (docs/adr/0007).
     return (
         orb.ssh_host_keys is None
         and orb.status not in (Status.DELETING, Status.DELETED)
@@ -49,14 +43,6 @@ def awaits_host_keys(orb, now, timeouts):
 
 
 def observe(orb, now, timeouts, lease, stack, server, ssh_host_keys):
-    """The status of ``orb`` given the observed lease, stack and machine.
-
-    ``lease``, ``stack`` and ``server`` are None when the resource does not
-    exist. The stack counts only if the orb has recorded one or is being
-    deleted; the machine only if the stack is complete. ``ssh_host_keys``
-    are the machine's host keys, stored or just read from its console, or
-    None if not published yet: without them the orb is not ACTIVE.
-    """
     observation = _observe(
         orb, now, timeouts, lease, stack, server, ssh_host_keys
     )

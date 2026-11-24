@@ -1,5 +1,3 @@
-"""Reads orbs from orbit with the token of the user logged into Horizon."""
-
 from urllib import parse
 
 from django.conf import settings
@@ -13,13 +11,11 @@ from orbit.dashboard.exceptions import (
     OrbNotFound,
 )
 
-# Seconds to wait for orbit-api. Every list, detail and live refresh holds a
-# Horizon worker while it waits; orbit-api bounds its own calls downstream.
-TIMEOUT = 30
+TIMEOUT_SECONDS = 30
 
 
 class Orb(base.APIDictWrapper):
-    """An orb as GET /v1/orbs/{id} returns it (docs/design/api.md)."""
+    pass
 
 
 def orb_list(request):
@@ -36,7 +32,7 @@ def orb_get(request, orb_id):
 
 def _get(request, path):
     url = base.url_for(request, 'orbit').rstrip('/') + path
-    session = ks_session.Session(verify=_verify(), timeout=TIMEOUT)
+    session = ks_session.Session(verify=_verify(), timeout=TIMEOUT_SECONDS)
     try:
         return session.get(
             url, headers={'X-Auth-Token': request.user.token.id}
@@ -50,7 +46,6 @@ def _get(request, path):
 
 
 def _message(error):
-    # orbit's errors carry {"error": {"message": ...}} (docs/design/api.md).
     try:
         return error.response.json()['error']['message']
     except (AttributeError, KeyError, TypeError, ValueError):
@@ -58,7 +53,6 @@ def _message(error):
 
 
 def _verify():
-    # The same TLS settings Horizon applies to its own API clients.
     if settings.OPENSTACK_SSL_NO_VERIFY:
         return False
     return settings.OPENSTACK_SSL_CACERT or True

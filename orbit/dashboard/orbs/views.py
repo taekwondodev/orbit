@@ -16,7 +16,6 @@ from orbit.dashboard.exceptions import (
 from orbit.dashboard.orbs import overview
 from orbit.dashboard.orbs import tables as orbs_tables
 
-# Rows needing attention first: failures, then orbs on their way up.
 ROW_ORDER = {
     'ERROR': 0,
     'RESERVING': 1,
@@ -25,7 +24,6 @@ ROW_ORDER = {
     'DELETING': 3,
 }
 
-# What each of the table's STEPS waits for, shown on the detail page.
 STEP_HELP = (
     _('Blazar reserves the capacity'),
     _('Heat builds the network and the machine'),
@@ -34,8 +32,6 @@ STEP_HELP = (
 
 
 class LiveViewMixin(generic.TemplateView):
-    """Use the same authenticated view for page loads and live snapshots."""
-
     fragment_template: str
 
     @property
@@ -78,8 +74,6 @@ class IndexView(LiveViewMixin, tables.DataTableView):
     table_class = orbs_tables.OrbsTable
     page_title = _('Orbs')
 
-    # Every orb of the list read, DELETED ones included; None when the
-    # read failed, so the summary does not report an empty project.
     orbs = None
 
     def get_data(self):
@@ -91,7 +85,6 @@ class IndexView(LiveViewMixin, tables.DataTableView):
             self.get_table().unavailable = True
             exceptions.handle(self.request, _('Unable to retrieve orbs.'))
             return []
-        # Deleted orbs hold no resources: they count only in the summary.
         rows = [orb for orb in self.orbs if orb.status != 'DELETED']
         rows.sort(key=lambda orb: orb.created_at, reverse=True)
         rows.sort(key=lambda orb: ROW_ORDER.get(orb.status, len(ROW_ORDER)))
@@ -124,7 +117,7 @@ class DetailView(LiveViewMixin, views.HorizonTemplateView):
                 % self.kwargs['orb_id'],
                 redirect=reverse('horizon:project:orbs:index'),
             )
-            # handle() answers with the redirect; it never returns here.
+            # Unreachable: with a redirect, handle() raises it.
             raise
 
     def get_context_data(self, **kwargs):

@@ -238,8 +238,6 @@ class TestCreator(unittest.TestCase):
 
 
 class TestFollow(unittest.TestCase):
-    """After creating the stack the task follows the orb, without reads."""
-
     def setUp(self):
         conf.CONF([], project='orbit', default_config_files=[])
         self.addCleanup(conf.CONF.reset)

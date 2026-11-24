@@ -1,6 +1,3 @@
-"""OpenSSH public keys: the client's, from the request, and the orb's host
-keys, from the machine's console."""
-
 import base64
 import binascii
 
@@ -18,15 +15,11 @@ KEY_TYPES = (
     'sk-ecdsa-sha2-nistp256@openssh.com',
 )
 
-# Printed at boot by cloud-init (keys_to_console) and by CirrOS
-# (cirros-status).
 _BEGIN = '-----BEGIN SSH HOST KEY KEYS-----'
 _END = '-----END SSH HOST KEY KEYS-----'
 
 
 def public_key(text):
-    """``text`` without surrounding blanks if it is a single OpenSSH public
-    key, otherwise None."""
     key = text.strip()
     parts = key.split()
     if (
@@ -45,14 +38,10 @@ def public_key(text):
 
 
 def host_keys(console):
-    """The host keys of the first block in the console, as ``type base64``.
-
-    None while the block is incomplete or holds no key. Only the first block
-    counts: it is printed at boot, when only the image's code runs, while a
-    process inside the orb can print a forged one later. The console is
-    written by the machine, so lines that are not keys are skipped and the
-    keys are bounded.
-    """
+    # Only the first block counts: it is printed at boot, when only the
+    # image's code runs, while a process inside the orb can print a forged
+    # one later. The console is written by the machine, so lines that are not
+    # keys are skipped and the keys are bounded.
     lines = iter(console.splitlines())
     for line in lines:
         if line.strip() == _BEGIN:

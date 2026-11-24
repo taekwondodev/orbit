@@ -1,11 +1,3 @@
-"""The destinations an orb may open connections to (docs/adr/0009).
-
-The template denies all outbound traffic; the operator lists single hosts
-with protocol and port, and an egress proxy for external destinations. This
-module turns those options into the orb's egress rules and the cloud-config
-user data that points its tools at the proxy.
-"""
-
 import dataclasses
 import ipaddress
 import json
@@ -31,7 +23,6 @@ class Destination:
 
 
 def parse_destination(value):
-    """Parse protocol:address:port, with a single IPv4 address."""
     try:
         protocol, address, port = value.split(':')
     except ValueError:
@@ -44,7 +35,6 @@ def parse_destination(value):
 
 
 def parse_proxy(value):
-    """Parse address:port, the TCP endpoint of an HTTP egress proxy."""
     try:
         address, port = value.split(':')
     except ValueError:
@@ -76,20 +66,17 @@ def _port(value, port):
 
 
 def rules(destinations, proxy):
-    """Egress rules of the orb's security group, beside the template's own."""
     listed = list(destinations) + ([proxy] if proxy else [])
     # Neutron refuses a rule identical to one the group already has.
     return [destination.rule() for destination in dict.fromkeys(listed)]
 
 
 def user_data(destinations, proxy):
-    """cloud-config user data that routes the orb's tools through the proxy.
-
-    cloud-init and tiny-cloud both write it before sshd starts. Clients run
-    commands over SSH without a login shell, and sshd may not use PAM, so
-    sshd itself sets the environment of every session; sudo keeps it. Listed
-    destinations bypass the proxy, which refuses private addresses.
-    """
+    # Clients run commands over SSH without a login shell, and sshd may not
+    # use PAM, so sshd itself sets the environment of every session; sudo
+    # keeps it. cloud-init and tiny-cloud both write the files before sshd
+    # starts. Listed destinations bypass the proxy, which refuses private
+    # addresses.
     if proxy is None:
         return ''
     url = f'http://{proxy.address}:{proxy.port}'

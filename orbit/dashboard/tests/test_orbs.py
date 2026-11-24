@@ -133,7 +133,6 @@ class IndexTests(OrbsTestCase):
         active = str(rows['orb-active'].cells['status'].data)
         self.assertNotIn('orbit-pulse', active)
         self.assertEqual(3, active.count('orbit-step-done'))
-        # orbit does not say which step failed.
         self.assertNotIn(
             'orbit-steps', str(rows['orb-error'].cells['status'].data)
         )
@@ -168,7 +167,6 @@ class IndexTests(OrbsTestCase):
         self.assertEqual(2, summary.days[-1].count)
         self.assertContains(res, 'class="orbit-overview"')
         self.assertContains(res, 'Resources held')
-        # The bars are drawn for the eye; the counts are read as a list.
         self.assertContains(
             res, f'<li>{today:%Y-%m-%d}: 2 orbs created</li>', html=True
         )
@@ -234,7 +232,6 @@ class IndexTests(OrbsTestCase):
         self.assertEqual(200, res.status_code)
         self.assertEqual([], res.context['table'].data)
         self.assertNotContains(res, 'POST /v1/orbs')
-        # No summary: zero orbs would be false.
         self.assertNotIn('overview', res.context)
         self.assertNotContains(res, 'orbit-overview')
         self.assertMessageCount(res, error=1)
@@ -395,7 +392,6 @@ class DetailTests(OrbsTestCase):
 
         self.assertContains(res, '172.24.4.17')
         self.assertContains(res, 'ubuntu')
-        # Without the client's private key the bare command fails.
         self.assertNotContains(res, 'ssh ubuntu@')
         self.assertContains(res, 'private key')
         self.assertEqual(

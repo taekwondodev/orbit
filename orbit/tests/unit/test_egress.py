@@ -75,7 +75,6 @@ class TestRules(unittest.TestCase):
         )
 
     def test_a_destination_listed_twice_opens_one_rule(self):
-        # Neutron refuses a rule identical to one the group already has.
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)
 
         self.assertEqual(1, len(egress.rules([proxy, proxy], proxy)))
@@ -95,13 +94,9 @@ class TestUserData(unittest.TestCase):
 
         self.assertTrue(text.startswith('#cloud-config\n'))
         files = {f['path']: f for f in yaml.safe_load(text)['write_files']}
-        # Readable by sshd, sudo and apt whatever the initializer's defaults.
         self.assertEqual({'root:root'}, {f['owner'] for f in files.values()})
         url = 'http://172.24.4.1:4750'
-        # The proxy refuses private addresses, so listed ones bypass it.
         bypass = 'localhost,127.0.0.1,::1,10.0.0.5'
-        # Clients run commands without a login shell, and sshd may not use
-        # PAM: sshd sets the environment itself.
         self.assertEqual(
             f'SetEnv http_proxy={url} https_proxy={url} no_proxy={bypass} '
             f'HTTP_PROXY={url} HTTPS_PROXY={url} NO_PROXY={bypass}\n',

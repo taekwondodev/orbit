@@ -1,5 +1,3 @@
-"""The orb as the service stores it. See docs/design/state.md."""
-
 import dataclasses
 import datetime
 import enum
@@ -34,17 +32,16 @@ class Orb:
     stack_id: str | None = None
     fault: str | None = None
     ssh_allowed_cidr: str | None = None
-    # Read once from the console at boot: see docs/adr/0007.
     ssh_host_keys: tuple[str, ...] | None = None
     updated_at: datetime.datetime | None = None
     deleted_at: datetime.datetime | None = None
 
     @property
     def resource_name(self):
-        """Name of lease and stack: finds the resources even without the table."""
+        # Deterministic, so the resources are found even without the table.
         return f'orbit-{self.id}'
 
 
 def utcnow():
-    """UTC time without time zone, as the database stores it."""
+    # The database stores naive datetimes.
     return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)

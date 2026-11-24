@@ -1,5 +1,3 @@
-"""The WSGI application of orbit-api: Flask behind keystonemiddleware."""
-
 import flask
 from keystonemiddleware import auth_token
 from oslo_db.sqlalchemy import enginefacade
@@ -11,7 +9,6 @@ from orbit.db import api as db_api
 
 
 def create_app(orbs):
-    """The application without authentication, for the tests."""
     app = flask.Flask('orbit')
     app.config['ORBS'] = orbs
     app.register_blueprint(v1.blueprint, url_prefix='/v1')
@@ -19,7 +16,6 @@ def create_app(orbs):
 
 
 def create_wsgi_app():
-    """The served application: every request goes through Keystone."""
     conf.check_api_options()
     engine = enginefacade.writer.get_engine()
     # The only schema. create_all creates the table where missing and never

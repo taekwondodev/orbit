@@ -176,7 +176,6 @@ class TestCreate(ApiTestCase):
         self.assertEqual(1, len(self.blazar.created))
 
     def test_an_image_in_the_request_is_ignored(self):
-        # Clients written before docs/adr/0010 still send one.
         self.assertEqual(202, self.create(image='cirros').status_code)
 
     def test_non_json_body_is_400(self):

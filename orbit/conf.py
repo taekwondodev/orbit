@@ -1,5 +1,3 @@
-"""orbit's configuration options, read from /etc/orbit/orbit.conf."""
-
 import ipaddress
 
 from oslo_config import cfg
@@ -140,11 +138,10 @@ def parse_args(argv, default_config_files=None):
 
 
 class InvalidOption(ValueError):
-    """An option orbit-api cannot run with."""
+    pass
 
 
 def check_api_options():
-    """Refuse to serve with the options orbit-api cannot run with."""
     try:
         # oslo.config checks the value's range only when it is read.
         _ = CONF.orbs.ssh_min_prefix

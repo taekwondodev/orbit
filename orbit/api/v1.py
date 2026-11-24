@@ -1,5 +1,3 @@
-"""The HTTP resources of /v1. The contract is in docs/design/api.md."""
-
 import ipaddress
 
 import flask
@@ -136,10 +134,6 @@ def _public_key(key):
 
 
 def _ssh_allowed_cidr(cidr):
-    """The network the orb admits SSH from, normalized.
-
-    Only the harness knows where it will connect from (docs/adr/0008).
-    """
     if not isinstance(cidr, str) or not cidr:
         raise http_exc.BadRequest(
             'ssh_allowed_cidr is required: the network the orb admits SSH '

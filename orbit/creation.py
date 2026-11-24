@@ -1,11 +1,8 @@
-"""The creation task: waits for the active reservation, creates the stack and
-follows the orb until it is ACTIVE.
-
-Runs in a thread of the process that received the request, with that
-request's token, and does not survive a restart: an orb left without a stack
-beyond creation_timeout counts as interrupted on the next read, and one left
-without host keys reaches ACTIVE only if a read finds them within
-ready_timeout (docs/design/state.md, Reconciliation).
+"""The creation task runs in a thread of the process that received the
+request, with that request's token, and does not survive a restart: an orb
+left without a stack beyond creation_timeout counts as interrupted on the
+next read, and one left without host keys reaches ACTIVE only if a read finds
+them within ready_timeout (docs/design/state.md, Reconciliation).
 """
 
 import datetime
@@ -99,12 +96,8 @@ class Creator:
         self._follow(orb, clients)
 
     def _follow(self, orb, clients):
-        """Reconcile the orb as a read would until it leaves BUILDING, so it
-        becomes ACTIVE even if nobody reads it during the boot.
-
-        The last reconciliation happens at ready_timeout, where a machine
-        without host keys goes to ERROR as on a read.
-        """
+        # Without it, an orb nobody reads during the boot never becomes
+        # ACTIVE.
         deadline = orb.created_at + datetime.timedelta(
             seconds=CONF.orbs.ready_timeout
         )

@@ -1,5 +1,3 @@
-"""The operations on orbs, independent of HTTP."""
-
 import dataclasses
 import uuid
 
@@ -12,8 +10,6 @@ Status = orb_model.Status
 
 @dataclasses.dataclass(frozen=True)
 class Context:
-    """Who makes the request, and their authentication to act for them."""
-
     project_id: str
     user_id: str
     auth: object
@@ -33,11 +29,6 @@ class Orbs:
         self._creator = creator
 
     def create(self, context, request):
-        """Reserve the capacity, record the orb in RESERVING and start the
-        creation, which goes on after the response.
-
-        If Blazar rejects the reservation nothing is left: no lease, no row.
-        """
         clients = self._clients_for(context.auth)
         orb_id = str(uuid.uuid4())
         lease = clients.blazar.create_lease(
@@ -63,7 +54,6 @@ class Orbs:
         return reconciliation.Observed(orb)
 
     def get(self, context, orb_id):
-        """The orb as it looks now, or None if not in the project."""
         orb = self._repository.get(context.project_id, orb_id)
         if orb is None:
             return None
@@ -80,10 +70,6 @@ class Orbs:
         return [o for o in observed if o.orb.status is status]
 
     def delete(self, context, orb_id):
-        """Delete stack and lease. Repeatable: retries what is left.
-
-        Returns None if the orb does not exist in the project.
-        """
         orb = self._repository.get(context.project_id, orb_id)
         if orb is None:
             return None

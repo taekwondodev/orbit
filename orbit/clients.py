@@ -1,9 +1,3 @@
-"""Calls to Blazar, Heat and Nova with the token of whoever made the request.
-
-Each client translates the responses into the few facts the service needs and
-into this module's exceptions; the rest of the code does not see HTTP.
-"""
-
 import dataclasses
 
 from keystoneauth1 import adapter
@@ -17,9 +11,7 @@ LOG = log.getLogger(__name__)
 
 
 class Unavailable(Exception):
-    """The called service does not respond or responds with its own error.
-
-    The message is generic: the original response, which may contain
+    """The message is generic: the original response, which may contain
     internal addresses or tracebacks, stays in ``detail`` and in the logs.
     """
 
@@ -29,12 +21,10 @@ class Unavailable(Exception):
 
 
 class CapacityExhausted(Exception):
-    """Blazar has no host with room for the requested size."""
+    pass
 
 
 class Rejected(Exception):
-    """The called service rejected the request, with its reason."""
-
     def __init__(self, message, code):
         super().__init__(message)
         self.code = code
@@ -48,7 +38,6 @@ class Clients:
 
 
 def for_auth(auth):
-    """The clients that act on behalf of whoever holds ``auth``."""
     session = ks_session.Session(auth=auth, timeout=CONF.orbs.api_timeout)
     return Clients(
         blazar=Blazar(session), heat=Heat(session), nova=Nova(session)
@@ -64,12 +53,6 @@ class _Client:
         )
 
     def _call(self, method, url, missing_ok=False, **kwargs):
-        """The response, with errors translated into the module's exceptions.
-
-        With ``missing_ok`` a 404 passes through untouched, for callers that
-        read or delete a resource that may no longer exist; otherwise it is a
-        rejection.
-        """
         try:
             return self._api.request(url, method, **kwargs)
         except ks_exc.NotFound as e:
@@ -111,7 +94,7 @@ def _error_text(error):
 
 
 def _message(error):
-    """The reason for a rejection, in the Heat, Blazar and Nova formats."""
+    # The formats of Heat, Blazar and Nova, in this order.
     try:
         body = error.response.json()
     except (AttributeError, ValueError):
@@ -178,12 +161,10 @@ class Blazar(_Client):
         return _lease(response.json()['lease'])
 
     def get_lease(self, lease_id):
-        """The lease, or None if it no longer exists."""
         body = self._get_or_none(f'/leases/{lease_id}')
         return _lease(body['lease']) if body else None
 
     def delete_lease(self, lease_id):
-        """Delete the lease; a lease already gone is not an error."""
         self._delete_if_present(f'/leases/{lease_id}')
 
 
@@ -209,11 +190,6 @@ class Heat(_Client):
     service_type = 'orchestration'
 
     def create_stack(self, name, template, parameters, tag):
-        """Create the stack and return its identifier.
-
-        Heat builds asynchronously: the response arrives as soon as the stack
-        is accepted, and its status is discovered by reading it.
-        """
         body = {
             'stack_name': name,
             'template': template,
@@ -226,11 +202,8 @@ class Heat(_Client):
         return self._call('POST', '/stacks', json=body).json()['stack']['id']
 
     def get_stack(self, name):
-        """The stack with the given name, or None if missing or deleted.
-
-        Heat answers /stacks/{name} with a redirect to /stacks/{name}/{id},
-        which keystoneauth follows.
-        """
+        # Heat answers /stacks/{name} with a redirect to /stacks/{name}/{id},
+        # which keystoneauth follows.
         body = self._get_or_none(f'/stacks/{name}')
         if body is None or body['stack']['stack_status'] == 'DELETE_COMPLETE':
             return None
@@ -247,11 +220,8 @@ class Heat(_Client):
         )
 
     def delete_stack(self, name):
-        """Delete the stack; a stack already gone is not an error.
-
-        The /stacks/{name} redirect applies only to reads: the deletion must
-        target the full address, with the identifier.
-        """
+        # The /stacks/{name} redirect applies only to reads: the deletion must
+        # target the full address, with the identifier.
         stack = self.get_stack(name)
         if stack is not None:
             self._delete_if_present(f'/stacks/{name}/{stack.id}')
@@ -267,22 +237,16 @@ class Nova(_Client):
     service_type = 'compute'
 
     def get_server(self, server_id):
-        """The machine, or None if it no longer exists.
-
-        Heat does not notice a machine deleted or stopped from outside: the
-        stack stays CREATE_COMPLETE, so the machine must be read here.
-        """
+        # Heat does not notice a machine deleted or stopped from outside: the
+        # stack stays CREATE_COMPLETE, so the machine must be read here.
         body = self._get_or_none(f'/servers/{server_id}')
         if body is None:
             return None
         return Server(id=body['server']['id'], status=body['server']['status'])
 
     def get_console_output(self, server_id):
-        """The text of the machine's console.
-
-        Nova keeps only its last part (100 KiB with libvirt): what the
-        machine printed at boot scrolls out on a chatty orb.
-        """
+        # Nova keeps only the last part (100 KiB with libvirt): what the
+        # machine printed at boot scrolls out on a chatty orb.
         response = self._call(
             'POST',
             f'/servers/{server_id}/action',

@@ -1,10 +1,3 @@
-"""The summary above the Orbs table, computed from one list read.
-
-Only what `GET /v1/orbs` returns: statuses, sizes and creation times,
-deleted history included. orbit does not report what a client does inside
-an orb, so neither does the summary.
-"""
-
 import dataclasses
 import datetime
 
@@ -13,8 +6,7 @@ from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 from horizon.utils import filters
 
-# Statuses that hold capacity: every orb until it is DELETED.
-HOLDING = ('RESERVING', 'BUILDING', 'ACTIVE', 'ERROR', 'DELETING')
+HOLDING_CAPACITY = ('RESERVING', 'BUILDING', 'ACTIVE', 'ERROR', 'DELETING')
 
 GROUPS = (
     ('active', _('Active'), ('ACTIVE',)),
@@ -37,7 +29,6 @@ class Group:
 class Day:
     date: datetime.date
     count: int
-    # Bar height relative to the busiest day of the window.
     percent: int
 
 
@@ -59,8 +50,7 @@ def group_of(status):
 
 
 def summarize(orbs, today):
-    """Summarize every orb of the list, DELETED ones included."""
-    holding = [orb for orb in orbs if orb.status in HOLDING]
+    holding = [orb for orb in orbs if orb.status in HOLDING_CAPACITY]
     groups = tuple(
         Group(key, label, sum(orb.status in statuses for orb in holding))
         for key, label, statuses in GROUPS
@@ -90,5 +80,4 @@ def summarize(orbs, today):
 
 
 def _local_date(created_at):
-    # orbit writes UTC; the bars follow the day of the user's time zone.
     return timezone.localtime(filters.parse_isotime(created_at)).date()
