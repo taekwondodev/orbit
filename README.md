@@ -114,6 +114,7 @@ What each plugin does and what the installation requires: [docs/architecture.md]
 ```console
 $ tox -e py3          # unit tests, no OpenStack needed
 $ tox -e dashboard    # Horizon panel tests
+$ tox -e pep8         # ruff lint and format check
 ```
 
 ---
