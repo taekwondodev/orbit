@@ -78,10 +78,9 @@ Use an aarch64 host: every orb boots the same aarch64 image, which `stack.sh` do
    $ cd devstack
    ```
 
-2. Write `local.conf`, enabling orbit after the Heat and Blazar plugins it depends on:
+2. Add these lines to your `local.conf`:
 
-   ```console
-   $ cat > local.conf <<'EOF'
+   ```ini
    [[local|localrc]]
    ADMIN_PASSWORD=secret
    DATABASE_PASSWORD=$ADMIN_PASSWORD
@@ -89,11 +88,9 @@ Use an aarch64 host: every orb boots the same aarch64 image, which `stack.sh` do
    SERVICE_PASSWORD=$ADMIN_PASSWORD
    enable_plugin heat   https://opendev.org/openstack/heat
    enable_plugin blazar https://opendev.org/openstack/blazar
-   # Without a branch, DevStack fetches master, which orbit does not have.
    enable_plugin orbit  https://github.com/taekwondodev/orbit main
    # Optional: the egress proxy that admits external hostnames.
    ORBIT_EGRESS_PROXY=True
-   EOF
    ```
 
 3. Install:
@@ -115,16 +112,6 @@ Use an aarch64 host: every orb boots the same aarch64 image, which `stack.sh` do
    ```
 
 6. Give the agent the [orbit skill](skills/orbit/SKILL.md) and the credentials of a project.
-
-7. Watch the agent's orbs in Horizon. DevStack gives `demo` no default project, so Horizon may open `invisible_to_admin`, where the list is empty; pick `demo` in the project menu at the top:
-
-   ```text
-   URL:      http://<host>/dashboard
-   User:     demo
-   Password: the ADMIN_PASSWORD in local.conf
-   Project:  demo
-   Panel:    Project → Orbit → Orbs
-   ```
 
 What each plugin does and what the installation requires: [docs/architecture.md](docs/architecture.md#installation).
 
