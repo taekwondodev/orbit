@@ -30,15 +30,10 @@ def status_label(status):
 def step_states(status):
     if status not in STEPS:
         return None
+    if status == 'ACTIVE':
+        return ['done'] * len(STEPS)
     reached = STEPS.index(status)
-    return [
-        'done'
-        if index < reached or status == 'ACTIVE'
-        else 'now'
-        if index == reached
-        else 'todo'
-        for index in range(len(STEPS))
-    ]
+    return ['done'] * reached + ['now'] + ['todo'] * (len(STEPS) - reached - 1)
 
 
 def status_badge(status):
