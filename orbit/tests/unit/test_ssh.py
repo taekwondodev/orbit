@@ -14,20 +14,8 @@ def console(*lines):
 
 
 class TestHostKeys(unittest.TestCase):
-    def test_cloud_init_block_gives_its_keys_without_comments(self):
+    def test_boot_block_gives_its_keys_without_comments(self):
         self.assertEqual((ECDSA, ED25519), ssh.host_keys(fakes.CONSOLE))
-
-    def test_cirros_block_gives_its_keys(self):
-        cirros = console(
-            '=== sshd host keys ===',
-            BEGIN,
-            f'{ECDSA} root@cirros',
-            f'{ED25519} root@cirros',
-            END,
-            '=== network info ===',
-        )
-
-        self.assertEqual((ECDSA, ED25519), ssh.host_keys(cirros))
 
     def test_line_interleaved_by_the_kernel_is_skipped(self):
         interleaved = console(

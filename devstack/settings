@@ -18,7 +18,7 @@ ORBIT_SERVICE_TYPE=${ORBIT_SERVICE_TYPE:-orbit}
 
 ORBIT_EGRESS_PROXY=$(trueorfalse False ORBIT_EGRESS_PROXY)
 ORBIT_EGRESS_PROXY_PORT=${ORBIT_EGRESS_PROXY_PORT:-4750}
-ORBIT_EGRESS_PROXY_DOMAINS=${ORBIT_EGRESS_PROXY_DOMAINS:-github.com,codeload.github.com,objects.githubusercontent.com,registry.npmjs.org,pypi.org,files.pythonhosted.org,ports.ubuntu.com}
+ORBIT_EGRESS_PROXY_DOMAINS=${ORBIT_EGRESS_PROXY_DOMAINS:-github.com,codeload.github.com,objects.githubusercontent.com,registry.npmjs.org,pypi.org,files.pythonhosted.org}
 if [[ "$ORBIT_EGRESS_PROXY" == "True" ]]; then
     enable_service orbit-egress-proxy
 fi

@@ -86,7 +86,7 @@ class TestUserData(unittest.TestCase):
 
         self.assertEqual('', egress.user_data([mirror], None))
 
-    def test_proxy_configures_sshd_sudo_and_apt(self):
+    def test_proxy_configures_sshd_and_sudo(self):
         mirror = egress.Destination('tcp', '10.0.0.5', 443)
         proxy = egress.Destination('tcp', '172.24.4.1', 4750)
 
@@ -108,13 +108,6 @@ class TestUserData(unittest.TestCase):
             'Defaults env_keep += "http_proxy https_proxy no_proxy '
             'HTTP_PROXY HTTPS_PROXY NO_PROXY"\n',
             sudo['content'],
-        )
-        self.assertEqual(
-            f'Acquire::http::Proxy "{url}";\n'
-            f'Acquire::https::Proxy "{url}";\n'
-            'Acquire::http::Proxy::10.0.0.5 "DIRECT";\n'
-            'Acquire::https::Proxy::10.0.0.5 "DIRECT";\n',
-            files['/etc/apt/apt.conf.d/90orbit-proxy']['content'],
         )
 
     def test_proxy_alone_is_bypassed_only_for_the_machine_itself(self):

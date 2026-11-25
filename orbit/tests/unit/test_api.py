@@ -176,7 +176,7 @@ class TestCreate(ApiTestCase):
         self.assertEqual(1, len(self.blazar.created))
 
     def test_an_image_in_the_request_is_ignored(self):
-        self.assertEqual(202, self.create(image='cirros').status_code)
+        self.assertEqual(202, self.create(image='another-image').status_code)
 
     def test_non_json_body_is_400(self):
         response = self.request('POST', '/v1/orbs', data='size=2')

@@ -182,7 +182,7 @@ cp "$R/lib/apk/db/installed" "$EVID/apk-installed"
 log "sanitize"
 rm -f "$R"/etc/ssh/ssh_host_* "$R/etc/machine-id" "$R/var/lib/dbus/machine-id"
 rm -rf "$R/root/.ssh" "$R/home/ubuntu/.ssh" "$R/root/.ash_history" "$R/root/.bash_history" "$R/home/ubuntu/.bash_history"
-rm -rf "$R/var/lib/cloud" "$R/var/log/cloud-init"* "$R/run/tiny-cloud" "$R/var/log/tiny-cloud"* "$R/etc/cloud/ssh_host" 2>/dev/null || true
+rm -rf "$R/var/lib/cloud" "$R/run/tiny-cloud" "$R/var/log/tiny-cloud"* "$R/etc/cloud/ssh_host" 2>/dev/null || true
 find "$R/var/cache/apk" -mindepth 1 -delete 2>/dev/null || true
 find "$R/tmp" -mindepth 1 -delete 2>/dev/null || true
 find "$R/var/log" -type f -exec truncate -s 0 {} + 2>/dev/null || true

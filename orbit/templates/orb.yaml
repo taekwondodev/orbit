@@ -64,7 +64,7 @@ parameters:
   user_data:
     type: string
     description: >
-      cloud-init user data that points the orb's tools at the egress proxy;
+      tiny-cloud user data that points the orb's tools at the egress proxy;
       empty without one.
     default: ''
 
@@ -168,7 +168,7 @@ resources:
       flavor: { get_param: reservation_id }
       key_name: { get_resource: keypair }
       # With outbound traffic denied, the machine cannot reach the metadata
-      # service: cloud-init reads the key and the user data from the config
+      # service: tiny-cloud reads the key and the user data from the config
       # drive.
       config_drive: true
       user_data_format: RAW

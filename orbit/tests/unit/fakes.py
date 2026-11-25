@@ -138,12 +138,12 @@ HOST_KEY_ECDSA = (
 )
 
 CONSOLE = (
-    '[   10.112233] cloud-init[812]: Cloud-init v. 24.1 finished\r\n'
+    ' * Starting dev-host-key-console ...\r\n'
     '-----BEGIN SSH HOST KEY KEYS-----\r\n'
     f'{HOST_KEY_ECDSA} root@orb\r\n'
     f'{HOST_KEY_ED25519} root@orb\r\n'
     '-----END SSH HOST KEY KEYS-----\r\n'
-    'Ubuntu 24.04 LTS orb ttyS0\r\n'
+    'Welcome to Alpine Linux 3.24\r\n'
 )
 
 

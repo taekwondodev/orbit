@@ -74,8 +74,7 @@ def rules(destinations, proxy):
 def user_data(destinations, proxy):
     # Clients run commands over SSH without a login shell, and sshd may not
     # use PAM, so sshd itself sets the environment of every session; sudo
-    # keeps it. cloud-init and tiny-cloud both write the files before sshd
-    # starts. Listed destinations bypass the proxy, which refuses private
+    # keeps it. tiny-cloud writes the files before sshd starts. Listed destinations bypass the proxy, which refuses private
     # addresses.
     if proxy is None:
         return ''
@@ -91,46 +90,42 @@ def user_data(destinations, proxy):
         ('HTTPS_PROXY', url),
         ('NO_PROXY', bypass),
     )
-    sshd = (
-        'SetEnv '
-        + ' '.join(f'{name}={value}' for name, value in environment)
-        + '\n'
-    )
-    sudo = (
-        'Defaults env_keep += "'
-        + ' '.join(name for name, _ in environment)
-        + '"\n'
-    )
-    apt = (
-        f'Acquire::http::Proxy "{url}";\n'
-        f'Acquire::https::Proxy "{url}";\n'
-        + ''.join(
-            f'Acquire::http::Proxy::{d.address} "DIRECT";\n'
-            f'Acquire::https::Proxy::{d.address} "DIRECT";\n'
-            for d in destinations
-        )
-    )
     config = {
         'write_files': [
-            {
-                'path': '/etc/ssh/sshd_config.d/90-orbit-proxy.conf',
-                'owner': 'root:root',
-                'permissions': '0644',
-                'content': sshd,
-            },
-            {
-                'path': '/etc/sudoers.d/90-orbit-proxy',
-                'owner': 'root:root',
-                'permissions': '0440',
-                'content': sudo,
-            },
-            {
-                'path': '/etc/apt/apt.conf.d/90orbit-proxy',
-                'owner': 'root:root',
-                'permissions': '0644',
-                'content': apt,
-            },
+            _root_file(
+                '/etc/ssh/sshd_config.d/90-orbit-proxy.conf',
+                '0644',
+                _sshd_config(environment),
+            ),
+            _root_file(
+                '/etc/sudoers.d/90-orbit-proxy', '0440', _sudoers(environment)
+            ),
         ]
     }
     # cloud-config is YAML, of which JSON is a subset.
     return '#cloud-config\n' + json.dumps(config, indent=2) + '\n'
+
+
+def _root_file(path, permissions, content):
+    return {
+        'path': path,
+        'owner': 'root:root',
+        'permissions': permissions,
+        'content': content,
+    }
+
+
+def _sshd_config(environment):
+    return (
+        'SetEnv '
+        + ' '.join(f'{name}={value}' for name, value in environment)
+        + '\n'
+    )
+
+
+def _sudoers(environment):
+    return (
+        'Defaults env_keep += "'
+        + ' '.join(name for name, _ in environment)
+        + '"\n'
+    )

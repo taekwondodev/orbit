@@ -121,7 +121,7 @@ orbs_opts = [
         'destinations through, as address:port with a single '
         'IPv4 address. Each orb may connect to it over TCP and '
         'gets it in the environment of its SSH sessions, kept '
-        'by sudo, and in its apt configuration. '
+        'by sudo. '
         'The proxy decides which hostnames are reachable; '
         'without a value, orbs reach no external destination.',
     ),
