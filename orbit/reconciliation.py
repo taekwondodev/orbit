@@ -20,18 +20,10 @@ class Observed:
 def reconcile(repository, orb, clients, now):
     if orb.status is Status.DELETED:
         return Observed(orb)
-    lease = clients.blazar.get_lease(orb.lease_id)
-    stack = None
-    if orb.stack_id is not None or orb.status is Status.DELETING:
-        stack = clients.heat.get_stack(orb.resource_name)
-    server = None
-    if stack is not None and stack.status == 'CREATE_COMPLETE':
-        server_id = stack.outputs.get('server_id')
-        server = clients.nova.get_server(server_id) if server_id else None
-
     timeouts = lifecycle.Timeouts(
         creation=CONF.orbs.creation_timeout, ready=CONF.orbs.ready_timeout
     )
+    lease, stack, server = _read_resources(orb, clients)
     ssh_host_keys = orb.ssh_host_keys
     if lifecycle.awaits_host_keys(orb, now, timeouts):
         ssh_host_keys = _read_host_keys(orb, clients.nova, server)
@@ -39,11 +31,7 @@ def reconcile(repository, orb, clients, now):
     observation = lifecycle.observe(
         orb, now, timeouts, lease, stack, server, ssh_host_keys
     )
-    changes = {}
-    if (observation.status, observation.fault) != (orb.status, orb.fault):
-        changes.update(status=observation.status, fault=observation.fault)
-    if orb.ssh_host_keys is None and observation.ssh_host_keys:
-        changes.update(ssh_host_keys=observation.ssh_host_keys)
+    changes = _changes(orb, observation)
     if not changes:
         return Observed(orb, observation.ssh_host)
     if not repository.update(orb.id, orb.status, **changes):
@@ -56,6 +44,27 @@ def reconcile(repository, orb, clients, now):
     return Observed(
         repository.get(orb.project_id, orb.id), observation.ssh_host
     )
+
+
+def _read_resources(orb, clients):
+    lease = clients.blazar.get_lease(orb.lease_id)
+    stack = None
+    if orb.stack_id is not None or orb.status is Status.DELETING:
+        stack = clients.heat.get_stack(orb.resource_name)
+    server = None
+    if stack is not None and stack.status == 'CREATE_COMPLETE':
+        server_id = stack.outputs.get('server_id')
+        server = clients.nova.get_server(server_id) if server_id else None
+    return lease, stack, server
+
+
+def _changes(orb, observation):
+    changes = {}
+    if (observation.status, observation.fault) != (orb.status, orb.fault):
+        changes.update(status=observation.status, fault=observation.fault)
+    if orb.ssh_host_keys is None and observation.ssh_host_keys:
+        changes.update(ssh_host_keys=observation.ssh_host_keys)
+    return changes
 
 
 def _read_host_keys(orb, nova, server):
