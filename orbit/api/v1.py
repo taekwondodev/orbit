@@ -69,14 +69,14 @@ def delete_orb(orb_id):
 
 
 @blueprint.errorhandler(clients.CapacityExhausted)
-def _capacity_exhausted(error):
+def capacity_exhausted(_):
     return _error(
         409, 'Capacity exhausted: no host has room for the requested size.'
     )
 
 
 @blueprint.errorhandler(clients.Rejected)
-def _rejected(error):
+def rejected(error):
     # A downstream 401 or 403 concerns the requester's token or roles; any
     # other rejection is a response the service cannot handle.
     code = error.code if error.code in (401, 403) else 502
@@ -84,14 +84,14 @@ def _rejected(error):
 
 
 @blueprint.errorhandler(clients.Unavailable)
-def _unavailable(error):
+def unavailable(error):
     return _error(503, f'{str(error).capitalize()}.')
 
 
 # Registered on the app: routing errors such as an unknown path or a 405 are
 # raised before any blueprint is selected.
 @blueprint.app_errorhandler(http_exc.HTTPException)
-def _http_error(error):
+def http_error(error):
     body, _ = _error(error.code, error.description)
     # The exception's own response keeps headers such as Allow on a 405.
     response = error.get_response()
