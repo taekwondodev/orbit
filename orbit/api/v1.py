@@ -35,6 +35,10 @@ def _context():
 @blueprint.post('/orbs')
 def create_orb():
     context = _context()
+    if not flask.request.is_json:
+        raise http_exc.UnsupportedMediaType(
+            'The body must be declared as application/json'
+        )
     request = _create_request(flask.request.get_json(silent=True))
     observed = _orbs().create(context, request)
     return _view(observed), 202

@@ -178,10 +178,24 @@ class TestCreate(ApiTestCase):
     def test_an_image_in_the_request_is_ignored(self):
         self.assertEqual(202, self.create(image='another-image').status_code)
 
-    def test_non_json_body_is_400(self):
+    def test_body_not_declared_as_json_is_415(self):
         response = self.request('POST', '/v1/orbs', data='size=2')
 
-        self.assertEqual(400, response.status_code)
+        self.assertEqual(415, response.status_code)
+        self.assertEqual(415, response.get_json()['error']['code'])
+        self.assertEqual([], self.blazar.created)
+
+    def test_json_body_that_is_not_an_object_is_400(self):
+        for data in ('size=2', '[]'):
+            with self.subTest(data=data):
+                response = self.request(
+                    'POST',
+                    '/v1/orbs',
+                    data=data,
+                    content_type='application/json',
+                )
+
+                self.assertEqual(400, response.status_code)
 
 
 class TestRead(ApiTestCase):

@@ -13,7 +13,7 @@ Implemented in [orbit/api/v1.py](../../orbit/api/v1.py). Every request needs a K
 
 ### Creation
 
-The body must be a JSON object; other body shapes return `400`.
+The body must be a JSON object sent as `application/json`: another content type returns `415`, any other JSON shape `400`.
 
 ```json
 {
@@ -92,6 +92,7 @@ Errors use `{"error": {"code": <HTTP status>, "message": <description>}}`.
 | `403` | token without project scope, because an orb always belongs to a project; token without a user, because an orb records who created it; or insufficient roles for Blazar, Heat or Nova |
 | `404` | orb that does not exist or belongs to another project (indistinguishable on purpose) |
 | `409` | exhausted capacity: Blazar rejected the reservation. Blazar does not use a dedicated code: it responds `500` with the message `Not enough hosts available` ([`NotEnoughHostsAvailable`](https://opendev.org/openstack/blazar/src/branch/master/blazar/manager/exceptions.py) declares no code, and [the API layer](https://opendev.org/openstack/blazar/src/branch/master/blazar/api/v1/utils.py) forwards it as is), and the service recognizes it from the message. |
+| `415` | creation body not declared as `application/json` |
 | `502` | Blazar, Heat or Nova rejected the request for a reason the service cannot translate; the message carries theirs |
 | `503` | Blazar, Heat or Nova unreachable or failing; the details stay in the service logs, because they may contain internal addresses |
 
