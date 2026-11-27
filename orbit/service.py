@@ -1,10 +1,13 @@
 import dataclasses
 import uuid
 
+from oslo_log import log
+
 from orbit import orb as orb_model
 from orbit import reconciliation
 from orbit.conf import CONF
 
+LOG = log.getLogger(__name__)
 Status = orb_model.Status
 
 
@@ -48,7 +51,15 @@ class Orbs:
         try:
             self._repository.add(orb)
         except Exception:
-            clients.blazar.delete_lease(lease.id)
+            try:
+                clients.blazar.delete_lease(lease.id)
+            except Exception:
+                LOG.exception(
+                    'Lease %s (%s) of an unrecorded orb left on Blazar: '
+                    'delete it by hand',
+                    lease.id,
+                    orb.resource_name,
+                )
             raise
         self._creator.start(orb, clients, request.public_key)
         return reconciliation.Observed(orb)

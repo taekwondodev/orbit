@@ -37,6 +37,23 @@ class TestCreate(unittest.TestCase):
         self.assertEqual({}, self.blazar.leases)
         self.assertEqual([], self.creator.started)
 
+    def test_failed_lease_cleanup_keeps_the_original_error(self):
+        self.repository.add.side_effect = RuntimeError('database down')
+
+        def unreachable(lease_id):
+            raise clients.Unavailable('reservation', 'connection refused')
+
+        self.blazar.delete_lease = unreachable
+
+        with (
+            self.assertLogs('orbit.service', 'ERROR') as logs,
+            self.assertRaisesRegex(RuntimeError, 'database down'),
+        ):
+            self.orbs.create(CONTEXT, REQUEST)
+
+        self.assertIn('lease-1', logs.output[0])
+        self.assertEqual(['lease-1'], list(self.blazar.leases))
+
 
 class ServiceTestCase(unittest.TestCase):
     def setUp(self):
